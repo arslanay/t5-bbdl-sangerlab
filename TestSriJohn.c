@@ -39,8 +39,6 @@ int main (int argc, char *argv[])
 		param[i]=10;
 	}
 	
-
-	
 	return 0;
 }
 
@@ -60,8 +58,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [6] Output volgage 0.1	//LOOK FOR REDUNDANCY
 	// [7] Scaling factor 0.05 spindleFiringRate -> izhCurrent(I)
 	// [8] Muscle length scale 0.1 - calibrate the encoder
-	// [9] Muscle length origin 43 - calibrate the encoder
-	
+	// [9] Muscle length origin 43 - calibrate the encoder	
 
 	int bicMotorIndex = 1;
 	//int triMotorIndex = 0;	//Use a different motor, 
@@ -79,8 +76,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [9] LCE	
 	// [10] dx0
 	// [11] dx1
-	// [12]	dx2
-	
+	// [12]	dx2	
 	
 	double bicInput[NUM_INPUT]; 
 	// [0]	Input current
@@ -127,13 +123,10 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	
 	//Update auxvar
 	memcpy(auxVar + NUM_STATE * BIC_ID, bicState, NUM_STATE * sizeof(double));
-	
-	
-	
+		
 	//*** Triceps
 	
 	int triMotorIndex = 2;
-	//int triMotorIndex = 0;	//Use a different motor, 
 	
 	double triState[NUM_STATE];	//auxvar key
 	// [0] motor neuron - voltage
@@ -148,8 +141,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [9] LCE	
 	// [10] dx0
 	// [11] dx1
-	// [12]	dx2
-	
+	// [12]	dx2	
 	
 	double triInput[NUM_INPUT]; 
 	// [0]	Input current

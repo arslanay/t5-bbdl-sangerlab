@@ -61,7 +61,8 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	//int triMotorIndex = 0;	//Use a different motor, 
 	int currVecInd = bufferInd*numDataColumns;
 	
-	double bicState[16];	//auxvar key
+	const int NUM_STATE = 13;
+	double bicState[NUM_STATE];	//auxvar key
 	// [0] motor neuron - voltage
 	// [1] motor neuron - recovery variable
 	// [2] motor neuron - binary spike
@@ -76,12 +77,9 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [11] dx1
 	// [12]	dx2
 	
-	// TAKE THEM OUT
-	// [13]	motor neuron firing rate
-	// [14]	previous spike time		
-	// [15]	current time
-	
-	double bicInput[11]; 
+	const int NUM_INPUT = 11;
+
+	double bicInput[NUM_INPUT]; 
 	// [0]	Input current
 	// [1]	Digital spike size
 	// [2]	Time
@@ -94,12 +92,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [9]	RESET
 	// [10]	output voltage scaling
 	
-	memcpy(bicState, auxVar, 14 * sizeof(double));
-	
-	//CALCULATING CURRENT TIME
-	bicState[15] = stateMatrix[currVecInd]; 
-	
-
+	memcpy(bicState, auxVar, NUM_STATE * sizeof(double));	
 	
 	bicInput[0] = param[0] + bicState[6]*param[7];
 	bicInput[1] = param[1];
@@ -116,24 +109,8 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	bicInput[9] = param[5];
 	bicInput[10] = param[6];
 	
-
-	// TAKE THEM OUT
-	if(bicState[2])
-	{
-		if (bicState[14]!=0)
-		{
-			bicState[13]=1/(bicState[15]-bicState[14]);
-		}		
-		//There is a spike in the current time
-		bicState[14]=bicState[15];	//Previous spike time
-	}
-	
 	UpdateMuscleLoop(bicState, bicInput);
-		
-		
-		
-		
-		
+	
 	if (bicState[7] > 0) motorVoltages[bicMotorIndex] = bicState[7]*bicInput[10];
 	else motorVoltages[bicMotorIndex] = param[6];// I agree
 	
@@ -141,11 +118,11 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	exportVars[1] = bicState[1];	//mn recovery var
 	exportVars[2] = bicState[2];	//mn spike
 	exportVars[3] = bicState[6];	//afferent firing rate
-	exportVars[4] = bicState[13];	//efferent firing rate
+	exportVars[4] = bicState[10];	//efferent firing rate
 	exportVars[5] = bicState[9];	//muscle length Lce
 	
 	//Update auxvar
-	memcpy(auxVar, bicState, 16 * sizeof(double));
+	memcpy(auxVar, bicState, NUM_STATE * sizeof(double));
 	//memcpy(auxVar+elementsinbicState*bicstateID, bicState, elementsinbicState * sizeof(double));
 	
 	//param remains unchanged

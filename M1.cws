@@ -7,9 +7,10 @@ CVI Pub Local Dir = "/C/ProgramData/National Instruments/CVI90"
 CVI Pub Global Dir = "/C/ProgramData/National Instruments/CVI"
 IVI Standard Root Dir = "/C/Program Files (x86)/IVI Foundation/IVI"
 VXIplug&play Framework Dir = "/C/Program Files (x86)/IVI Foundation/VISA/winnt"
-Number of Projects = 1
+Number of Projects = 2
 Active Project = 1
 Project 0001 = "TestSriJohn.prj"
+Project 0002 = "GetStateMatrixFromSignals.prj"
 Drag Bar Left = 357
 Window Top = 28
 Window Left = 793
@@ -44,16 +45,26 @@ Batch Build Release = False
 Batch Build Debug = False
 Force Rebuild = False
 
+[Project Header 0002]
+Version = 901
+Don't Update DistKit = False
+Platform Code = 4
+Build Configuration = "Debug"
+Warn User If Debugging Release = 1
+Batch Build Release = False
+Batch Build Debug = False
+Force Rebuild = False
+
 [File 0001]
 Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/TestSriJohn"
 Path Line0002 = ".c"
 File Type = "CSource"
-Disk Date = 3409934150
+Disk Date = 3410386501
 In Projects = "1,"
 Window Top = 25
 Window Left = 6
 Window Z-Order = 1
-Source Window State = "1,0,0,0,0,0,0,0,0,190,0,0,0,0,0,80,12,0,57,34,349,695,1,0,"
+Source Window State = "1,256,256,256,23,24,24,0,0,190,0,416,0,416,0,80,105,0,146,110,349,695,1,0,"
 
 [File 0002]
 Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/TestSriJohn"
@@ -64,6 +75,25 @@ In Projects = "1,"
 Window Top = 25
 Window Left = 6
 Source Window State = "1,0,1,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,12,349,695,1,0,"
+
+[File 0003]
+Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/GetStateMat"
+Path Line0002 = "rixFromSignals.c"
+File Type = "CSource"
+Disk Date = 3410294310
+In Projects = "2,"
+Window Top = 71
+Window Left = 22
+Window Released = True
+Source Window State = "1,212,213,213,113,112,112,0,3,0,0,0,0,0,0,0,183,0,212,113,396,855,0,0,"
+
+[File 0004]
+Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/GetStateMat"
+Path Line0002 = "rixFromSignals.h"
+File Type = "Include"
+Disk Date = 3398025705
+In Projects = "2,"
+Source Window State = "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"
 
 [Build Options 0001]
 Generate Browse Info = True
@@ -95,6 +125,39 @@ Always show confirmation dialog = True
 External Process Path = ""
 
 [Command Line Args 0001]
+Command Line Args = ""
+Working Directory = ""
+
+[Build Options 0002]
+Generate Browse Info = True
+Enable Uninitialized Locals Runtime Warning = True
+Execution Trace = "Disabled"
+Debugging Level = "Standard"
+Break On Library Errors = True
+Break On First Chance Exceptions = False
+Execution Target Address = "Local desktop computer"
+Execution Target Port = 0
+Execution Target Type = 0
+
+[SCC Options 0002]
+Use global settings = True
+SCC Provider = ""
+SCC Project = ""
+Local Path = ""
+Auxiliary Path = ""
+Perform Same Action For .h File As For .uir File = "Ask"
+Perform Same Action For .cds File As For .prj File = "Ask"
+Username = ""
+Comment = ""
+Use Default Username = False
+Use Default Comment = False
+Suppress CVI Error Messages = False
+Always show confirmation dialog = True
+
+[DLL Debugging Support 0002]
+External Process Path = ""
+
+[Command Line Args 0002]
 Command Line Args = ""
 Working Directory = ""
 

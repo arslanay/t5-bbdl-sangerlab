@@ -6,12 +6,16 @@
 
 #define BIC_ID 0
 #define TRI_ID 1
+#define MAX_NUM_MN 32
+#define NUM_MN 3
+
 
 // prototypes
 int Doer (double *stateMatrix,int bufferInd, int bufferLength,int numDataColumns, double samplFreq, double *motorVoltages, double *param, double *auxVar, double *user, double *exportVars);
 void Izhikevich(double *neuron_state, double *neuron_input);
 void Spindle(double *neuron_state, double *neuron_input);  
-int UpdateMuscleLoop(double *loopState, double *loopInput);
+int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput);
+
 //This one has issues
 //Makes the system crash
 //Doesnt crash when running without transformer
@@ -45,6 +49,7 @@ int main (int argc, char *argv[])
 int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumns, double samplFreq, double *motorVoltages, double *param, double *auxVar, double *user, double *exportVars)
 {
 	const int NUM_STATE = 13;
+
 	const int NUM_INPUT = 11;
 	int currVecInd = bufferInd*numDataColumns;
 	
@@ -78,6 +83,17 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [11] dx1
 	// [12]	dx2	
 	
+	double bicMNPool[NUM_MN*3];
+	// [0] motor neuron - voltage
+	// [1] motor neuron - recovery variable
+	// [2] motor neuron - binary spike
+	// [0+] motor neuron - voltage
+	// [1] motor neuron - recovery variable
+	// [2] motor neuron - binary spike
+	// [0] motor neuron - voltage
+	// [1] motor neuron - recovery variable
+	// [2] motor neuron - binary spike
+	
 	double bicInput[NUM_INPUT]; 
 	// [0]	Input current
 	// [1]	Digital spike size
@@ -92,6 +108,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [10]	output voltage scaling
 	
 	memcpy(bicState, auxVar + NUM_STATE * BIC_ID, NUM_STATE * sizeof(double));
+	memcpy(bicMNPool, user + NUM_MN * BIC_ID, 3*NUM_MN * sizeof(double));
 	
 	
 	bicInput[0] = param[0] + bicState[6]*param[7];
@@ -109,107 +126,139 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	bicInput[9] = param[5];
 	bicInput[10] = param[6];
 	
-	UpdateMuscleLoop(bicState, bicInput);
+	UpdateMuscleLoop(bicState, bicMNPool, bicInput);	///???? Add ID
 	
 	if (bicState[7] > 0) motorVoltages[bicMotorIndex] = bicState[7]*bicInput[10];
 	else motorVoltages[bicMotorIndex] = param[6];// I agree
 	
-	exportVars[0] = bicState[0];	//mn voltage
-	exportVars[1] = bicState[1];	//mn recovery var
-	exportVars[2] = bicState[2];	//mn spike
+	exportVars[0] = bicMNPool[0];	//mn0 voltage
+	exportVars[1] = bicMNPool[3];	//mn1 voltage
+	exportVars[2] = bicMNPool[6];	//mn2 voltage
 	exportVars[3] = bicState[6];	//afferent firing rate
 	exportVars[4] = bicState[10];	//efferent firing rate
 	exportVars[5] = bicState[9];	//muscle length Lce
 	
 	//Update auxvar
 	memcpy(auxVar + NUM_STATE * BIC_ID, bicState, NUM_STATE * sizeof(double));
-		
+	memcpy(user + NUM_MN * BIC_ID, bicMNPool, NUM_MN *3* sizeof(double));
+
 	//*** Triceps
 	
-	int triMotorIndex = 2;
+	// int triMotorIndex = 2;
 	
-	double triState[NUM_STATE];	//auxvar key
-	// [0] motor neuron - voltage
-	// [1] motor neuron - recovery variable
-	// [2] motor neuron - binary spike
-	// [3] spindle state - firing constant x0
-	// [4] spindle state - polar region length x1
-	// [5] spindle state - polar region velocity x2
-	// [6] spindle state - Ia firing rate		GAMMA FIRING RATE?
-	// [7] muscle fiber - current force
-	// [8] muscle fiber - previous force
-	// [9] LCE	
-	// [10] dx0
-	// [11] dx1
-	// [12]	dx2	
+	// double triState[NUM_STATE];	//auxvar key
+	// // [0] motor neuron - voltage
+	// // [1] motor neuron - recovery variable
+	// // [2] motor neuron - binary spike
+	// // [3] spindle state - firing constant x0
+	// // [4] spindle state - polar region length x1
+	// // [5] spindle state - polar region velocity x2
+	// // [6] spindle state - Ia firing rate		GAMMA FIRING RATE?
+	// // [7] muscle fiber - current force
+	// // [8] muscle fiber - previous force
+	// // [9] LCE	
+	// // [10] dx0
+	// // [11] dx1
+	// // [12]	dx2	
 	
-	double triInput[NUM_INPUT]; 
-	// [0]	Input current
-	// [1]	Digital spike size
-	// [2]	Time
-	// [3]	Gamma dynamic for bag 1
-	// [4]	Muscle Length Lce
-	// [5]	1/10 of Time
-	// [6]	Muscle Fiber time constant C
-	// [7]	Muscle Fiber Peak Force P
-	// [8]	Time
-	// [9]	RESET
-	// [10]	output voltage scaling
+	// double triInput[NUM_INPUT]; 
+	// // [0]	Input current
+	// // [1]	Binary spike voltage in mV
+	// // [2]	Time
+	// // [3]	Gamma dynamic for bag 1
+	// // [4]	Muscle Length Lce
+	// // [5]	1/10 of Time
+	// // [6]	Muscle Fiber time constant C
+	// // [7]	Muscle Fiber Peak Force P
+	// // [8]	Time
+	// // [9]	RESET
+	// // [10]	output voltage scaling
 	
-	memcpy(triState, auxVar + NUM_STATE * TRI_ID, NUM_STATE * sizeof(double));
+	// memcpy(triState, auxVar + NUM_STATE * TRI_ID, NUM_STATE * sizeof(double));
 	
 	
-	triInput[0] = param[0] + triState[6]*param[7];
-	triInput[1] = param[1];
-	triInput[2] = (double) (1.0 / samplFreq);
+	// triInput[0] = param[0] + triState[6]*param[7];
+	// triInput[1] = param[1];
+	// triInput[2] = (double) (1.0 / samplFreq);
 	
-	triInput[3] = param[2]; // gamma dynamic for bag 1
-	triInput[4] = param[8]*(-stateMatrix[currVecInd + 1 + triMotorIndex]+param[9])+1.0; // muscle length, Lce in Loeb model
-	triInput[5] = (double) (0.1 / samplFreq);
+	// triInput[3] = param[2]; // gamma dynamic for bag 1
+	// triInput[4] = param[8]*(-stateMatrix[currVecInd + 1 + triMotorIndex]+param[9])+1.0; // muscle length, Lce in Loeb model
+	// triInput[5] = (double) (0.1 / samplFreq);
 	
-	triInput[6] = param[3];
-	triInput[7] = param[4];
-	triInput[8] = (double) (1.0 / samplFreq);
+	// triInput[6] = param[3];
+	// triInput[7] = param[4];
+	// triInput[8] = (double) (1.0 / samplFreq);
 	
-	triInput[9] = param[5];
-	triInput[10] = param[6];
+	// triInput[9] = param[5];
+	// triInput[10] = param[6];
 	
-	UpdateMuscleLoop(triState, triInput);
+	// UpdateMuscleLoop(triState, triInput);
 	
-	if (triState[7] > 0) motorVoltages[triMotorIndex] = triState[7]*triInput[10];
-	else motorVoltages[triMotorIndex] = param[6];
+	// if (triState[7] > 0) motorVoltages[triMotorIndex] = triState[7]*triInput[10];
+	// else motorVoltages[triMotorIndex] = param[6];
 	
-	exportVars[0] = triState[0];	//mn voltage
-	exportVars[1] = triState[1];	//mn recovery var
-	exportVars[2] = triState[2];	//mn spike
-	exportVars[3] = triState[6];	//afferent firing rate
-	exportVars[4] = triState[10];	//efferent firing rate
-	exportVars[5] = triState[9];	//muscle length Lce
+	// exportVars[0] = triState[0];	//mn voltage
+	// exportVars[1] = triState[1];	//mn recovery var
+	// exportVars[2] = triState[2];	//mn spike
+	// exportVars[3] = triState[6];	//afferent firing rate
+	// exportVars[4] = triState[10];	//efferent firing rate
+	// exportVars[5] = triState[9];	//muscle length Lce
 	
-	//Update auxvar
-	memcpy(auxVar + NUM_STATE * TRI_ID, triState, NUM_STATE * sizeof(double));	
+	// //Update auxvar
+	// memcpy(auxVar + NUM_STATE * TRI_ID, triState, NUM_STATE * sizeof(double));	
 	
 	return 0;	
 }
 
-int UpdateMuscleLoop(double *loopState, double *loopInput)
+int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
 {
 	// *** Izh motoneurons
+	//const int NUM_MN = 2; // <= MAX_NUM_MN
 	double mnState[3];
 	double mnInput[3];
-	mnState[0] = loopState[0];
-	mnState[1] = loopState[1];
-	mnState[2] = loopState[2];
+
+	
 	
 	mnInput[0] = loopInput[0];
 	mnInput[1] = loopInput[1];
 	mnInput[2] = loopInput[2];	
 	
-	Izhikevich(mnState, mnInput);
-	loopState[0] = mnState[0];				
-	loopState[1] = mnState[1];				
-	loopState[2] = mnState[2];
+	//memset(mnPoolState,0,MAX_NUM_MN*3*sizeof(double));	//Initialize
+	
+	loopState[2] = 0.0;
+	
+	if(loopInput[9]>0.01) // RESET -> initialize all motoneuron pool
+	{
+		for (int i = 0; i < NUM_MN; i++)
+		{
+			memcpy(mnState, mnPoolState+3*i, 3*sizeof(double));
+			Izhikevich(mnState, mnInput);
 			
+			// mnState[0] = action potential
+			// mnState[1] = recovery potential
+			if (mnState[2] > 0)
+			// mnState[2] = 30 if spikes or 0 if not;
+			{
+				loopState[2] += 10.0;	//loopInput[1]/10.0;	//loopInput[2];??
+			} 
+			memcpy(mnPoolState+3*i, mnState, 3*sizeof(double));
+		}
+		// Temporary : only Save MN#0 to loopState 
+		// Goal : Save all MN status bitwise to loopState[0..2]
+		loopState[0] = mnPoolState[0];				
+		loopState[1] = mnPoolState[1];
+		//Ok, so eventually we'll get this to behave according to 
+		//the mnPoolState
+	}
+	else
+	{	
+		for (int i = 0; i < NUM_MN; i++)
+		{
+			mnPoolState[3*i] = loopState[0];
+			mnPoolState[3*i+1] = loopState[1];
+			mnPoolState[3*i+2] = loopState[2]; 		
+		}	
+	}
 
 	// *** Spindle
 	double spindleState[7];
@@ -268,7 +317,7 @@ int UpdateMuscleLoop(double *loopState, double *loopInput)
 	double u;
 	double f;	
 		
-	u = mnState[2]/h;
+	u = loopState[2]/h;
 	f = (u-fiberState[0]*loopState[8]-fiberState[1]*loopState[7])/fiberState[2];
 	
 	loopState[8] = loopState[7];
@@ -285,7 +334,6 @@ Izhikevich(double *neuron_state, double *neuron_input)
   double const B = 0.2; // b:sensitivity of the recovery variable u to the subthreshold fluctuations of v.
   double const C = -65.0; // c: reset value of v caused by fast high threshold (K+)
   double const D = 6.0; // d: reset of u caused by slow high threshold Na+ K+ conductances
-  double const TH = 30.0; // voltage threshold
   double const X = 5.0; // x
   double const Y = 140.0; // y
 
@@ -298,9 +346,13 @@ Izhikevich(double *neuron_state, double *neuron_input)
 
   vv = v + DT * (0.04 * v*v + X * v + Y - u + I); // neuron[0] = v;
   uu = u + DT * A * (B * v - u); // neuron[1] = u; See iZhikevich model
-
-
-  if (vv >= TH) // if spikes
+  
+  srand( time(NULL) );
+  // Firing threshold randomly distributed 25.0 ~ 35.0
+  double TH_RANGE = 10.0;
+  double TH = 30.0 - TH_RANGE + ( 2.0 * TH_RANGE * rand() / ( RAND_MAX + 1.0 ) );
+  
+  if (vv >= TH) // if spikes    +randnumber???????????
     {
       neuron_state[0] = C;
       neuron_state[1] = uu + D;

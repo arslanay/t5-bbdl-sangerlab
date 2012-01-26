@@ -69,6 +69,18 @@ Image Base Address = 4194304
 [Compiler Defines]
 Compiler Defines = "/DWIN32_LEAN_AND_MEAN"
 
+[Include Paths]
+Include Path 1 Is Rel = True
+Include Path 1 Rel To = "CVI"
+Include Path 1 Rel To Override = "CVI"
+Include Path 1 Rel Path = "toolslib/toolbox/msvc"
+Include Path 1 = "/c/Program Files (x86)/National Instruments/CVI90/toolslib/toolbox/msvc"
+Include Path 2 Is Rel = True
+Include Path 2 Rel To = "CVI"
+Include Path 2 Rel To Override = "CVI"
+Include Path 2 Rel Path = "toolslib/toolbox"
+Include Path 2 = "/c/Program Files (x86)/National Instruments/CVI90/toolslib/toolbox"
+
 [Create Executable]
 Executable File_Debug Is Rel = True
 Executable File_Debug Rel To = "Project"

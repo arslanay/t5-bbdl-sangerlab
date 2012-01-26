@@ -9,7 +9,6 @@
 #define MAX_NUM_MN 32
 #define NUM_MN 3
 
-
 // prototypes
 int Doer (double *stateMatrix,int bufferInd, int bufferLength,int numDataColumns, double samplFreq, double *motorVoltages, double *param, double *auxVar, double *user, double *exportVars);
 void Izhikevich(double *neuron_state, double *neuron_input);
@@ -217,7 +216,7 @@ int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
 	double mnState[3];
 	double mnInput[3];
 
-	
+	double ranNum;
 	
 	mnInput[0] = loopInput[0];
 	mnInput[1] = loopInput[1];
@@ -245,6 +244,7 @@ int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
 		}
 		// Temporary : only Save MN#0 to loopState 
 		// Goal : Save all MN status bitwise to loopState[0..2]
+		//loopState[0] = ranNum;			
 		loopState[0] = mnPoolState[0];				
 		loopState[1] = mnPoolState[1];
 		//Ok, so eventually we'll get this to behave according to 
@@ -258,6 +258,8 @@ int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
 			mnPoolState[3*i+1] = loopState[1];
 			mnPoolState[3*i+2] = loopState[2]; 		
 		}	
+		//Initialize random number from outside 
+		srand( time(NULL) );
 	}
 
 	// *** Spindle
@@ -327,8 +329,7 @@ int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
 }
 
 
-void
-Izhikevich(double *neuron_state, double *neuron_input)
+void Izhikevich(double *neuron_state, double *neuron_input)
 {
   double const A = 0.02; // a: time scale of the recovery variable u
   double const B = 0.2; // b:sensitivity of the recovery variable u to the subthreshold fluctuations of v.
@@ -347,10 +348,14 @@ Izhikevich(double *neuron_state, double *neuron_input)
   vv = v + DT * (0.04 * v*v + X * v + Y - u + I); // neuron[0] = v;
   uu = u + DT * A * (B * v - u); // neuron[1] = u; See iZhikevich model
   
-  srand( time(NULL) );
+  // 
+  // SetRandomSeed(0);  
   // Firing threshold randomly distributed 25.0 ~ 35.0
   double TH_RANGE = 10.0;
   double TH = 30.0 - TH_RANGE + ( 2.0 * TH_RANGE * rand() / ( RAND_MAX + 1.0 ) );
+  //*exportTH = TH;
+
+  
   
   if (vv >= TH) // if spikes    +randnumber???????????
     {
@@ -366,6 +371,7 @@ Izhikevich(double *neuron_state, double *neuron_input)
       neuron_state[1] = uu;
       neuron_state[2] = 0.0;
     };
+	
 }
 
 void Spindle(double *neuron_state, double *neuron_input)

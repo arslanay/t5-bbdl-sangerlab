@@ -16,7 +16,7 @@ Window Top = 28
 Window Left = 793
 Window Bottom = 1157
 Window Right = 1745
-Maximized = True
+Maximized = False
 Maximized Children = True
 Max Number Of Errors = 20
 Track Include File Dependencies = True
@@ -59,12 +59,12 @@ Force Rebuild = False
 Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/TestSriJohn"
 Path Line0002 = ".c"
 File Type = "CSource"
-Disk Date = 3410386501
+Disk Date = 3410447178
 In Projects = "1,"
 Window Top = 25
 Window Left = 6
 Window Z-Order = 1
-Source Window State = "1,256,256,256,23,24,24,0,0,190,0,416,0,416,0,80,105,0,146,110,349,695,1,0,"
+Source Window State = "1,7,7,7,19,20,19,0,0,190,0,419,0,419,0,80,334,0,373,79,349,695,1,0,"
 
 [File 0002]
 Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/TestSriJohn"

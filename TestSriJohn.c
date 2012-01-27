@@ -7,7 +7,7 @@
 #define BIC_ID 0
 #define TRI_ID 1
 #define MAX_NUM_MN 32
-#define NUM_MN 3
+#define NUM_MN 10
 #define NUM_MNStates 3
 #define MAX_VOLTAGE 0.7
 
@@ -123,17 +123,16 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	bicInput[9] = param[5];
 	bicInput[10] = param[6];
 	
-	UpdateMuscleLoop(bicState, bicMNPool, bicInput);	///???? Add ID
+	UpdateMuscleLoop(bicState, bicMNPool, bicInput);	
 	
 	if (bicState[7] > 0) motorVoltages[bicMotorIndex] = (bicState[7]*bicInput[10] >MAX_VOLTAGE) ? MAX_VOLTAGE : bicState[7]*bicInput[10];
 	else motorVoltages[bicMotorIndex] = param[6];
 	
-	exportVars[0] = bicMNPool[0];	//mn0 voltage
-	exportVars[1] = bicMNPool[2];	//mn0 spikes
-	exportVars[2] = bicMNPool[3];	//mn1 voltage
-	exportVars[3] = bicMNPool[5];	//mn1 spikes
-	exportVars[4] = bicMNPool[6];	//mn2 voltage
-	exportVars[5] = bicMNPool[8];	//mn2 spikes
+	for(int i=0;i<NUM_MN;i++)
+	{
+		exportVars[2 * i + NUM_MN * 2 * BIC_ID] = bicMNPool[3*i];	//mni voltage
+		exportVars[2 * i + 1 +  NUM_MN * 2 * BIC_ID] = bicMNPool[3*i + 2];	//mni spikes
+	}
 	
 	memcpy(auxVar + NUM_STATE * BIC_ID, bicState, NUM_STATE * sizeof(double));
 	memcpy(user + NUM_MN * NUM_MNStates * BIC_ID, bicMNPool,  NUM_MNStates * NUM_MN * sizeof(double));
@@ -207,13 +206,12 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	else motorVoltages[triMotorIndex] = param[6];
 	
 	
-	exportVars[0 + NUM_MN * 2 * TRI_ID] = triMNPool[0];	//mn0 voltage
-	exportVars[1 + NUM_MN * 2 * TRI_ID] = triMNPool[2];	//mn0 spikes
-	exportVars[2 + NUM_MN * 2 * TRI_ID] = triMNPool[3];	//mn1 voltage
-	exportVars[3 + NUM_MN * 2 * TRI_ID] = triMNPool[5];	//mn1 spikes
-	exportVars[4 + NUM_MN * 2 * TRI_ID] = triMNPool[6];	//mn2 voltage
-	exportVars[5 + NUM_MN * 2 * TRI_ID] = triMNPool[8];	//mn2 spikes
-		
+	for(int i=0;i<NUM_MN;i++)
+	{
+		exportVars[2 * i + NUM_MN * 2 * TRI_ID] = triMNPool[3*i];			//mni voltage
+		exportVars[2 * i + 1 + NUM_MN * 2 * TRI_ID] = triMNPool[3*i + 2];	//mni spikes
+	}
+	
 	memcpy(auxVar + NUM_STATE * TRI_ID, triState, NUM_STATE * sizeof(double));
 	memcpy(user + NUM_MN * NUM_MNStates * TRI_ID, triMNPool,  NUM_MNStates * NUM_MN * sizeof(double));
 	
@@ -224,7 +222,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
 {
 	// *** Izh motoneurons
-	double mnState[3];
+	double mnState[NUM_MNStates];
 	double mnInput[3];
 
 	mnInput[0] = loopInput[0];
@@ -245,7 +243,7 @@ int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
 			if (mnState[2] > 0)
 			// mnState[2] = 30 if spikes or 0 if not;
 			{
-				loopState[2] += 10.0;	//loopInput[1]/10.0;	//loopInput[2];??
+				loopState[2] += 3.0;	//loopInput[1]/10.0;	//loopInput[2];??
 			} 
 			memcpy(mnPoolState+NUM_MNStates*i, mnState, NUM_MNStates*sizeof(double));
 		}

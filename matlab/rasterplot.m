@@ -20,7 +20,7 @@ function rasterplot(times,numtrials,triallen, varargin)
 nin=nargin;
 
 %%%%%%%%%%%%%% Plot variables %%%%%%%%%%%%%%
-plotwidth=1;     % spike thickness
+plotwidth=2;     % spike thickness
 plotcolor='k';   % spike color
 trialgap=1.5;    % distance between trials
 defaultfs=1000;  % default sampling rate

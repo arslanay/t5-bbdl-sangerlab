@@ -16,7 +16,7 @@ Window Top = 28
 Window Left = 793
 Window Bottom = 1157
 Window Right = 1745
-Maximized = False
+Maximized = True
 Maximized Children = True
 Max Number Of Errors = 20
 Track Include File Dependencies = True
@@ -28,7 +28,7 @@ Save Changes Before Running = "Always"
 Hide Windows = False
 Break At First Statement = False
 Sort Type = "File Name"
-Number of Opened Files = 1
+Number of Opened Files = 2
 Window Confinement Region Enabled = True
 MainColumnWidth = 338
 FileDateColumnWidth = 70
@@ -59,14 +59,25 @@ Force Rebuild = False
 Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/TestSriJohn"
 Path Line0002 = ".c"
 File Type = "CSource"
-Disk Date = 3410447178
+Disk Date = 3410530648
 In Projects = "1,"
 Window Top = 25
 Window Left = 6
 Window Z-Order = 1
-Source Window State = "1,7,7,7,19,20,19,0,0,190,0,419,0,419,0,80,334,0,373,79,349,695,1,0,"
+Source Window State = "1,7,7,7,19,20,19,0,0,190,0,419,0,419,0,80,210,0,273,62,349,695,1,0,"
 
 [File 0002]
+Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/GetStateMat"
+Path Line0002 = "rixFromSignals.h"
+File Type = "Include"
+Disk Date = 3398025705
+In Projects = "2,"
+Window Top = 25
+Window Left = 6
+Window Z-Order = 2
+Source Window State = "1,0,0,0,0,0,0,0,0,81,0,0,0,0,0,25,0,0,0,0,349,695,1,0,"
+
+[File 0003]
 Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/TestSriJohn"
 Path Line0002 = ".h"
 File Type = "Include"
@@ -76,24 +87,16 @@ Window Top = 25
 Window Left = 6
 Source Window State = "1,0,1,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,12,349,695,1,0,"
 
-[File 0003]
+[File 0004]
 Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/GetStateMat"
 Path Line0002 = "rixFromSignals.c"
 File Type = "CSource"
-Disk Date = 3410294310
+Disk Date = 3410461348
 In Projects = "2,"
-Window Top = 71
-Window Left = 22
+Window Top = 23
+Window Left = 964
 Window Released = True
-Source Window State = "1,212,213,213,113,112,112,0,3,0,0,0,0,0,0,0,183,0,212,113,396,855,0,0,"
-
-[File 0004]
-Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/GetStateMat"
-Path Line0002 = "rixFromSignals.h"
-File Type = "Include"
-Disk Date = 3398025705
-In Projects = "2,"
-Source Window State = "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"
+Source Window State = "1,242,246,246,0,21,21,0,0,0,0,0,0,0,0,0,184,0,216,67,1129,952,0,0,"
 
 [Build Options 0001]
 Generate Browse Info = True

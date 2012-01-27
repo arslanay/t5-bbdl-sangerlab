@@ -32,7 +32,7 @@ void GetForcesFromLoadCellVoltages(double *lcVoltages,unsigned int numLoadCells,
 
 	
 	
-	double loadcellBias[20] = { -1.1585,  -10.613,   -4.2755,   -1.78,    4.5612,    5.45,  -10.9801,    0.2087,   -0.5747,    0.2136,    0.0,    1.6053,    0.0,   -0.2405,   43.5619,0,-1.965,-5.05,0,0};
+	double loadcellBias[20] = { -1.1585,  -10.613,   -4.2755,   -1.78,    4.5612,    5.45,  -10.9801,    0.2087,   -0.5747,    0.2136,    0.0,    1.6053,    0.0,   -0.2405,   43.5619,0,-1.965,211,0,0};
 //before calibration 11-14-11 { -0.7873,  -11.2109,   -4.3407,   -1.8723,    4.4399,    5.8396,  -11.1905,    0.4135,   -0.4715,    0.8625,    0.0,    1.6053,    0.0,   -0.7511,   44.5863,0,0,0,0,0};
 	for(int lcNum = 0; lcNum < numLoadCells; lcNum++) 
 	{
@@ -240,14 +240,12 @@ int GetStateMatrixFromSignals(int bufferInd, int numDataCols,double frameTime, d
 				break;
 			}
 			
-			if (!(i==17))
+			if ((fabs(lcForces[i]) > maxForce) && (frameTime > initialGracePeriod)) 
 			{
-				if ((fabs(lcForces[i]) > maxForce) && (frameTime > initialGracePeriod)) 
-				{
-					fail = i+20;
-					break;
-				}
+				fail = i+20;
+				break;
 			}
+			
 			if ((fabs(motorVoltages[i]) > maxVoltage) && (frameTime > initialGracePeriod))
 			{
 				fail = i+40;

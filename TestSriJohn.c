@@ -9,6 +9,7 @@
 #define MAX_NUM_MN 32
 #define NUM_MN 3
 #define NUM_MNStates 3
+#define MAX_VOLTAGE 0.7
 
 // prototypes
 int Doer (double *stateMatrix,int bufferInd, int bufferLength,int numDataColumns, double samplFreq, double *motorVoltages, double *param, double *auxVar, double *user, double *exportVars);
@@ -56,8 +57,10 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [5] RESET the spindle state variables 1
 	// [6] Output volgage 0.1	//LOOK FOR REDUNDANCY
 	// [7] Scaling factor 0.05 spindleFiringRate -> izhCurrent(I)
-	// [8] Muscle length scale 0.1 - calibrate the encoder
-	// [9] Muscle length origin 43 - calibrate the encoder	
+	// [8] Muscle length scale 0.1 - calibrate the encoder BICEPS
+	// [9] Muscle length origin 5 - calibrate the encoder BICEPS	
+	// [10] Muscle length scale 0.1 - calibrate the encoder TRICEPS
+	// [11] Muscle length origin 5 - calibrate the encoder TRICEPS	
 
 	int bicMotorIndex = 1;
 	//int triMotorIndex = 0;	//Use a different motor, 
@@ -122,7 +125,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	
 	UpdateMuscleLoop(bicState, bicMNPool, bicInput);	///???? Add ID
 	
-	if (bicState[7] > 0) motorVoltages[bicMotorIndex] = bicState[7]*bicInput[10];
+	if (bicState[7] > 0) motorVoltages[bicMotorIndex] = (bicState[7]*bicInput[10] >MAX_VOLTAGE) ? MAX_VOLTAGE : bicState[7]*bicInput[10];
 	else motorVoltages[bicMotorIndex] = param[6];
 	
 	exportVars[0] = bicMNPool[0];	//mn0 voltage
@@ -188,7 +191,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	triInput[2] = (double) (1.0 / samplFreq);
 	
 	triInput[3] = param[2]; // gamma dynamic for bag 1
-	triInput[4] = param[8]*(-stateMatrix[currVecInd + 1 + triMotorIndex]+param[9])+1.0; // muscle length, Lce in Loeb model
+	triInput[4] = param[10]*(-stateMatrix[currVecInd + 1 + triMotorIndex]+param[11])+1.0; // muscle length, Lce in Loeb model
 	triInput[5] = (double) (0.1 / samplFreq);
 	
 	triInput[6] = param[3];
@@ -200,8 +203,9 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	
 	UpdateMuscleLoop(triState, triMNPool, triInput);	///???? Add ID
 	
-	if (triState[7] > 0) motorVoltages[triMotorIndex] = triState[7]*triInput[10];
+	if (triState[7] > 0) motorVoltages[triMotorIndex] = (triState[7]*triInput[10] >MAX_VOLTAGE) ? MAX_VOLTAGE : triState[7]*triInput[10] ;
 	else motorVoltages[triMotorIndex] = param[6];
+	
 	
 	exportVars[0 + NUM_MN * 2 * TRI_ID] = triMNPool[0];	//mn0 voltage
 	exportVars[1 + NUM_MN * 2 * TRI_ID] = triMNPool[2];	//mn0 spikes

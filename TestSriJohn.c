@@ -9,12 +9,12 @@
 #define MAX_NUM_MN 32
 #define NUM_MN 10
 #define NUM_MNStates 3
-#define MAX_VOLTAGE 0.7
+#define MAX_VOLTAGE 0.8
 
 // prototypes
 int Doer (double *stateMatrix,int bufferInd, int bufferLength,int numDataColumns, double samplFreq, double *motorVoltages, double *param, double *auxVar, double *user, double *exportVars);
 void Izhikevich(double *neuron_state, double *neuron_input);
-void Spindle(double *, double *);  
+void Spindle(double *spindle_state, double *spindle_input);  
 int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput);
 
 
@@ -318,9 +318,9 @@ int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
 	double h = loopInput[8];
 		
 	double fiberState[3];
-	fiberState[0] = C/(exp(1.0)*P*h*h)-1.0/(exp(1.0)*P*h);         // define the discretization of the ODE 
-	fiberState[1] = -2.0*C/(exp(1.0)*P*h*h)+1.0/(exp(1.0)*P*C);
-	fiberState[2] = C/(exp(1.0)*P*h*h)+1.0/(exp(1.0)*P*h);
+	fiberState[0] = C/(exp(1)*P*h*h)-1/(exp(1)*P*h);         // define the discretization of the ODE 
+	fiberState[1] = -2*C/(exp(1)*P*h*h)+1/(exp(1)*P*C);
+	fiberState[2] = C/(exp(1)*P*h*h)+1/(exp(1)*P*h);
 	double u;
 	double f;	
 		
@@ -381,126 +381,115 @@ void Izhikevich(double *neuron_state, double *neuron_input)
 
 void Spindle(double *spindle_state, double *spindle_input)
 {
-// ##############
-// ## KSR             [10.4649 10.4649 10.4649]
-// ## KPR             [0.1127 0.1623 0.1623]
-// ## B0DAMP          [0.0605 0.0822 0.0822]
-// ## BDAMP           [0.2356 -0.046 -0.069]
-// ## F0ACT           [0 0 0]
-// ## FACT            [0.0289 0.0636 0.0954]
-// ## XII             [1 0.7 0.7]
-// ## LPRN            [1 0.92 0.92]
-// ## GI              [20000 10000 10000]
-// ## GII             [20000 7250 7250]
-// ## ANONLINEAR      [0.3 0.3 0.3]
-// ## RLDFV           [0.46 0.46 0.46]
-// ## LSR0            [0.04 0.04 0.04]
-// ## LPR0            [0.76 0.76 0.76]
-// ## L2ND            [1 0.04 0.04]
-// ## TAO             [0.192 0.185 0.0001]
-// ## MASS            [0.0002 0.0002 0.0002]
-// ## FSAT            [1 0.5 1]
-//NEW
+	// ##############
+	// ## KSR             [10.4649 10.4649 10.4649]
+	// ## KPR             [0.1127 0.1623 0.1623]
+	// ## B0DAMP          [0.0605 0.0822 0.0822]
+	// ## BDAMP           [0.2356 -0.046 -0.069]
+	// ## F0ACT           [0 0 0]
+	// ## FACT            [0.0289 0.0636 0.0954]
+	// ## XII             [1 0.7 0.7]
+	// ## LPRN            [1 0.92 0.92]
+	// ## GI              [20000 10000 10000]
+	// ## GII             [20000 7250 7250]
+	// ## ANONLINEAR      [0.3 0.3 0.3]
+	// ## RLDFV           [0.46 0.46 0.46]
+	// ## LSR0            [0.04 0.04 0.04]
+	// ## LPR0            [0.76 0.76 0.76]
+	// ## L2ND            [1 0.04 0.04]
+	// ## TAO             [0.192 0.185 0.0001]
+	// ## MASS            [0.0002 0.0002 0.0002]
+	// ## FSAT            [1 0.5 1]
 
-  
+	const double KSR = 10.4649;
+	const double KPR = 0.1127;
+	const double B0DAMP=0.0605;
+	const double BDAMP=0.2356;
+	const double F0ACT=0.0;
+	const double FACT=0.0289;
+	const double XII=1.0;
+	const double LPRN=1.0;
+	const double GI = 20000.0;
+	const double GII = 20000.0;
+	const double ANONLINEAR = 0.25;	//0.3 in original
+	const double RLDFV=0.46;
+	const double LSR0 = 0.04;
+	const double LPR0 = 0.76;
+	const double L2ND = 1.00;
+	const double TAO = 0.192;
+	const double MASS = 0.0002;
+	const double FSAT = 1.00;
 
-  const double KSR = 10.4649;
-  const double KPR = 0.1127;
-  const double B0DAMP=0.0605;
-  const double BDAMP=0.2356;
-  const double F0ACT=0.0;
-  const double FACT=0.0289;
-  const double XII=1.0;
-  const double LPRN=1.0;
-  const double GI = 20000.0;
-  const double GII = 20000.0;
-  const double ANONLINEAR = 0.25;	//0.3 in original
-  const double RLDFV=0.46;
-  const double LSR0 = 0.04;
-  const double LPR0 = 0.76;
-  const double L2ND = 1.00;
-  const double TAO = 0.192;
-  const double MASS = 0.0002;
-  const double FSAT = 1.00;
-  
-  const double freq = 60.0;
-    
-  // [0]	Gamma dynamic for bag 1
-  // [1]	Muscle Length Lce
-  // [2]	1/10 of Time
-  double gd = spindle_input[0];
-  double lce = spindle_input[1];
-  double DT = spindle_input[2];
-  
-  double alpha = 0.0;
-  double beta = 1.0;
-  double gs = 80.0;
-  
-// alpha = 0.0
-// beta = 1.0
-// ANONLINEAR=0.25
-// gd = 40.0
-// gs = 80.0
-
-  double dx0;
-  double dx1;
-  double dx2;
-  //double fib;
-
-  double mingd;
-  double CSS;
-  double sig;
-
-  double x0_prev = spindle_state[0];
-  double x1_prev = spindle_state[1];
-  double x2_prev = spindle_state[2];
-  double fib = spindle_state[3];
-  
-  double dx0_prev = spindle_state[4];
-  double dx1_prev = spindle_state[5];
-  double dx2_prev = spindle_state[6];
-
-  double xx0, xx1, xx2, x0, x1, x2;
-
-  x0 = x0_prev + dx0_prev * DT;
-  x1 = x1_prev + dx1_prev * DT;
-  x2 = x2_prev + dx2_prev * DT;
-  
-  mingd = pow(gd, 2) / (pow(gd, 2) + pow(freq, 2));
-  dx0 = (mingd - x0) / 0.149; // Tao: 0.149
-  dx1 = x2;
-  if (x2 < 0.0)
-    CSS = -1.0;
-  else 
-    CSS = 1.0;
+	const double freq = 60.0;
+    	
 	
-  // sig=((double)((x1-RLDFV)>0.0))*(x1-RLDFV);
+	
+	double gd = spindle_input[0];
+	double lce = spindle_input[1];
+	double DT = spindle_input[2];
+  
+	double alpha = 0.0;
+	double beta = 1.0;
+	
+	double dx0;
+	double dx1;
+	double dx2;
+	//double fib;
 
-  sig=((x1-RLDFV)>0.0) ? (x1-RLDFV) : 0.0;
-  
-  
-  //printf("%.6f\n", lce);
-  dx2 = (1.0 / MASS) * (KSR * lce - (KSR + KPR) * x1 - CSS * (B0DAMP + BDAMP * x0) * sig *( pow(((beta*abs(x2)+alpha)),ANONLINEAR) - pow(alpha,ANONLINEAR)) - (FACT*x0)-KSR*LSR0+KPR*LPR0);
+    double mingd;
+	double CSS;
+    double sig;
 
-  
-  xx0 = x0 + DT * (dx0 + dx0_prev)/2.0;
-  xx1 = x1 + DT * (dx1 + dx1_prev)/2.0;
-  xx2 = x2 + DT * (dx2 + dx2_prev)/2.0;
+	double x0_prev = spindle_state[0];
+	double x1_prev = spindle_state[1];
+	double x2_prev = spindle_state[2];
+	double fib = spindle_state[3];
 
-  // fib = GI * (lce - xx1 - LSR0) >= 0.0 ? GI * (lce - xx1 - LSR0) : 0.0;
-  fib = GI * (lce - xx1 - LSR0);
-  fib = (fib >= 0.0 && fib <= 100000.0) ? fib : (fib >100000.0 ? 100000.0: 0.0);	//>=
-  
+	double dx0_prev = spindle_state[4];
+	double dx1_prev = spindle_state[5];
+	double dx2_prev = spindle_state[6];
+
+	double xx0, xx1, xx2, x0, x1, x2;
+
+	x0 = x0_prev + dx0_prev * DT;
+	x1 = x1_prev + dx1_prev * DT;
+	x2 = x2_prev + dx2_prev * DT;
+
+	mingd = gd*gd / (gd*gd + freq*freq);
+	dx0 = (mingd - x0) / 0.149; // Tao: 0.149
+	dx1 = x2;
+	if (x2 < 0.0)
+	CSS = -1.0;
+	else 
+	CSS = 1.0;
     
-  spindle_state[0] = xx0;
-  spindle_state[1] = xx1;
-  spindle_state[2] = xx2;
-  spindle_state[3] = fib;
-  spindle_state[4] = dx0;
-  spindle_state[5] = dx1;
-  spindle_state[6] = dx2;
-  //printf("%.6f\n", xx0);
-  //printf("%.6f\n", xx2);
+    CSS = (fabs(x2) == 0.0) ? 0.0 : CSS;
+
+    sig=((x1 - RLDFV) > 0.0) ? (x1 - RLDFV) : 0.0;
+
+	//printf("%.6f\n", lce);
+	// dx2 = (1 / MASS) * (KSR * lce - (KSR + KPR) * x1 - CSS * (BDAMP * x0) * (fabs(x2)) - 0.4);
+	// dx2 = (1 / MASS) * (KSR * lce - (KSR + KPR) * x1 - CSS * (BDAMP * x0) * sig * sqrt(sqrt(fabs(x2))) - 0.4);
+    dx2 = (1.0 / MASS) * 
+        (KSR * lce - (KSR + KPR) * x1 - (B0DAMP + BDAMP * x0) * sig * CSS * pow(fabs(x2), ANONLINEAR) - 
+        (FACT * x0) - KSR*LSR0 + KPR*LPR0 );
+
+    xx0 = x0 + DT * (dx0 + dx0_prev)/2.0;
+    xx1 = x1 + DT * (dx1 + dx1_prev)/2.0;
+    xx2 = x2 + DT * (dx2 + dx2_prev)/2.0;
+
+	fib = GI * (lce - xx1 - LSR0);
+	fib = (fib >= 0.0 && fib <= 100000.0) ? fib : (fib >100000.0 ? 100000.0: 0.0);
+
+	spindle_state[0] = xx0;
+	spindle_state[1] = xx1;
+	spindle_state[2] = xx2;
+	spindle_state[3] = fib;
+	spindle_state[4] = dx0;
+	spindle_state[5] = dx1;
+	spindle_state[6] = dx2;
+	//printf("%.6f\n", xx0);
+	//printf("%.6f\n", xx2);
 
 }
 

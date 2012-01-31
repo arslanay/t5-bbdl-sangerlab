@@ -471,7 +471,7 @@ void Spindle(double *spindle_state, double *spindle_input)
 	// dx2 = (1 / MASS) * (KSR * lce - (KSR + KPR) * x1 - CSS * (BDAMP * x0) * (fabs(x2)) - 0.4);
 	// dx2 = (1 / MASS) * (KSR * lce - (KSR + KPR) * x1 - CSS * (BDAMP * x0) * sig * sqrt(sqrt(fabs(x2))) - 0.4);
     dx2 = (1.0 / MASS) * 
-        (KSR * lce - (KSR + KPR) * x1 - (B0DAMP + BDAMP * x0) * sig * CSS * (fabs(x2)) - 
+        (KSR * lce - (KSR + KPR) * x1 - (B0DAMP + BDAMP * x0) * sig * CSS * pow(fabs(x2), ANONLINEAR) - 
         (FACT * x0) - KSR*LSR0 + KPR*LPR0 );
 
     xx0 = x0 + DT * (dx0 + dx0_prev)/2.0;

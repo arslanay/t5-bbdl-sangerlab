@@ -43,9 +43,9 @@ int main (int argc, char *argv[])
 
 int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumns, double samplFreq, double *motorVoltages, double *param, double *auxVar, double *user, double *exportVars)
 {
-	const int NUM_STATE = 13;
+	const int NUM_STATE = 20;
 
-	const int NUM_INPUT = 11;
+	const int NUM_INPUT = 12;
 	int currVecInd = bufferInd*numDataColumns;
 	
 	// param key
@@ -61,7 +61,9 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [9] Muscle length origin 5 - calibrate the encoder BICEPS	
 	// [10] Muscle length scale 0.1 - calibrate the encoder TRICEPS
 	// [11] Muscle length origin 5 - calibrate the encoder TRICEPS	
+    // [12] spindle - gamma static
 
+    
 	int bicMotorIndex = 1;
 	//int triMotorIndex = 0;	//Use a different motor, 
 	
@@ -79,6 +81,13 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [10] dx0
 	// [11] dx1
 	// [12]	dx2	
+    // [13] spindle state - firing constant x3
+	// [14] spindle state - polar region length x4
+	// [15] spindle state - polar region velocity x5
+	// [16] spindle state - IIa firing rate		GAMMA FIRING RATE?
+    // [17] dx3
+	// [18] dx4
+	// [19]	dx5	
 	
 	double bicMNPool[NUM_MN*NUM_MNStates];
 	// [0] motor neuron - voltage
@@ -95,7 +104,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [0]	Input current
 	// [1]	Digital spike size
 	// [2]	Time
-	// [3]	Gamma dynamic for bag 1
+	// [3]	Gamma dynamic for bag I
 	// [4]	Muscle Length Lce
 	// [5]	1/10 of Time
 	// [6]	Muscle Fiber time constant C
@@ -103,7 +112,9 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [8]	Time
 	// [9]	RESET
 	// [10]	output voltage scaling
+	// [11]	Gamma static for bag II
 	
+    
 	memcpy(bicState, auxVar + NUM_STATE * BIC_ID, NUM_STATE * sizeof(double));
 	memcpy(bicMNPool, user + NUM_MN * NUM_MNStates * BIC_ID, NUM_MNStates * NUM_MN * sizeof(double));
 	
@@ -122,7 +133,8 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	
 	bicInput[9] = param[5];
 	bicInput[10] = param[6];
-	
+	bicInput[11] = param[12];
+    
 	UpdateMuscleLoop(bicState, bicMNPool, bicInput);	
 	
 	if (bicState[7] > 0) motorVoltages[bicMotorIndex] = (bicState[7]*bicInput[10] >MAX_VOLTAGE) ? MAX_VOLTAGE : bicState[7]*bicInput[10];
@@ -155,7 +167,14 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [10] dx0
 	// [11] dx1
 	// [12]	dx2	
-	
+    // [13] spindle state - firing constant x3
+	// [14] spindle state - polar region length x4
+	// [15] spindle state - polar region velocity x5
+	// [16] spindle state - Ia firing rate		GAMMA FIRING RATE?
+    // [17] dx3
+	// [18] dx4
+	// [19]	dx5	
+    
 	double triMNPool[NUM_MN*NUM_MNStates];
 	// [0] motor neuron - voltage
 	// [1] motor neuron - recovery variable
@@ -171,14 +190,15 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [0]	Input current
 	// [1]	Digital spike size
 	// [2]	Time
-	// [3]	Gamma dynamic for bag 1
+	// [3]	Gamma dynamic for bag I
 	// [4]	Muscle Length Lce
-	// [5]	1/10 of Time
+	// [5]	1/10 of dT 
 	// [6]	Muscle Fiber time constant C
 	// [7]	Muscle Fiber Peak Force P
 	// [8]	Time
 	// [9]	RESET
 	// [10]	output voltage scaling
+	// [11]	Gamma static for bag II
 	
 	
 	memcpy(triState, auxVar + NUM_STATE * TRI_ID, NUM_STATE * sizeof(double));
@@ -199,8 +219,9 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	
 	triInput[9] = param[5];
 	triInput[10] = param[6];
-	
-	UpdateMuscleLoop(triState, triMNPool, triInput);	///???? Add ID
+	triInput[11] = param[12];
+    
+	UpdateMuscleLoop(triState, triMNPool, triInput);	
 	
 	if (triState[7] > 0) motorVoltages[triMotorIndex] = (triState[7]*triInput[10] >MAX_VOLTAGE) ? MAX_VOLTAGE : triState[7]*triInput[10] ;
 	else motorVoltages[triMotorIndex] = param[6];
@@ -268,20 +289,39 @@ int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
 	}
 
 	// *** Spindle
-	double spindleState[7];
+	double spindleState[14];
 
-	spindleState[0] = loopState[3]; // x0,
+    //Bag I
+	spindleState[0] = loopState[3]; // x0
 	spindleState[1] = loopState[4]; // x1
 	spindleState[2] = loopState[5]; // x2
 	spindleState[3] = loopState[6]; // Ia firing rate
-	spindleState[4] = loopState[10]; // dx0,
+	spindleState[4] = loopState[10]; // dx0
 	spindleState[5] = loopState[11]; // dx1
 	spindleState[6] = loopState[12]; // dx2
+    
+    //Bag II
+	spindleState[7] = loopState[13]; // x3
+	spindleState[8] = loopState[14]; // x4
+	spindleState[9] = loopState[15]; // x5
+	spindleState[10] = loopState[16]; // IIa firing rate
+	spindleState[11] = loopState[17]; // dx3
+	spindleState[12] = loopState[18]; // dx4
+	spindleState[13] = loopState[19]; // dx5
+    // [13] spindle state - firing constant x3
+	// [14] spindle state - polar region length x4
+	// [15] spindle state - polar region velocity x5
+	// [16] spindle state - IIa firing rate		GAMMA FIRING RATE?
+    // [17] dx3
+	// [18] dx4
+	// [19]	dx5	
+    
 		
-	double spindleInput[3];
-	spindleInput[0] = loopInput[3];
+	double spindleInput[4];
+	spindleInput[0] = loopInput[3]; //gd
 	spindleInput[1] = loopInput[4];
 	spindleInput[2] = loopInput[5];
+	spindleInput[3] = loopInput[11];; //gs
 	
 	loopState[9]=spindleInput[1]; 
 	
@@ -299,6 +339,16 @@ int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
 		loopState[10] = spindleState[4] ; //d x0
 		loopState[11] = spindleState[5] ;// dx1
 		loopState[12] = spindleState[6] ; // dx2
+        
+        //Bag II
+        
+        loopState[13] = spindleState[7] ; // x3
+        loopState[14] = spindleState[8] ; // x4
+        loopState[15] = spindleState[9] ; // x5
+        loopState[16] = spindleState[10]; // IIa firing rate
+        loopState[17] = spindleState[11]; // dx3
+        loopState[18] = spindleState[12]; // dx4
+        loopState[19] = spindleState[13]; // dx5
 	}
 	else
 	{
@@ -309,6 +359,14 @@ int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
 		loopState[10] = 0.0 ; //d x0
 		loopState[11] = 0.0 ;// dx1
 		loopState[12] = 0.0 ; // dx2
+        
+        loopState[13] = 0.0 ; // x3
+        loopState[14] = 0.9579 ; // x4
+        loopState[15] = 0.0 ; // x5
+        loopState[16] = 0.0 ; // IIa firing rate
+        loopState[17] = 0.0 ; // dx3
+        loopState[18] = 0.0 ; // dx4
+        loopState[19] = 0.0 ; // dx5  
 		
 	}
 	
@@ -401,29 +459,29 @@ void Spindle(double *spindle_state, double *spindle_input)
 	// ## MASS            [0.0002 0.0002 0.0002]
 	// ## FSAT            [1 0.5 1]
 
-	const double KSR = 10.4649;
-	const double KPR = 0.1127;
-	const double B0DAMP=0.0605;
-	const double BDAMP=0.2356;
-	const double F0ACT=0.0;
-	const double FACT=0.0289;
-	const double XII=1.0;
-	const double LPRN=1.0;
-	const double GI = 20000.0;
-	const double GII = 20000.0;
-	const double ANONLINEAR = 0.25;	//0.3 in original
-	const double RLDFV=0.46;
-	const double LSR0 = 0.04;
-	const double LPR0 = 0.76;
-	const double L2ND = 1.00;
-	const double TAO = 0.192;
-	const double MASS = 0.0002;
-	const double FSAT = 1.00;
+    //Declarations for Bag I
+    
+	double KSR = 10.4649;
+	double KPR = 0.1127;
+	double B0DAMP=0.0605;
+	double BDAMP=0.2356;
+	double F0ACT=0.0;
+	double FACT=0.0289;
+	double XII=1.0;
+	double LPRN=1.0;
+	double GI = 20000.0;
+	double GII = 20000.0;
+	double ANONLINEAR = 0.25;	//0.3 in original
+	double RLDFV=0.46;
+	double LSR0 = 0.04;
+	double LPR0 = 0.76;
+	double L2ND = 1.00;
+	double TAO = 0.192;
+	double MASS = 0.0002;
+	double FSAT = 1.00;
 
 	const double freq = 60.0;
-    	
-	
-	
+    		
 	double gd = spindle_input[0];
 	double lce = spindle_input[1];
 	double DT = spindle_input[2];
@@ -443,14 +501,20 @@ void Spindle(double *spindle_state, double *spindle_input)
 	double x0_prev = spindle_state[0];
 	double x1_prev = spindle_state[1];
 	double x2_prev = spindle_state[2];
+        
 	double fib = spindle_state[3];
 
+        
 	double dx0_prev = spindle_state[4];
 	double dx1_prev = spindle_state[5];
 	double dx2_prev = spindle_state[6];
 
-	double xx0, xx1, xx2, x0, x1, x2;
-
+    double xx0, xx1, xx2, x0, x1, x2;
+    
+ 
+    
+    //*** BAG I
+    
 	x0 = x0_prev + dx0_prev * DT;
 	x1 = x1_prev + dx1_prev * DT;
 	x2 = x2_prev + dx2_prev * DT;
@@ -471,8 +535,10 @@ void Spindle(double *spindle_state, double *spindle_input)
 	// dx2 = (1 / MASS) * (KSR * lce - (KSR + KPR) * x1 - CSS * (BDAMP * x0) * (fabs(x2)) - 0.4);
 	// dx2 = (1 / MASS) * (KSR * lce - (KSR + KPR) * x1 - CSS * (BDAMP * x0) * sig * sqrt(sqrt(fabs(x2))) - 0.4);
     dx2 = (1.0 / MASS) * 
-        (KSR * lce - (KSR + KPR) * x1 - (B0DAMP + BDAMP * x0) * sig * CSS * pow(fabs(x2), ANONLINEAR) - 
-        (FACT * x0) - KSR*LSR0 + KPR*LPR0 );
+        (KSR * lce - 
+            (KSR + KPR) * x1 - 
+            (B0DAMP + BDAMP * x0) * sig * CSS * pow(fabs(x2), ANONLINEAR) - 
+            (FACT * x0) - KSR*LSR0 + KPR*LPR0 );
 
     xx0 = x0 + DT * (dx0 + dx0_prev)/2.0;
     xx1 = x1 + DT * (dx1 + dx1_prev)/2.0;
@@ -488,8 +554,92 @@ void Spindle(double *spindle_state, double *spindle_input)
 	spindle_state[4] = dx0;
 	spindle_state[5] = dx1;
 	spindle_state[6] = dx2;
-	//printf("%.6f\n", xx0);
-	//printf("%.6f\n", xx2);
+    
+    
+    //Declarations for Bag II
+    
+    double x3_prev = spindle_state[7];
+	double x4_prev = spindle_state[8];
+	double x5_prev = spindle_state[9];
+    
+    double fib_bag2 = spindle_state[10];
+    
+    double dx3_prev = spindle_state[11];
+	double dx4_prev = spindle_state[12];
+	double dx5_prev = spindle_state[13];
+    
+    double gs = spindle_input[3];   //Change this in Update
+	
+    double dx3;
+	double dx4;
+	double dx5;
+    
+    double mings;
+    double CSS_bag2;
+    double sig_bag2;
+        
+    double xx3, xx4, xx5, x3, x4, x5;    
+    //*** BAG II
+    
+    KSR = 10.4649;
+	KPR = 0.1623;
+	B0DAMP =0.0822;
+	BDAMP =-0.046;
+	F0ACT =0.0;
+	FACT =0.0636;
+	XII =0.7;
+	LPRN =0.92;
+	GI = 10000.0;
+	GII = 7250.0;
+	ANONLINEAR = 0.3;	//0.3 in original
+	RLDFV=0.46;
+	LSR0 = 0.04;
+	LPR0 = 0.76;
+	L2ND = 0.04;
+	TAO = 0.185;
+	MASS = 0.0002;
+	FSAT = 0.50;
+    
+    
+	x3 = x3_prev + dx3_prev * DT;
+	x4 = x4_prev + dx4_prev * DT;
+	x5 = x5_prev + dx5_prev * DT;
+    
+    mings = gs*gs / (gs*gs + freq*freq);
+	
+    dx3 = (mings - x3)/ 0.205;
+    
+    dx4 = x5;
+    
+    if (x5 < 0.0)
+	CSS_bag2 = -1.0;
+	else 
+	CSS_bag2 = 1.0;
+    
+    sig_bag2 = x4 - RLDFV;
+    sig_bag2 = (sig_bag2 > 0) ? sig_bag2 : 0.0 ;
+    
+    dx5 = (1.0 / MASS) * 
+        (KSR * lce - 
+            (KSR + KPR) * x4 -
+            (B0DAMP + BDAMP * x3) * sig_bag2 * CSS_bag2 * pow(fabs(x5), ANONLINEAR) -
+            (FACT * x3) -
+            KSR*LSR0 + KPR*LPR0 );
+    
+    xx3 = x3 + DT * (dx3 + dx3_prev)/2.0;
+    xx4 = x4 + DT * (dx4 + dx4_prev)/2.0;
+    xx5 = x5 + DT * (dx5 + dx5_prev)/2.0;
 
+    fib_bag2 = GI * (lce - xx4 - LSR0);
+	fib_bag2 = (fib_bag2 >= 0.0 && fib_bag2 <= 100000.0) ? fib_bag2 : (fib_bag2 >100000.0 ? 100000.0: 0.0);
+
+    spindle_state[7] = xx3;
+	spindle_state[8] = xx4;
+	spindle_state[9] = xx5;
+	spindle_state[10] = fib_bag2;
+	spindle_state[11] = dx3;
+	spindle_state[12] = dx4;
+	spindle_state[13] = dx5;   
+    
 }
 

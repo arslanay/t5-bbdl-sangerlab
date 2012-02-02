@@ -56,12 +56,14 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [4] muscle fiber - peak force	
 	// [5] RESET the spindle state variables 1
 	// [6] Output volgage 0.1	//LOOK FOR REDUNDANCY
-	// [7] Scaling factor 0.05 spindleFiringRate -> izhCurrent(I)
+	// [7] Scaling factor 0.05 bag1FiringRate -> izhCurrent(I)
 	// [8] Muscle length scale 0.1 - calibrate the encoder BICEPS
 	// [9] Muscle length origin 5 - calibrate the encoder BICEPS	
 	// [10] Muscle length scale 0.1 - calibrate the encoder TRICEPS
 	// [11] Muscle length origin 5 - calibrate the encoder TRICEPS	
     // [12] spindle - gamma static
+    // [13] Scaling factor 0.05 bag2FiringRate -> izhCurrent(I)
+	
 
     
 	int bicMotorIndex = 1;
@@ -84,7 +86,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
     // [13] spindle state - firing constant x3
 	// [14] spindle state - polar region length x4
 	// [15] spindle state - polar region velocity x5
-	// [16] spindle state - IIa firing rate		GAMMA FIRING RATE?
+	// [16] spindle state - bag2 firing rate		GAMMA FIRING RATE?
     // [17] dx3
 	// [18] dx4
 	// [19]	dx5	
@@ -119,7 +121,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	memcpy(bicMNPool, user + NUM_MN * NUM_MNStates * BIC_ID, NUM_MNStates * NUM_MN * sizeof(double));
 	
 	
-	bicInput[0] = param[0] + bicState[6]*param[7];
+	bicInput[0] = param[0] + (bicState[6]-60.0)*param[7] + (bicState[16]-40.0)*param[13];
 	bicInput[1] = param[1];
 	bicInput[2] = (double) (1.0 / samplFreq);
 	
@@ -205,7 +207,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	memcpy(triMNPool, user + NUM_MN * NUM_MNStates * TRI_ID, NUM_MNStates * NUM_MN * sizeof(double));
 	
 	
-	triInput[0] = param[0] + triState[6]*param[7];
+	triInput[0] = param[0] + (triState[6]-60.0)*param[7] + (triState[16]-40.0)*param[13];
 	triInput[1] = param[1];
 	triInput[2] = (double) (1.0 / samplFreq);
 	

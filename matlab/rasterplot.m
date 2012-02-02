@@ -20,7 +20,7 @@ function rasterplot(times,numtrials,triallen, varargin)
 nin=nargin;
 
 %%%%%%%%%%%%%% Plot variables %%%%%%%%%%%%%%
-plotwidth=2;     % spike thickness
+plotwidth=0.1;     % spike thickness
 plotcolor='k';   % spike color
 trialgap=1.5;    % distance between trials
 defaultfs=1000;  % default sampling rate
@@ -30,7 +30,7 @@ showlabels=1;    % display x and y labels
 %%%%%%%%% Code Begins %%%%%%%%%%%%
 switch nin
  case 3 %no handle so plot in a separate figure
-  figure;
+%   figure;
   hresp=gca;
   fs=defaultfs;
  case 4 %handle supplied
@@ -78,7 +78,7 @@ end
   end
   
   if (showlabels)
-    xlabel('Time(ms)');
+    %xlabel('Time(ms)');
     ylabel('Trials');
   end
   

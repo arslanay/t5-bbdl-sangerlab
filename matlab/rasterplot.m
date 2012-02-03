@@ -23,7 +23,7 @@ nin=nargin;
 plotwidth=0.1;     % spike thickness
 plotcolor='k';   % spike color
 trialgap=1.5;    % distance between trials
-defaultfs=1000;  % default sampling rate
+defaultfs=100;  % default sampling rate
 showtimescale=1; % display timescale
 showlabels=1;    % display x and y labels
 
@@ -63,9 +63,13 @@ end
   yy(2:3:3*numspikes)=yy(1:3:3*numspikes)+1;
   
   %scale the time axis to ms
-  xx(1:3:3*numspikes)=reltimes*1000/fs;
-  xx(2:3:3*numspikes)=reltimes*1000/fs;
-  xlim=[1,triallen*1000/fs];
+%   xx(1:3:3*numspikes)=reltimes*1000/fs;
+%   xx(2:3:3*numspikes)=reltimes*1000/fs;
+%   xlim=[1,triallen*1000/fs];
+  
+  xx(1:3:3*numspikes)=reltimes/fs;
+  xx(2:3:3*numspikes)=reltimes/fs;
+  xlim=[0,triallen/fs];
 
   axes(hresp);
   h=plot(xx, yy, plotcolor, 'linewidth',plotwidth);
@@ -78,8 +82,7 @@ end
   end
   
   if (showlabels)
-    %xlabel('Time(ms)');
-    ylabel('Trials');
+    ylabel('Neurons');
   end
   
   

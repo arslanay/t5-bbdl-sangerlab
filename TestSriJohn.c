@@ -8,8 +8,9 @@
 #define TRI_ID 1
 #define MAX_NUM_MN 32
 #define NUM_MN 10
+#define NUM_EXTRAS 3
 #define NUM_MNStates 3
-#define MAX_VOLTAGE 0.8
+#define MAX_VOLTAGE 1.3
 
 // prototypes
 int Doer (double *stateMatrix,int bufferInd, int bufferLength,int numDataColumns, double samplFreq, double *motorVoltages, double *param, double *auxVar, double *user, double *exportVars);
@@ -142,12 +143,22 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	if (bicState[7] > 0) motorVoltages[bicMotorIndex] = (bicState[7]*bicInput[10] >MAX_VOLTAGE) ? MAX_VOLTAGE : bicState[7]*bicInput[10];
 	else motorVoltages[bicMotorIndex] = param[6];
 	
+    //Export
+   
+    int currMusInd =  (NUM_MN * 2 + NUM_EXTRAS) * BIC_ID; // This is 0 for biceps
+    
 	for(int i=0;i<NUM_MN;i++)
 	{
-		exportVars[2 * i + NUM_MN * 2 * BIC_ID] = bicMNPool[3*i];	//mni voltage
-		exportVars[2 * i + 1 +  NUM_MN * 2 * BIC_ID] = bicMNPool[3*i + 2];	//mni spikes
+		exportVars[currMusInd + 2 * i] = bicMNPool[3*i];	//mni voltage
+		exportVars[currMusInd + 2 * i + 1] = bicMNPool[3*i + 2];	//mni spikes
 	}
-	
+    //Bag 1 FR
+    exportVars[currMusInd + 2 * NUM_MN] = bicState[6];
+    //Bag 2 FR
+    exportVars[currMusInd + 2 * NUM_MN + 1] = bicState[16];
+    //Lce Muscle Length
+    exportVars[currMusInd + 2 * NUM_MN + 2] = bicState[9];
+    
 	memcpy(auxVar + NUM_STATE * BIC_ID, bicState, NUM_STATE * sizeof(double));
 	memcpy(user + NUM_MN * NUM_MNStates * BIC_ID, bicMNPool,  NUM_MNStates * NUM_MN * sizeof(double));
 	
@@ -229,12 +240,23 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	else motorVoltages[triMotorIndex] = param[6];
 	
 	
+    //Export
+   
+    currMusInd =  (NUM_MN * 2 + NUM_EXTRAS) * TRI_ID; // This is 0 for trieps
+    
 	for(int i=0;i<NUM_MN;i++)
 	{
-		exportVars[2 * i + NUM_MN * 2 * TRI_ID] = triMNPool[3*i];			//mni voltage
-		exportVars[2 * i + 1 + NUM_MN * 2 * TRI_ID] = triMNPool[3*i + 2];	//mni spikes
+		exportVars[currMusInd + 2 * i] = triMNPool[3*i];	//mni voltage
+		exportVars[currMusInd + 2 * i + 1] = triMNPool[3*i + 2];	//mni spikes
 	}
-	
+    //Bag 1 FR
+    exportVars[currMusInd + 2 * NUM_MN] = triState[6];
+    //Bag 2 FR
+    exportVars[currMusInd + 2 * NUM_MN + 1] = triState[16];
+    //Lce Muscle Length
+    exportVars[currMusInd + 2 * NUM_MN + 2] = triState[9];
+    
+    
 	memcpy(auxVar + NUM_STATE * TRI_ID, triState, NUM_STATE * sizeof(double));
 	memcpy(user + NUM_MN * NUM_MNStates * TRI_ID, triMNPool,  NUM_MNStates * NUM_MN * sizeof(double));
 	
@@ -644,4 +666,6 @@ void Spindle(double *spindle_state, double *spindle_input)
 	spindle_state[13] = dx5;   
     
 }
+
+//Chain
 

@@ -44,7 +44,7 @@ int main (int argc, char *argv[])
 
 int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumns, double samplFreq, double *motorVoltages, double *param, double *auxVar, double *user, double *exportVars)
 {
-	const int NUM_STATE = 20;
+	const int NUM_STATE = 21;
 
 	const int NUM_INPUT = 12;
 	int currVecInd = bufferInd*numDataColumns;
@@ -91,6 +91,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
     // [17] dx3
 	// [18] dx4
 	// [19]	dx5	
+    // [20] LenOrigBic CAREFUL!
 	
 	double bicMNPool[NUM_MN*NUM_MNStates];
 	// [0] motor neuron - voltage
@@ -126,8 +127,20 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	bicInput[1] = param[1];
 	bicInput[2] = (double) (1.0 / samplFreq);
 	
+
+    
 	bicInput[3] = param[2]; // gamma dynamic for bag 1
-	bicInput[4] = param[8]*(-stateMatrix[currVecInd + 1 + bicMotorIndex]+param[9])+1.0; // muscle length, Lce in Loeb model
+    
+
+    if(param[5] > 0.01)
+    	bicInput[4] = param[8]*(-stateMatrix[currVecInd + 1 + bicMotorIndex]+bicState[20])+1.0; // muscle length, Lce in Loeb model
+    else
+    {
+        bicInput[4] = 1.0; // muscle length, Lce in Loeb model
+        bicState[20]=stateMatrix[currVecInd + 1 + bicMotorIndex];
+    }
+        
+        
 	bicInput[5] = (double) (0.1 / samplFreq);
 	
 	bicInput[6] = param[3];
@@ -187,6 +200,7 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
     // [17] dx3
 	// [18] dx4
 	// [19]	dx5	
+    // [20] LenOrigTri CAREFUL!
     
 	double triMNPool[NUM_MN*NUM_MNStates];
 	// [0] motor neuron - voltage
@@ -222,9 +236,24 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	triInput[1] = param[1];
 	triInput[2] = (double) (1.0 / samplFreq);
 	
+    //REZERO THE SYSTEM
+    if(param[5] < 0.01)
+        param[11] = stateMatrix[currVecInd + 1 + triMotorIndex];        //Statevector 2 
+        
 	triInput[3] = param[2]; // gamma dynamic for bag 1
-	triInput[4] = param[10]*(-stateMatrix[currVecInd + 1 + triMotorIndex]+param[11])+1.0; // muscle length, Lce in Loeb model
-	triInput[5] = (double) (0.1 / samplFreq);
+    
+	//REZERO THE SYSTEM
+     
+    if(param[5] > 0.01)
+    	triInput[4] = param[10]*(-stateMatrix[currVecInd + 1 + triMotorIndex]+triState[20])+1.0; // muscle length, Lce in Loeb model
+    else
+    {
+        triInput[4] = 1.0; // muscle length, Lce in Loeb model
+        triState[20]=stateMatrix[currVecInd + 1 + triMotorIndex];
+    }
+    
+    
+   	triInput[5] = (double) (0.1 / samplFreq);
 	
 	triInput[6] = param[3];
 	triInput[7] = param[4];

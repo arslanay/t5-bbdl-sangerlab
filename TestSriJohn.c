@@ -8,7 +8,7 @@
 #define TRI_ID 1
 #define MAX_NUM_MN 32
 #define NUM_MN 10
-#define NUM_EXTRAS 3
+#define NUM_EXTRAS 4
 #define NUM_MNStates 3
 #define MAX_VOLTAGE 1.3
 
@@ -49,7 +49,8 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	const int NUM_INPUT = 12;
 	int currVecInd = bufferInd*numDataColumns;
 	
-	// param key
+    // param key
+	
 	// [0] motor neuron - input current
 	// [1] motor neuron - digital spike size
 	// [2] spindle - gamma dynamic				GAMMA DYNAMIC->T/Ksr (~stretch in the sensory region of each intrafusal fiber)
@@ -59,11 +60,23 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	// [6] Output volgage 0.1	//LOOK FOR REDUNDANCY
 	// [7] Scaling factor 0.05 bag1FiringRate -> izhCurrent(I)
 	// [8] Muscle length scale 0.1 - calibrate the encoder BICEPS
-	// [9] Muscle length origin 5 - calibrate the encoder BICEPS	
-	// [10] Muscle length scale 0.1 - calibrate the encoder TRICEPS
-	// [11] Muscle length origin 5 - calibrate the encoder TRICEPS	
-    // [12] spindle - gamma static
-    // [13] Scaling factor 0.05 bag2FiringRate -> izhCurrent(I)
+	// [9] Muscle length scale 0.1 - calibrate the encoder TRICEPS
+	// [10] spindle - gamma static
+    // [11] Scaling factor 0.05 bag2FiringRate -> izhCurrent(I)
+    
+    double bicAlpha = param[0]; // [0] motor neuron - input current
+    double triAlpha = param[1]; // [0] motor neuron - input current
+    double spikeSize = param[2]; // [1] motor neuron - digital spike size
+	double gammaDyn = param[3]; // [2] spindle - gamma dynamic				GAMMA DYNAMIC->T/Ksr (~stretch in the sensory region of each intrafusal fiber)
+	double musTime = param[4];// [3] muscle fiber - time constant
+	double musPeakForce = param[5];// [4] muscle fiber - peak force	
+	double flagReset = param[6];// [5] RESET the spindle state variables 1
+	double outVoltage = param[7];// [6] Output volgage 0.1	//LOOK FOR REDUNDANCY
+	double bag1FRtoI = param[8];// [7] Scaling factor 0.05 bag1FiringRate -> izhCurrent(I)
+	double lenScaleBic = param[9];// [8] Muscle length scale 0.1 - calibrate the encoder BICEPS
+	double lenScaleTri = param[10];// [9] Muscle length origin 5 - calibrate the encoder BICEPS	
+	double gammaSta = param[11];// [10] Muscle length scale 0.1 - calibrate the encoder TRICEPS
+    double bag2FRtoI = param[12]; // [13] Scaling factor 0.05 bag2FiringRate -> izhCurrent(I)
 	
 
     
@@ -123,17 +136,18 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	memcpy(bicMNPool, user + NUM_MN * NUM_MNStates * BIC_ID, NUM_MNStates * NUM_MN * sizeof(double));
 	
 	
-	bicInput[0] = param[0] + (bicState[6]-60.0)*param[7] + (bicState[16]-40.0)*param[13];
-	bicInput[1] = param[1];
+	bicInput[0] = bicAlpha + (bicState[6]-60.0)*bag1FRtoI + (bicState[16]-40.0)*bag2FRtoI;
+	bicInput[1] = spikeSize;
 	bicInput[2] = (double) (1.0 / samplFreq);
 	
 
     
-	bicInput[3] = param[2]; // gamma dynamic for bag 1
+	bicInput[3] = gammaDyn; // gamma dynamic for bag 1
     
-
-    if(param[5] > 0.01)
-    	bicInput[4] = param[8]*(-stateMatrix[currVecInd + 1 + bicMotorIndex]+bicState[20])+1.0; // muscle length, Lce in Loeb model
+    //REZERO THE SYSTEM
+    
+    if(flagReset > 0.01)
+    	bicInput[4] = lenScaleBic*(-stateMatrix[currVecInd + 1 + bicMotorIndex]+bicState[20])+1.0; // muscle length, Lce in Loeb model
     else
     {
         bicInput[4] = 1.0; // muscle length, Lce in Loeb model
@@ -143,18 +157,18 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
         
 	bicInput[5] = (double) (0.1 / samplFreq);
 	
-	bicInput[6] = param[3];
-	bicInput[7] = param[4];
+	bicInput[6] = musTime;
+	bicInput[7] = musPeakForce;
 	bicInput[8] = (double) (1.0 / samplFreq);
 	
-	bicInput[9] = param[5];
-	bicInput[10] = param[6];
-	bicInput[11] = param[12];
+	bicInput[9] = flagReset;
+	bicInput[10] = outVoltage;
+	bicInput[11] = gammaSta;
     
 	UpdateMuscleLoop(bicState, bicMNPool, bicInput);	
 	
 	if (bicState[7] > 0) motorVoltages[bicMotorIndex] = (bicState[7]*bicInput[10] >MAX_VOLTAGE) ? MAX_VOLTAGE : bicState[7]*bicInput[10];
-	else motorVoltages[bicMotorIndex] = param[6];
+	else motorVoltages[bicMotorIndex] = outVoltage;
 	
     //Export
    
@@ -171,6 +185,8 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
     exportVars[currMusInd + 2 * NUM_MN + 1] = bicState[16];
     //Lce Muscle Length
     exportVars[currMusInd + 2 * NUM_MN + 2] = bicState[9];
+    //BicAlpha
+    exportVars[currMusInd + 2 * NUM_MN + 3] = bicAlpha;
     
 	memcpy(auxVar + NUM_STATE * BIC_ID, bicState, NUM_STATE * sizeof(double));
 	memcpy(user + NUM_MN * NUM_MNStates * BIC_ID, bicMNPool,  NUM_MNStates * NUM_MN * sizeof(double));
@@ -232,41 +248,36 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
 	memcpy(triMNPool, user + NUM_MN * NUM_MNStates * TRI_ID, NUM_MNStates * NUM_MN * sizeof(double));
 	
 	
-	triInput[0] = param[0] + (triState[6]-60.0)*param[7] + (triState[16]-40.0)*param[13];
-	triInput[1] = param[1];
+	triInput[0] = triAlpha + (triState[6]-60.0)*bag1FRtoI + (triState[16]-40.0)*bag2FRtoI;
+	triInput[1] = spikeSize;
 	triInput[2] = (double) (1.0 / samplFreq);
 	
-    //REZERO THE SYSTEM
-    if(param[5] < 0.01)
-        param[11] = stateMatrix[currVecInd + 1 + triMotorIndex];        //Statevector 2 
-        
-	triInput[3] = param[2]; // gamma dynamic for bag 1
+    triInput[3] = gammaDyn; // gamma dynamic for bag 1
     
 	//REZERO THE SYSTEM
      
-    if(param[5] > 0.01)
-    	triInput[4] = param[10]*(-stateMatrix[currVecInd + 1 + triMotorIndex]+triState[20])+1.0; // muscle length, Lce in Loeb model
+    if(flagReset > 0.01)
+    	triInput[4] = lenScaleTri*(-stateMatrix[currVecInd + 1 + triMotorIndex]+triState[20])+1.0; // muscle length, Lce in Loeb model
     else
     {
         triInput[4] = 1.0; // muscle length, Lce in Loeb model
         triState[20]=stateMatrix[currVecInd + 1 + triMotorIndex];
     }
-    
-    
+       
    	triInput[5] = (double) (0.1 / samplFreq);
 	
-	triInput[6] = param[3];
-	triInput[7] = param[4];
+	triInput[6] = musTime;
+	triInput[7] = musPeakForce;
 	triInput[8] = (double) (1.0 / samplFreq);
 	
-	triInput[9] = param[5];
-	triInput[10] = param[6];
-	triInput[11] = param[12];
+	triInput[9] = flagReset;
+	triInput[10] = outVoltage;
+	triInput[11] = gammaSta;
     
 	UpdateMuscleLoop(triState, triMNPool, triInput);	
 	
 	if (triState[7] > 0) motorVoltages[triMotorIndex] = (triState[7]*triInput[10] >MAX_VOLTAGE) ? MAX_VOLTAGE : triState[7]*triInput[10] ;
-	else motorVoltages[triMotorIndex] = param[6];
+	else motorVoltages[triMotorIndex] = outVoltage;
 	
 	
     //Export
@@ -284,6 +295,8 @@ int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumn
     exportVars[currMusInd + 2 * NUM_MN + 1] = triState[16];
     //Lce Muscle Length
     exportVars[currMusInd + 2 * NUM_MN + 2] = triState[9];
+    //TriAlpha
+    exportVars[currMusInd + 2 * NUM_MN + 3] = triAlpha;
     
     
 	memcpy(auxVar + NUM_STATE * TRI_ID, triState, NUM_STATE * sizeof(double));

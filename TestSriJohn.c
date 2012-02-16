@@ -4,19 +4,28 @@
 #include <time.h>
 #include <stdlib.h>
 
+#define NUM_STATE 21
+#define NUM_INPUT 15
 #define BIC_ID 0
 #define TRI_ID 1
 #define MAX_NUM_MN 32
+#define MAX_NUM_SN 32
 #define NUM_MN 10
+#define NUM_SN 10
+#define NUM_SYN 10
 #define NUM_EXTRAS 4
-#define NUM_MNStates 3
+#define NUM_MN_STATES 3
+#define NUM_SN_STATES 3
+#define NUM_SYNAPSE_STATES 1
 #define MAX_VOLTAGE 1.3
+#define CYCLES_OF_INT 10
 
 // prototypes
 int Doer (double *stateMatrix,int bufferInd, int bufferLength,int numDataColumns, double samplFreq, double *motorVoltages, double *param, double *auxVar, double *user, double *exportVars);
 void Izhikevich(double *neuron_state, double *neuron_input);
+void Synapse(double *neuron_state, double *neuron_input);
 void Spindle(double *spindle_state, double *spindle_input);  
-int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput);
+int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *snPoolState, double *synPoolState, double *loopParam);
 
 
 int main (int argc, char *argv[]) 
@@ -44,319 +53,298 @@ int main (int argc, char *argv[])
 
 int Doer (double *stateMatrix,int bufferInd, int bufferLength, int numDataColumns, double samplFreq, double *motorVoltages, double *param, double *auxVar, double *user, double *exportVars)
 {
-	const int NUM_STATE = 21;
-
-	const int NUM_INPUT = 12;
 	int currVecInd = bufferInd*numDataColumns;
 	
     // param key
-	
-	// [0] motor neuron - input current
-	// [1] motor neuron - digital spike size
-	// [2] spindle - gamma dynamic				GAMMA DYNAMIC->T/Ksr (~stretch in the sensory region of each intrafusal fiber)
-	// [3] muscle fiber - time constant
-	// [4] muscle fiber - peak force	
-	// [5] RESET the spindle state variables 1
-	// [6] Output volgage 0.1	//LOOK FOR REDUNDANCY
-	// [7] Scaling factor 0.05 bag1FiringRate -> izhCurrent(I)
-	// [8] Muscle length scale 0.1 - calibrate the encoder BICEPS
-	// [9] Muscle length scale 0.1 - calibrate the encoder TRICEPS
-	// [10] spindle - gamma static
-    // [11] Scaling factor 0.05 bag2FiringRate -> izhCurrent(I)
+	   
+    double bicAlphaBg = param[0];   // [0] biceps motor neuron - background alpha-MN input current
+    double triAlpha = param[1];     // [1] triceps motor neuron - background alpha-MN input current 
+    double spikeSize = param[2];    // [2] motor neuron - digital spike size
+	double gammaDyn = param[3];     // [3] spindle - gamma dynamic	
+	double musTime = param[4];      // [4] muscle fiber - time constant
+	double musPeakForce = param[5]; // [5] muscle fiber - peak force	
+	double reset = param[6];        // [6] RESET the spindle state variables 1
+	double bag1FRtoI = param[7];    // [7] Scaling factor 0.05 bag1FiringRate -> izhCurrent(I)
+	double lenScaleBic = param[8];  // [8] Muscle length scale 0.1 - calibrate the encoder BICEPS
+	double lenScaleTri = param[9];  // [9] Muscle length origin 5 - calibrate the encoder BICEPS	
+	double gammaSta = param[10];    // [10] Muscle length scale 0.1 - calibrate the encoder TRICEPS
+    double bag2FRtoI = param[11];   // [11] Scaling factor 0.05 bag2FiringRate -> izhCurrent(I)
+	double initMNVolt = param[12];  // [12] motor neuron - voltage INIT
+	double initMNRecov = param[13]; // [13] motor neuron - recovery variable INIT
+	double initMNSpike = param[14]; // [14] motor neuron - binary spike INIT
     
-    double bicAlpha = param[0]; // [0] motor neuron - input current
-    double triAlpha = param[1]; // [0] motor neuron - input current
-    double spikeSize = param[2]; // [1] motor neuron - digital spike size
-	double gammaDyn = param[3]; // [2] spindle - gamma dynamic				GAMMA DYNAMIC->T/Ksr (~stretch in the sensory region of each intrafusal fiber)
-	double musTime = param[4];// [3] muscle fiber - time constant
-	double musPeakForce = param[5];// [4] muscle fiber - peak force	
-	double flagReset = param[6];// [5] RESET the spindle state variables 1
-	double outVoltage = param[7];// [6] Output volgage 0.1	//LOOK FOR REDUNDANCY
-	double bag1FRtoI = param[8];// [7] Scaling factor 0.05 bag1FiringRate -> izhCurrent(I)
-	double lenScaleBic = param[9];// [8] Muscle length scale 0.1 - calibrate the encoder BICEPS
-	double lenScaleTri = param[10];// [9] Muscle length origin 5 - calibrate the encoder BICEPS	
-	double gammaSta = param[11];// [10] Muscle length scale 0.1 - calibrate the encoder TRICEPS
-    double bag2FRtoI = param[12]; // [13] Scaling factor 0.05 bag2FiringRate -> izhCurrent(I)
-	
-
+    int currMusInd;
+    int currMusUserInd;
     
 	int bicMotorIndex = 1;
 	//int triMotorIndex = 0;	//Use a different motor, 
 	
 	double bicState[NUM_STATE];	//auxvar key
+    // [0] LenOrigBic DEPRECATED
+    // [1] LCE	    
+    // [2] Accumulative MN spikes from the pool, within 1 cycle
+    // [3] muscle fiber - current force
+    // [4] muscle fiber - previous force
+    // [5] bag1 state - firing constant x0
+    // [6] bag1 state - polar region length x1
+    // [7] bag1 state - polar region velocity x2
+    // [8] bag1 state - bag1 firing rate		GAMMA FIRING RATE?
+    // [9] dx0
+    // [10] dx1
+    // [11]	dx2	
+    // [12] bag2 state - firing constant x3
+    // [13] bag2 state - polar region length x4
+    // [14] bag2 state - polar region velocity x5
+    // [15] bag2 state - bag2 firing rate		GAMMA FIRING RATE?
+    // [16] dx3
+    // [17] dx4
+    // [18]	dx5	
+    // [19] Accumulative SN spikes from the pool, within 1 cycle
+    // [20] output from Synapse (current)
+    
+    double bicMNPoolStates[NUM_MN * NUM_MN_STATES];
 	// [0] motor neuron - voltage
 	// [1] motor neuron - recovery variable
 	// [2] motor neuron - binary spike
-	// [3] spindle state - firing constant x0
-	// [4] spindle state - polar region length x1
-	// [5] spindle state - polar region velocity x2
-	// [6] spindle state - Ia firing rate		GAMMA FIRING RATE?
-	// [7] muscle fiber - current force
-	// [8] muscle fiber - previous force
-	// [9] LCE	
-	// [10] dx0
-	// [11] dx1
-	// [12]	dx2	
-    // [13] spindle state - firing constant x3
-	// [14] spindle state - polar region length x4
-	// [15] spindle state - polar region velocity x5
-	// [16] spindle state - bag2 firing rate		GAMMA FIRING RATE?
-    // [17] dx3
-	// [18] dx4
-	// [19]	dx5	
-    // [20] LenOrigBic CAREFUL!
+    // ...
 	
-	double bicMNPool[NUM_MN*NUM_MNStates];
-	// [0] motor neuron - voltage
-	// [1] motor neuron - recovery variable
-	// [2] motor neuron - binary spike
-	// [0+] motor neuron - voltage
-	// [1] motor neuron - recovery variable
-	// [2] motor neuron - binary spike
-	// [0] motor neuron - voltage
-	// [1] motor neuron - recovery variable
-	// [2] motor neuron - binary spike
+	double bicSNPoolStates[NUM_SN * NUM_SN_STATES];
+	// [0] sensory neuron - voltage
+	// [1] sensory neuron - recovery variable
+	// [2] sensory neuron - binary spike
+    // ...
 	
-	double bicInput[NUM_INPUT]; 
-	// [0]	Input current
+    double bicSynPoolStates[NUM_SYN * NUM_SYNAPSE_STATES];
+	// [0] synapse model input
+	// ...
+    
+	double bicParam[NUM_INPUT]; 
+	// [0]	Current to the alpha_MN pool
 	// [1]	Digital spike size
-	// [2]	Time
+	// [2]	dt - Integration time interval 0.01s
 	// [3]	Gamma dynamic for bag I
-	// [4]	Muscle Length Lce
-	// [5]	1/10 of Time
+    // [4]	Gamma static for bag II
+    // [5]  Drive to the Muscle Fiber
 	// [6]	Muscle Fiber time constant C
 	// [7]	Muscle Fiber Peak Force P
-	// [8]	Time
-	// [9]	RESET
-	// [10]	output voltage scaling
-	// [11]	Gamma static for bag II
-	
+	// [8]	RESET
+    // [9]  motor neuron - voltage INIT
+	// [10] motor neuron - recovery variable INIT
+	// [11] motor neuron - binary spike INIT
+	// [12] presynaptic drive - Spike Count
+	// [13]	Current to the SN pool
+	// [14]	Muscle length
     
 	memcpy(bicState, auxVar + NUM_STATE * BIC_ID, NUM_STATE * sizeof(double));
-	memcpy(bicMNPool, user + NUM_MN * NUM_MNStates * BIC_ID, NUM_MNStates * NUM_MN * sizeof(double));
-	
-	
-	bicInput[0] = bicAlpha + (bicState[6]-60.0)*bag1FRtoI + (bicState[16]-40.0)*bag2FRtoI;
-	bicInput[1] = spikeSize;
-	bicInput[2] = (double) (1.0 / samplFreq);
-	
+	        
+    double bicLenOrig = bicState[0];
+    //double bicLce = bicState[1];
+    double bicNumMNSpikes = bicState[2];
+    double bicCurrForce = bicState[3];
+    double bicPrevForce = bicState[4];
+    double bicBag1FConst = bicState[5];
+    double bicBag1Len = bicState[6];
+    double bicBag1Vel = bicState[7];
+    double bicBag1FRate = bicState[8];
+    double bicDx0 = bicState[9];
+    double bicDx1 = bicState[10];
+    double bicDx2 = bicState[11];
+    double bicBag2FConst = bicState[12];
+    double bicBag2Len = bicState[13];
+    double bicBag2Vel = bicState[14];
+    double bicBag2FRate = bicState[15];
+    double bicDx3 = bicState[16];
+    double bicDx4 = bicState[17];
+    double bicDx5 = bicState[18];
+    double bicNumSNSpikes = bicState[19];
+    double bicSynOut = bicState[20];
+        
+    currMusUserInd =  (NUM_MN * NUM_MN_STATES + NUM_SN * NUM_SN_STATES + NUM_SYN * NUM_SYNAPSE_STATES) * BIC_ID;
+    
+    memcpy(bicMNPoolStates, user + currMusUserInd, NUM_MN_STATES * NUM_MN * sizeof(double));
+    
+    currMusUserInd =  currMusUserInd + NUM_MN * NUM_MN_STATES;
+    
+    memcpy(bicSNPoolStates, user + currMusUserInd, NUM_SN_STATES * NUM_SN * sizeof(double));
+    
+    currMusUserInd =  currMusUserInd + NUM_SN * NUM_SN_STATES;
+    
+    memcpy(bicSynPoolStates, user + currMusUserInd, NUM_SYNAPSE_STATES * NUM_SYN * sizeof(double));
+        
+    
+    bicParam[0] = bicAlphaBg + bicSynOut;
+	bicParam[1] = spikeSize;
+	bicParam[2] = (double) (1.0 / samplFreq);    
+    
+	bicParam[3] = gammaDyn; // gamma dynamic for bag 1
+    bicParam[4] = gammaSta;
+    bicParam[14] = lenScaleBic*(-stateMatrix[currVecInd + 1 + bicMotorIndex] + bicLenOrig)+1.0;
 
+    bicParam[5] = 30.0 / (double) NUM_MN * bicNumMNSpikes;  //Drive        
+	bicParam[6] = musTime;
+	bicParam[7] = musPeakForce;
+	bicParam[8] = reset;
     
-	bicInput[3] = gammaDyn; // gamma dynamic for bag 1
-    
-    //REZERO THE SYSTEM
-    
-    if(flagReset > 0.01)
-    	bicInput[4] = lenScaleBic*(-stateMatrix[currVecInd + 1 + bicMotorIndex]+bicState[20])+1.0; // muscle length, Lce in Loeb model
+    bicParam[9] = initMNVolt;
+    bicParam[10] = initMNRecov;
+    bicParam[11] = initMNSpike;
+	
+    bicParam[12] = bicNumSNSpikes;  //Presynaptic Spike Count
+    bicParam[13] = (bicBag1FRate - 60.0) * bag1FRtoI + (bicBag2FRate - 40.0) * bag2FRtoI;
+	    
+	    
+    //REZERO THE SYSTEM    
+    if(reset > 0.01)
+    {
+    	//bicState[1] = lenScaleBic*(-stateMatrix[currVecInd + 1 + bicMotorIndex] + bicLenOrig)+1.0; // muscle length, Lce in Loeb model
+    }
     else
     {
-        bicInput[4] = 1.0; // muscle length, Lce in Loeb model
-        bicState[20]=stateMatrix[currVecInd + 1 + bicMotorIndex];
+        //bicState[1] = 1.0; // muscle length, Lce in Loeb model
+        bicState[0] = stateMatrix[currVecInd + 1 + bicMotorIndex];   //bicLenOrig
+        //Initialize random number from outside 
+		srand( time(NULL) );
     }
-        
-        
-	bicInput[5] = (double) (0.1 / samplFreq);
-	
-	bicInput[6] = musTime;
-	bicInput[7] = musPeakForce;
-	bicInput[8] = (double) (1.0 / samplFreq);
-	
-	bicInput[9] = flagReset;
-	bicInput[10] = outVoltage;
-	bicInput[11] = gammaSta;
     
-	UpdateMuscleLoop(bicState, bicMNPool, bicInput);	
+	UpdateMuscleLoop(bicState, bicMNPoolStates, bicSNPoolStates, bicSynPoolStates, bicParam);	
 	
-	if (bicState[7] > 0) motorVoltages[bicMotorIndex] = (bicState[7]*bicInput[10] >MAX_VOLTAGE) ? MAX_VOLTAGE : bicState[7]*bicInput[10];
-	else motorVoltages[bicMotorIndex] = outVoltage;
+	if (bicCurrForce > 0) motorVoltages[bicMotorIndex] = (bicCurrForce > MAX_VOLTAGE) ? MAX_VOLTAGE : bicCurrForce * 0.3;
+	else motorVoltages[bicMotorIndex] = 0.3;
 	
-    //Export
-   
-    int currMusInd =  (NUM_MN * 2 + NUM_EXTRAS) * BIC_ID; // This is 0 for biceps
+    //Export   
     
-	for(int i=0;i<NUM_MN;i++)
+    bicBag1FRate = bicState[8];
+    bicBag2FRate = bicState[12];
+    //bicLce = bicState[1];
+    
+    currMusInd =  (NUM_MN * 2 + NUM_SN * 2 + NUM_EXTRAS) * BIC_ID; // This is 0 for biceps
+    
+    for(int i = 0 ;i < NUM_MN ; i++)
 	{
-		exportVars[currMusInd + 2 * i] = bicMNPool[3*i];	//mni voltage
-		exportVars[currMusInd + 2 * i + 1] = bicMNPool[3*i + 2];	//mni spikes
+		exportVars[currMusInd + 2 * i] = bicMNPoolStates[3*i];	//mni voltage
+		exportVars[currMusInd + 2 * i + 1] = bicMNPoolStates[3*i + 2];	//mni spikes
 	}
-    //Bag 1 FR
-    exportVars[currMusInd + 2 * NUM_MN] = bicState[6];
-    //Bag 2 FR
-    exportVars[currMusInd + 2 * NUM_MN + 1] = bicState[16];
-    //Lce Muscle Length
-    exportVars[currMusInd + 2 * NUM_MN + 2] = bicState[9];
-    //BicAlpha
-    exportVars[currMusInd + 2 * NUM_MN + 3] = bicAlpha;
+    
+    currMusInd = currMusInd + NUM_MN * 2;
+    
+    for(int i = 0 ; i< NUM_SN ; i++)
+	{
+		exportVars[currMusInd + 2 * i] = bicSNPoolStates[3*i];	//mni voltage
+		exportVars[currMusInd + 2 * i + 1] = bicSNPoolStates[3*i + 2];	//mni spikes
+	}
+    
+    currMusInd = currMusInd + NUM_SN * 2;
+        
+    exportVars[currMusInd] = bicBag1FRate;
+    exportVars[currMusInd + 1] = bicBag2FRate;
+    exportVars[currMusInd + 2] = bicParam[14];
+    exportVars[currMusInd + 3] = bicAlphaBg;
     
 	memcpy(auxVar + NUM_STATE * BIC_ID, bicState, NUM_STATE * sizeof(double));
-	memcpy(user + NUM_MN * NUM_MNStates * BIC_ID, bicMNPool,  NUM_MNStates * NUM_MN * sizeof(double));
 	
-	//*** New Triceps
-	
-	int triMotorIndex = 2;
-	
-	double triState[NUM_STATE];	//auxvar key
-	// [0] motor neuron - voltage
-	// [1] motor neuron - recovery variable
-	// [2] motor neuron - binary spike
-	// [3] spindle state - firing constant x0
-	// [4] spindle state - polar region length x1
-	// [5] spindle state - polar region velocity x2
-	// [6] spindle state - Ia firing rate		GAMMA FIRING RATE?
-	// [7] muscle fiber - current force
-	// [8] muscle fiber - previous force
-	// [9] LCE	
-	// [10] dx0
-	// [11] dx1
-	// [12]	dx2	
-    // [13] spindle state - firing constant x3
-	// [14] spindle state - polar region length x4
-	// [15] spindle state - polar region velocity x5
-	// [16] spindle state - Ia firing rate		GAMMA FIRING RATE?
-    // [17] dx3
-	// [18] dx4
-	// [19]	dx5	
-    // [20] LenOrigTri CAREFUL!
+    currMusUserInd =  (NUM_MN * NUM_MN_STATES + NUM_SN * NUM_SN_STATES + NUM_SYN * NUM_SYNAPSE_STATES) * BIC_ID;
     
-	double triMNPool[NUM_MN*NUM_MNStates];
-	// [0] motor neuron - voltage
-	// [1] motor neuron - recovery variable
-	// [2] motor neuron - binary spike
-	// [0] motor neuron - voltage
-	// [1] motor neuron - recovery variable
-	// [2] motor neuron - binary spike
-	// [0] motor neuron - voltage
-	// [1] motor neuron - recovery variable
-	// [2] motor neuron - binary spike
-	
-	double triInput[NUM_INPUT]; 
-	// [0]	Input current
-	// [1]	Digital spike size
-	// [2]	Time
-	// [3]	Gamma dynamic for bag I
-	// [4]	Muscle Length Lce
-	// [5]	1/10 of dT 
-	// [6]	Muscle Fiber time constant C
-	// [7]	Muscle Fiber Peak Force P
-	// [8]	Time
-	// [9]	RESET
-	// [10]	output voltage scaling
-	// [11]	Gamma static for bag II
-	
-	
-	memcpy(triState, auxVar + NUM_STATE * TRI_ID, NUM_STATE * sizeof(double));
-	memcpy(triMNPool, user + NUM_MN * NUM_MNStates * TRI_ID, NUM_MNStates * NUM_MN * sizeof(double));
-	
-	
-	triInput[0] = triAlpha + (triState[6]-60.0)*bag1FRtoI + (triState[16]-40.0)*bag2FRtoI;
-	triInput[1] = spikeSize;
-	triInput[2] = (double) (1.0 / samplFreq);
-	
-    triInput[3] = gammaDyn; // gamma dynamic for bag 1
+    memcpy(user + currMusUserInd, bicMNPoolStates, NUM_MN_STATES * NUM_MN * sizeof(double));
     
-	//REZERO THE SYSTEM
-     
-    if(flagReset > 0.01)
-    	triInput[4] = lenScaleTri*(-stateMatrix[currVecInd + 1 + triMotorIndex]+triState[20])+1.0; // muscle length, Lce in Loeb model
-    else
-    {
-        triInput[4] = 1.0; // muscle length, Lce in Loeb model
-        triState[20]=stateMatrix[currVecInd + 1 + triMotorIndex];
-    }
-       
-   	triInput[5] = (double) (0.1 / samplFreq);
-	
-	triInput[6] = musTime;
-	triInput[7] = musPeakForce;
-	triInput[8] = (double) (1.0 / samplFreq);
-	
-	triInput[9] = flagReset;
-	triInput[10] = outVoltage;
-	triInput[11] = gammaSta;
+    currMusUserInd =  currMusUserInd + NUM_MN * NUM_MN_STATES;
     
-	UpdateMuscleLoop(triState, triMNPool, triInput);	
-	
-	if (triState[7] > 0) motorVoltages[triMotorIndex] = (triState[7]*triInput[10] >MAX_VOLTAGE) ? MAX_VOLTAGE : triState[7]*triInput[10] ;
-	else motorVoltages[triMotorIndex] = outVoltage;
-	
-	
-    //Export
-   
-    currMusInd =  (NUM_MN * 2 + NUM_EXTRAS) * TRI_ID; // This is 0 for trieps
+    memcpy(user + currMusUserInd, bicSNPoolStates, NUM_SN_STATES * NUM_SN * sizeof(double));
     
-	for(int i=0;i<NUM_MN;i++)
-	{
-		exportVars[currMusInd + 2 * i] = triMNPool[3*i];	//mni voltage
-		exportVars[currMusInd + 2 * i + 1] = triMNPool[3*i + 2];	//mni spikes
-	}
-    //Bag 1 FR
-    exportVars[currMusInd + 2 * NUM_MN] = triState[6];
-    //Bag 2 FR
-    exportVars[currMusInd + 2 * NUM_MN + 1] = triState[16];
-    //Lce Muscle Length
-    exportVars[currMusInd + 2 * NUM_MN + 2] = triState[9];
-    //TriAlpha
-    exportVars[currMusInd + 2 * NUM_MN + 3] = triAlpha;
+    currMusUserInd =  currMusUserInd + NUM_SN * NUM_SN_STATES;
     
+    memcpy(user + currMusUserInd, bicSynPoolStates, NUM_SYNAPSE_STATES * NUM_SYN * sizeof(double));
     
-	memcpy(auxVar + NUM_STATE * TRI_ID, triState, NUM_STATE * sizeof(double));
-	memcpy(user + NUM_MN * NUM_MNStates * TRI_ID, triMNPool,  NUM_MNStates * NUM_MN * sizeof(double));
-	
-	
-	return 0;	
+    return 0;	
 }
 
-int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
+int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *snPoolState, double *synPoolState, double *loopParam)
 {
-	// *** Izh motoneurons
-	double mnState[NUM_MNStates];
+    // PARAM LOAD
+     
+    double digSpikeSize = loopParam[1]; //????
+    double timeInterval = loopParam[2];
+   
+    double reset = loopParam[8];
+    
+    // *** Izh alpha motoneuron pool :: I (nanoAmp) -> spike
+
+    double iniMNVolt = loopParam[9];
+    double iniMNRecov = loopParam[10];
+    double iniMNSpike = loopParam[11];
+ 
+	double mnState[NUM_MN_STATES];
 	double mnInput[3];
-
-	mnInput[0] = loopInput[0];
-	mnInput[1] = loopInput[1];
-	mnInput[2] = loopInput[2];	
-
-	loopState[2] = 0.0;
+ 
+	mnInput[0] = loopParam[0]; // current input to alpha
+	mnInput[1] = digSpikeSize; // spike ? mnInput[1] : 0.0
+	mnInput[2] = timeInterval; // dt
 	
-	if(loopInput[9]>0.01) // RESET -> initialize all motoneuron pool
+    double mnSpikeCount = 0.0;
+    
+	if(reset > 0.01) // RESET -> initialize all motoneuron pool
 	{
 		for (int i = 0; i < NUM_MN; i++)
 		{
-			memcpy(mnState, mnPoolState+NUM_MNStates*i, NUM_MNStates*sizeof(double));
+			memcpy(mnState, mnPoolState + NUM_MN_STATES * i, NUM_MN_STATES * sizeof(double));
 			Izhikevich(mnState, mnInput);
 			
-			// mnState[0] = action potential
-			// mnState[1] = recovery potential
 			if (mnState[2] > 0)
-			// mnState[2] = 30 if spikes or 0 if not;
 			{
-				loopState[2] += 3.0;	//loopInput[1]/10.0;	//loopInput[2];??
+				mnSpikeCount += 1.0;	//the number of spikes
 			} 
-			memcpy(mnPoolState+NUM_MNStates*i, mnState, NUM_MNStates*sizeof(double));
+			memcpy(mnPoolState + NUM_MN_STATES * i, mnState, NUM_MN_STATES * sizeof(double));
 		}
-		// Temporary : only Save MN#0 to loopState 
-		// Goal : Save all MN status bitwise to loopState[0..2]
-		//loopState[0] = ranNum;			
-		loopState[0] = mnPoolState[0];				
-		loopState[1] = mnPoolState[1];
-		//Ok, so eventually we'll get this to behave according to 
-		//the mnPoolState
 	}
 	else
 	{	
 		for (int i = 0; i < NUM_MN; i++)
 		{
-			mnPoolState[3*i] = loopState[0];
-			mnPoolState[3*i+1] = loopState[1];
-			mnPoolState[3*i+2] = loopState[2]; 		
+			mnPoolState[3*i] = iniMNVolt;
+			mnPoolState[3*i+1] = iniMNRecov;
+			mnPoolState[3*i+2] = iniMNSpike; 		
 		}	
-		//Initialize random number from outside 
-		srand( time(NULL) );
+		
 	}
 
-	// *** Spindle
-	double spindleState[14];
+    
+	// *** Muscle Fiber:: spikes (accumulated) -> Force
 
+    double musDrive = loopParam[5];    
+    double musTimeConst = loopParam[6];    
+    double musPeakForce = loopParam[7]; 
+	
+    double nowF = loopState[3];
+    double preF = loopState[4];
+    
+    double C = musTimeConst;
+	double P = musPeakForce;
+	double h = timeInterval;    //???? CHECK it out
+    
+		
+	double fiberState[3];
+	fiberState[0] = C/(exp(1)*P*h*h)-1/(exp(1)*P*h);         // define the discretization of the ODE 
+	fiberState[1] = -2*C/(exp(1)*P*h*h)+1/(exp(1)*P*C);
+	fiberState[2] = C/(exp(1)*P*h*h)+1/(exp(1)*P*h);
+	double u;
+	double f;	
+		
+	u = musDrive/h;
+	f = (u- fiberState[0]* preF - fiberState[1] * nowF)/fiberState[2];
+	
+    preF = nowF;
+    nowF = f;
+    
+    
+	// *** Spindle :: (Lce, Gd, Gs) -> Ia firing rate (pps)
+ 	double spindleState[14];
+	
+	double spindleInput[4];
+
+	spindleInput[0] = loopParam[3]; //gd
+	spindleInput[1] = loopParam[14]; //lce 
+	spindleInput[2] = timeInterval / (double) CYCLES_OF_INT; //a tenth of dt
+	spindleInput[3] = loopParam[4];; //gs	
+    
     //Bag I
 	spindleState[0] = loopState[3]; // x0
 	spindleState[1] = loopState[4]; // x1
@@ -373,87 +361,128 @@ int UpdateMuscleLoop(double *loopState, double *mnPoolState, double *loopInput)
 	spindleState[10] = loopState[16]; // IIa firing rate
 	spindleState[11] = loopState[17]; // dx3
 	spindleState[12] = loopState[18]; // dx4
-	spindleState[13] = loopState[19]; // dx5
-    // [13] spindle state - firing constant x3
-	// [14] spindle state - polar region length x4
-	// [15] spindle state - polar region velocity x5
-	// [16] spindle state - IIa firing rate		GAMMA FIRING RATE?
-    // [17] dx3
-	// [18] dx4
-	// [19]	dx5	
-    
-		
-	double spindleInput[4];
-	spindleInput[0] = loopInput[3]; //gd
-	spindleInput[1] = loopInput[4];
-	spindleInput[2] = loopInput[5];
-	spindleInput[3] = loopInput[11];; //gs
-	
-	loopState[9]=spindleInput[1]; 
+	spindleState[13] = loopState[19]; // dx5    
 	
 	for (int j = 0; j < 10; j++) 
 	{
 		Spindle(spindleState, spindleInput);
-	}
+	}   
+    
+	// *** Ia Sensory Neuron :: Ia postsyn current -> Ia_spike
+	double snState[NUM_SN_STATES];
+	double snInput[3];
+    
+	snInput[0] = loopParam[13]; // current input to sensory neuron
+	snInput[1] = digSpikeSize;  // spike size 
+	snInput[2] = timeInterval; // dt
 	
-	if(loopInput[9]>0.01)
+    //TODO ADD THE OTHER VAR
+    double snSpikeCount = 0.0;
+    
+	if(reset > 0.01) // RESET -> initialize all motoneuron pool
 	{
-		loopState[3] = spindleState[0] ; // x0
-		loopState[4] = spindleState[1] ;// x1
-		loopState[5] = spindleState[2] ; // x2
-		loopState[6] = spindleState[3] ;// Ia firing rate
-		loopState[10] = spindleState[4] ; //d x0
-		loopState[11] = spindleState[5] ;// dx1
-		loopState[12] = spindleState[6] ; // dx2
+		for (int i = 0; i < NUM_SN; i++)
+		{
+			memcpy(snState, snPoolState + NUM_SN_STATES * i, NUM_SN_STATES * sizeof(double));
+			Izhikevich(snState, snInput);
+			
+			if (snState[2] > 0)
+			{
+				snSpikeCount += 1.0;	//the number of spikes
+			} 
+			memcpy(snPoolState + NUM_SN_STATES * i, snState, NUM_SN_STATES* sizeof(double));
+		}
+	}
+	else
+	{	
+		for (int i = 0; i < NUM_SN; i++)
+		{
+			snPoolState[3*i] = iniMNVolt;
+			snPoolState[3*i+1] = iniMNRecov;
+			snPoolState[3*i+2] = iniMNSpike; 		
+		}	
+		
+	}
+    
+    // *** synapse :: Ia_firingrate -> Ia_postsyn current
+    double synState[NUM_SYNAPSE_STATES]; 
+    double synInput[1];
+    
+	if(reset > 0.01) // RESET -> initialize all sensory pool
+	{
+		for (int i = 0; i < NUM_SYN; i++)
+		{
+			memcpy(synState, synPoolState + NUM_SYNAPSE_STATES * i, NUM_SYNAPSE_STATES*sizeof(double));
+            synInput[0]= snPoolState[NUM_SN_STATES * i + 2];    
+            
+			Synapse(synState, synInput);
+			memcpy(synPoolState + NUM_SYNAPSE_STATES * i, mnState, NUM_SYNAPSE_STATES*sizeof(double));
+		}
+	}    
+    
+	if(reset > 0.01)
+	{
+        loopState[2] = mnSpikeCount;	//the number of spikes
+
+        loopState[3] = nowF;  // 
+		loopState[4] = preF ; // 
+		
+        //Bag I
+        
+		loopState[5] = spindleState[0] ; // x0
+		loopState[6] = spindleState[1] ;// x1
+		loopState[7] = spindleState[2] ; // x2
+		loopState[8] = spindleState[3] ;// Ia firing rate
+		loopState[9] = spindleState[4] ; //d x0
+		loopState[10] = spindleState[5] ;// dx1
+		loopState[11] = spindleState[6] ; // dx2
         
         //Bag II
         
-        loopState[13] = spindleState[7] ; // x3
-        loopState[14] = spindleState[8] ; // x4
-        loopState[15] = spindleState[9] ; // x5
-        loopState[16] = spindleState[10]; // IIa firing rate
-        loopState[17] = spindleState[11]; // dx3
-        loopState[18] = spindleState[12]; // dx4
-        loopState[19] = spindleState[13]; // dx5
+        loopState[12] = spindleState[7] ; // x3
+        loopState[13] = spindleState[8] ; // x4
+        loopState[14] = spindleState[9] ; // x5
+        loopState[15] = spindleState[10]; // IIa firing rate
+        loopState[16] = spindleState[11]; // dx3
+        loopState[17] = spindleState[12]; // dx4
+        loopState[18] = spindleState[13]; // dx5
+                
+        loopState[19] = snSpikeCount;	//the number of spikes
+        loopState[20] = synState[0];	//synapse output
+
 	}
-	else
+	else    //?????
 	{
-		loopState[3] = 0.0 ; // x0
-		loopState[4] = 0.9579 ;// x1
-		loopState[5] = 0.0 ; // x2
-		loopState[6] = 0.0 ;// Ia firing rate
-		loopState[10] = 0.0 ; //d x0
-		loopState[11] = 0.0 ;// dx1
-		loopState[12] = 0.0 ; // dx2
+        loopState[2] = 0.0;	//the number of spikes
+
+        loopState[3] = 0.0;  // 
+		loopState[4] = 0.0 ; // 
+		
+        //Bag I
         
-        loopState[13] = 0.0 ; // x3
-        loopState[14] = 0.9579 ; // x4
-        loopState[15] = 0.0 ; // x5
-        loopState[16] = 0.0 ; // IIa firing rate
-        loopState[17] = 0.0 ; // dx3
-        loopState[18] = 0.0 ; // dx4
-        loopState[19] = 0.0 ; // dx5  
-		
-	}
-	
-	// *** Muscle Fiber
-	double C = loopInput[6];
-	double P = loopInput[7];
-	double h = loopInput[8];
-		
-	double fiberState[3];
-	fiberState[0] = C/(exp(1)*P*h*h)-1/(exp(1)*P*h);         // define the discretization of the ODE 
-	fiberState[1] = -2*C/(exp(1)*P*h*h)+1/(exp(1)*P*C);
-	fiberState[2] = C/(exp(1)*P*h*h)+1/(exp(1)*P*h);
-	double u;
-	double f;	
-		
-	u = loopState[2]/h;
-	f = (u-fiberState[0]*loopState[8]-fiberState[1]*loopState[7])/fiberState[2];
-	
-	loopState[8] = loopState[7];
-	loopState[7] = f;
-	
+		loopState[5] = 0.0 ; // x0
+		loopState[6] = 0.9579 ;// x1
+		loopState[7] = 0.0 ; // x2
+		loopState[8] = 0.0 ;// Ia firing rate
+		loopState[9] = 0.0 ; //d x0
+		loopState[10] = 0.0 ;// dx1
+		loopState[11] = 0.0 ; // dx2
+        
+        //Bag II
+        
+        loopState[12] = 0.0 ; // x3
+        loopState[13] = 0.9579 ; // x4
+        loopState[14] = 0.0 ; // x5
+        loopState[15] = 0.0; // IIa firing rate
+        loopState[16] = 0.0; // dx3
+        loopState[17] = 0.0; // dx4
+        loopState[18] = 0.0; // dx5
+                
+        loopState[19] = 0.0;
+        loopState[20] = 0.0;	//synapse output
+        
+	}    
+    
 	return 0;
 }
 
@@ -486,7 +515,7 @@ void Izhikevich(double *neuron_state, double *neuron_input)
 
   
   
-  if (vv >= TH) // if spikes    +randnumber???????????
+  if (vv >= TH) // if spikes    
     {
       neuron_state[0] = C;
       neuron_state[1] = uu + D;
@@ -710,4 +739,10 @@ void Spindle(double *spindle_state, double *spindle_input)
 }
 
 //Chain
+
+void Synapse(double *neuron_state, double *neuron_input)
+{
+
+}
+
 

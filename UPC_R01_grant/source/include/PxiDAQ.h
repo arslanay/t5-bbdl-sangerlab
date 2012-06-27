@@ -3,7 +3,7 @@
 
 #include	<NIDAQmx.h>
 
-extern TaskHandle emgDaqHandle;
+extern TaskHandle PxiDAQHandle;
 extern TaskHandle startleDaqHandle;
 
 

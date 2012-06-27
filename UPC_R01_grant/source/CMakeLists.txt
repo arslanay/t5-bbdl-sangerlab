@@ -33,6 +33,7 @@ FIND_PACKAGE(pthread REQUIRED)
 #SET(Boost_USE_MULTITHREADED ON)
 #FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
 FIND_PACKAGE(NIDAQMX REQUIRED)
+FIND_PACKAGE(OpalKelly REQUIRED)
 
 
 # Include the following directories when compiling 
@@ -69,7 +70,7 @@ SET(SYS_LIBRARIES
 # Make sure custom-written libraries get the correct dependencies
 SET(CMN_LIB_NAMES
 	Utilities
-	EmgDaq
+	PxiDAQ
 	#ReadParadigm
 	#TriggerOutput
 	)
@@ -80,7 +81,7 @@ FOREACH(LIB ${CMN_LIB_NAMES})
 ENDFOREACH(LIB)
 
 #ADD_DEPENDENCIES(ReadParadigm Utilities)
-ADD_DEPENDENCIES(EmgDaq Utilities)
+ADD_DEPENDENCIES(PxiDAQ Utilities)
 
 # Rather than individually listing each example, let's take advantage
 # of CMake's loop capabilities. Just list each example's base name.
@@ -91,8 +92,8 @@ SET(CMN_EXECUTABLE_NAMES
 # Now loop through each name, defining the executable by grabbing the
 # identically-named source file and linking the required libraries.
 FOREACH(EXEC ${CMN_EXECUTABLE_NAMES})
-	ADD_EXECUTABLE(${EXEC} ${EXEC}.cpp)
+	ADD_EXECUTABLE(${EXEC} ${EXEC}.cpp okFrontPanelDLL.cpp)
 	TARGET_LINK_LIBRARIES(${EXEC} ${SYS_LIBRARIES})
-	#ADD_DEPENDENCIES(${EXEC} EmgDaq Utilities ReadParadigm TriggerOutput)
-	ADD_DEPENDENCIES(${EXEC} EmgDaq Utilities)
+	#ADD_DEPENDENCIES(${EXEC} PxiDAQ Utilities ReadParadigm TriggerOutput)
+	ADD_DEPENDENCIES(${EXEC} PxiDAQ Utilities)
 ENDFOREACH(EXEC)

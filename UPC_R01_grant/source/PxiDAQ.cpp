@@ -1,6 +1,6 @@
 #include	<stdio.h>
 #include	"Utilities.h"
-#include    "EmgDAQ.h"
+#include    "PxiDAQ.h"
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 
 
@@ -67,26 +67,26 @@ int StartEmg(void)
 	/*********************************************/
 	// DAQmx Configure Code
 	/*********************************************/
-	DAQmxErrChk (DAQmxCreateTask("",&emgDaqHandle));
-	DAQmxErrChk (DAQmxCreateAIVoltageChan(emgDaqHandle,"Dev1/ai0","flex1",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
-	DAQmxErrChk (DAQmxCreateAIVoltageChan(emgDaqHandle,"Dev1/ai1","ext1",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
-	DAQmxErrChk (DAQmxCreateAIVoltageChan(emgDaqHandle,"Dev1/ai2","flex2",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
-	DAQmxErrChk (DAQmxCreateAIVoltageChan(emgDaqHandle,"Dev1/ai3","ext2",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
-	DAQmxErrChk (DAQmxCreateAIVoltageChan(emgDaqHandle,"Dev1/ai4","flex3",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
-	DAQmxErrChk (DAQmxCreateAIVoltageChan(emgDaqHandle,"Dev1/ai5","ext3",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
-	DAQmxErrChk (DAQmxCreateAIVoltageChan(emgDaqHandle,"Dev1/ai6","flex4",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
-	DAQmxErrChk (DAQmxCreateAIVoltageChan(emgDaqHandle,"Dev1/ai7","ext4",DAQmx_Val_Diff ,-10.0,10.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCreateTask("",&PxiDAQHandle));
+	DAQmxErrChk (DAQmxCreateAIVoltageChan(PxiDAQHandle,"Dev1/ai0","flex1",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCreateAIVoltageChan(PxiDAQHandle,"Dev1/ai1","ext1",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCreateAIVoltageChan(PxiDAQHandle,"Dev1/ai2","flex2",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCreateAIVoltageChan(PxiDAQHandle,"Dev1/ai3","ext2",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCreateAIVoltageChan(PxiDAQHandle,"Dev1/ai4","flex3",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCreateAIVoltageChan(PxiDAQHandle,"Dev1/ai5","ext3",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCreateAIVoltageChan(PxiDAQHandle,"Dev1/ai6","flex4",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCreateAIVoltageChan(PxiDAQHandle,"Dev1/ai7","ext4",DAQmx_Val_Diff ,-10.0,10.0,DAQmx_Val_Volts,NULL));
 
 	// DAQmxErrChk(TaskHandle, ChannelName, MaxExternalClkEMG_SAMPLING_RATE, DAQMode, BufferSize);
-	DAQmxErrChk (DAQmxCfgSampClkTiming(emgDaqHandle,"/Dev1/PFI0",1250.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1000));
+	DAQmxErrChk (DAQmxCfgSampClkTiming(PxiDAQHandle,"/Dev1/PFI0",1250.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1000));
 
-	DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent(emgDaqHandle,DAQmx_Val_Acquired_Into_Buffer,100,0,EveryNCallback,NULL));
-	DAQmxErrChk (DAQmxRegisterDoneEvent(emgDaqHandle,0,DoneCallback,NULL));
+	DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent(PxiDAQHandle,DAQmx_Val_Acquired_Into_Buffer,100,0,EveryNCallback,NULL));
+	DAQmxErrChk (DAQmxRegisterDoneEvent(PxiDAQHandle,0,DoneCallback,NULL));
 
 	/*********************************************/
 	// DAQmx Start Code
 	/*********************************************/
-	DAQmxErrChk (DAQmxStartTask(emgDaqHandle));
+	DAQmxErrChk (DAQmxStartTask(PxiDAQHandle));
 
 	//printf("Ready for EMG recording!\n");
 	//getchar();
@@ -107,12 +107,12 @@ int StopEmg(void)
 	//printf( "\nStopping EMG ...\n" );
 	if( DAQmxFailed(error) )
 		DAQmxGetExtendedErrorInfo(errBuff,2048);
-	if( emgDaqHandle!=0 ) {
+	if( PxiDAQHandle!=0 ) {
 		/*********************************************/
 		// DAQmx Stop Code
 		/*********************************************/
-		DAQmxStopTask(emgDaqHandle);
-		DAQmxClearTask(emgDaqHandle);
+		DAQmxStopTask(PxiDAQHandle);
+		DAQmxClearTask(PxiDAQHandle);
 	}
 	if( DAQmxFailed(error) )
 		printf("DAQmx Error: %s\n",errBuff);
@@ -121,7 +121,7 @@ int StopEmg(void)
 	return 0;
 }
 
-int32 CVICALLBACK EveryNCallback(TaskHandle emgDaqHandle, int32 everyNsamplesEventType, uInt32 nSamples, void *callbackData)
+int32 CVICALLBACK EveryNCallback(TaskHandle PxiDAQHandle, int32 everyNsamplesEventType, uInt32 nSamples, void *callbackData)
 {
 	int32       error =0;
 	char        errBuff[2048] = {'\0'};
@@ -133,8 +133,8 @@ int32 CVICALLBACK EveryNCallback(TaskHandle emgDaqHandle, int32 everyNsamplesEve
 	/*********************************************/
 	// DAQmx Read Code
 	/*********************************************/
-	DAQmxErrChk (DAQmxReadAnalogF64(emgDaqHandle,100,10.0,DAQmx_Val_GroupByScanNumber,&data[0],100*CHANNEL_NUM,&read,NULL));
-	// (emgDaqHandle, NumOfSamplesPerChann, TimeOut, FillMode, Where to store data, Size of data, Sample Num Read, NULL);
+	DAQmxErrChk (DAQmxReadAnalogF64(PxiDAQHandle,100,10.0,DAQmx_Val_GroupByScanNumber,&data[0],100*CHANNEL_NUM,&read,NULL));
+	// (PxiDAQHandle, NumOfSamplesPerChann, TimeOut, FillMode, Where to store data, Size of data, Sample Num Read, NULL);
 
 	if( read>0 ) {
 		//printf("Acquired %d samples. Total %d\r",read,totalRead+=read);
@@ -155,14 +155,14 @@ Error:
 		/*********************************************/
 		// DAQmx Stop Code
 		/*********************************************/
-		DAQmxStopTask(emgDaqHandle);
-		DAQmxClearTask(emgDaqHandle);
+		DAQmxStopTask(PxiDAQHandle);
+		DAQmxClearTask(PxiDAQHandle);
 		printf("DAQmx Error: %s\n",errBuff);
 	}
 	return 0;
 }
 
-int32 CVICALLBACK DoneCallback(TaskHandle emgDaqHandle, int32 status, void *callbackData)
+int32 CVICALLBACK DoneCallback(TaskHandle PxiDAQHandle, int32 status, void *callbackData)
 {
 	int32   error=0;
 	char    errBuff[2048]={'\0'};
@@ -173,7 +173,7 @@ int32 CVICALLBACK DoneCallback(TaskHandle emgDaqHandle, int32 status, void *call
 Error:
 	if( DAQmxFailed(error) ) {
 		DAQmxGetExtendedErrorInfo(errBuff,2048);
-		DAQmxClearTask(emgDaqHandle);
+		DAQmxClearTask(PxiDAQHandle);
 		printf("DAQmx Error: %s\n",errBuff);
 	}
 	return 0;

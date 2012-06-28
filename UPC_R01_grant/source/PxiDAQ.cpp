@@ -147,7 +147,7 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 		DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, data, 1*CHANNEL_NUM,&numRead,NULL));
 
 		if( numRead ) {
-			printf("f1 %.4lf :: f2 %.4lf \n", data[0], data[1]);
+//			printf("f1 %.4lf :: f2 %.4lf \n", data[0], data[1]);
 			g_force[0] = data[0];
 			g_force[1] = data[1];
 		}

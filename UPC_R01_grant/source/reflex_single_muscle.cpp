@@ -70,6 +70,7 @@ using namespace std;
 // *** Global variables
 double g_force [2];
 pthread_t g_threads[NUM_THREADS];
+pthread_mutex_t mutexPosition;
 TaskHandle PxiDAQHandle;
 
 
@@ -77,10 +78,10 @@ OGLGraph* myGraph;
 
 void init ( GLvoid )     // Create Some Everyday Functions
 {
-	glClearColor(0.0f, 0.0f, 0.0f, 0.f);				// Black Background
-	//glClearDepth(1.0f);								// Depth Buffer Setup
-	myGraph = OGLGraph::Instance();
-	myGraph->setup( 500, 100, 10, 10, 2, 2, 1, 200 );
+    glClearColor(0.0f, 0.0f, 0.0f, 0.f);				// Black Background
+    //glClearDepth(1.0f);								// Depth Buffer Setup
+    myGraph = OGLGraph::Instance();
+    myGraph->setup( 500, 100, 10, 20, 2, 2, 1, 200 );
 }
 
 void display ( void )   // Create The Display Function
@@ -92,16 +93,16 @@ void display ( void )   // Create The Display Function
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-	// This is a dummy function. Replace with custom input/data
-	float time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
-	float value;
-	value = 5*sin( 5*time ) + 10.f;
+    // This is a dummy function. Replace with custom input/data
+    float time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+    float value;
+    value = 5*sin( 5*time ) + 10.f;
 
-	myGraph->update( 1000.0 * g_force[0] );
-	//printf("%.4lf \n", g_force[0]);
-	myGraph->draw();
+    myGraph->update( 10.0 * g_force[0] );
+    //printf("%.4lf \n", g_force[0]);
+    myGraph->draw();
 
-	glutSwapBuffers ( );
+    glutSwapBuffers ( );
 }
 
 void reshape ( int w, int h )   // Create The Reshape Function (the viewport)
@@ -116,55 +117,56 @@ void reshape ( int w, int h )   // Create The Reshape Function (the viewport)
 
 void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
 {
-	switch ( key ) 
-	{
-	case 27:        // When Escape Is Pressed...
-		exit ( 0 );   // Exit The Program
-		break;        // Ready For Next Case
-	default:        // Now Wrap It Up
-		break;
-	}
+    switch ( key ) 
+    {
+    case 27:        // When Escape Is Pressed...
+        exit ( 0 );   // Exit The Program
+        break;        // Ready For Next Case
+    default:        // Now Wrap It Up
+        break;
+    }
 }
 
 void idle(void)
 {
-  glutPostRedisplay();
+    glutPostRedisplay();
 }
 
 // This Fucntion performs the Experimental Protocol
 void* 
-control_loop(void*)
+    control_loop(void*)
 {
-	StartEmg(PxiDAQHandle);
-	while (1)
-	{
-		if(_kbhit())
+    while (1)
+    {
+        if(_kbhit())
         {
             break;
         }
-	} 
-
-	StopEmg(PxiDAQHandle);
-	printf ("\nSwitch to the 3D Window, Hit ESC to Quit!");
-	return 0;	
+    } 
+    printf ("\nSwitch to the 3D Window, Hit ESC to Quit!");
+    return 0;	
 }
 
 
 void main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
 {
-  glutInit( &argc, argv ); // Erm Just Write It =)
-  init();
+    glutInit( &argc, argv ); // Erm Just Write It =)
+    init();
 
-  glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE ); // Display Mode
-  glutInitWindowSize( 500, 250 ); // If glutFullScreen wasn't called this is the window size
-  glutCreateWindow( "OpenGL Graph Component" ); // Window Title (argv[0] for current directory as title)
-  glutDisplayFunc( display );  // Matching Earlier Functions To Their Counterparts
-  glutReshapeFunc( reshape );
-  glutKeyboardFunc( keyboard );
-  glutIdleFunc(idle);
+    glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE ); // Display Mode
+    glutInitWindowSize( 500, 250 ); // If glutFullScreen wasn't called this is the window size
+    glutCreateWindow( "OpenGL Graph Component" ); // Window Title (argv[0] for current directory as title)
+    glutDisplayFunc( display );  // Matching Earlier Functions To Their Counterparts
+    glutReshapeFunc( reshape );
+    glutKeyboardFunc( keyboard );
+    glutIdleFunc(idle);
 
-  int ctrl_handle = pthread_create(&g_threads[0], NULL, control_loop,	(void *)g_force);
+    StartEmg(PxiDAQHandle);
 
-  glutMainLoop( );          // Initialize The Main Loop
+    int ctrl_handle = pthread_create(&g_threads[0], NULL, control_loop,	(void *)g_force);
+
+    StopEmg(PxiDAQHandle);
+
+    glutMainLoop( );          // Initialize The Main Loop
 }
 

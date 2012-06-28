@@ -4,8 +4,6 @@
 #include    "PxiDAQ.h"
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 
-extern double*	g_force;
-
 /*********************************************************************
 *
 * ANSI C Example program:
@@ -116,6 +114,7 @@ int StopEmg(TaskHandle taskHandleDAQmx)
 		DAQmxStopTask(taskHandleDAQmx);
 		DAQmxClearTask(taskHandleDAQmx);
 	}
+    printf ("\nDAQ stopped!");
 	if( DAQmxFailed(error) )
 		printf("DAQmx Error: %s\n",errBuff);
 	//fclose(emgLogHandle);
@@ -149,8 +148,8 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 
 		if( numRead ) {
 			printf("f1 %.4lf :: f2 %.4lf \n", data[0], data[1]);
-			//g_force[0] = data[0];
-			//g_force[1] = data[1];
+			g_force[0] = data[0];
+			g_force[1] = data[1];
 		}
 	}
 	return 0;

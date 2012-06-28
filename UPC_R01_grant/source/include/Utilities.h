@@ -57,7 +57,7 @@ const int	FLG_EVENT_REACH = 5;
 #define		PthreadMutexLock pthread_mutex_lock 
 #define		PthreadMutexUnlock pthread_mutex_unlock 
 
-#define		CHANNEL_NUM 8
+#define		CHANNEL_NUM 2
 
 #define		MAX_SAMPLE_NUM 10 * EMG_SAMPLING_RATE // 10 sec = ? Samples
 #include <string>

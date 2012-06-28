@@ -28,13 +28,13 @@ IF (WIN32)
 
   ELSE(CYGWIN)
 
-    FIND_PATH( GLUT_INCLUDE_DIR GL/glut.h
-      C:/HapticMASTER/GLUT/3.7.6/include
+    FIND_PATH(GLUT_INCLUDE_DIR glut.h
+      "C:/T5_BbdlSanger/UPC_R01_grant/source/include"
     )
 
     FIND_LIBRARY(GLUT_glut_LIBRARY 
 		NAMES glut32
-		PATHS C:/HapticMASTER/GLUT/3.7.6
+		PATHS "C:/T5_BbdlSanger/UPC_R01_grant/source/glut"		
     )
 
   # GLUT on Windows is usually installed into the default locations

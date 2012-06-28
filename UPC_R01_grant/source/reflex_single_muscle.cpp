@@ -40,12 +40,12 @@ using namespace std;
 //------------------------------------------------------------------------
 
 #include <iostream>
+#include <conio.h>
 #include <fstream>
 #include <stdio.h>
 #include <string.h>
 
 #include "okFrontPanelDLL.h"
-
 /*
 *	Name:			reflex_single_muscle
 
@@ -55,7 +55,6 @@ using namespace std;
 
 */
 
-#include	<fstream>
 #include	<math.h>
 #include	<pthread.h>
 #include	<stdlib.h>
@@ -65,224 +64,107 @@ using namespace std;
 #include	"NIDAQmx.h"
 #include	"PxiDAQ.h"
 #include	"Utilities.h"
-#include	"okFrontPanelDLL.h"
+#include	"glut.h"   // The GL Utility Toolkit (Glut) Header
+#include	"OGLGraph.h"
+
+// *** Global variables
+double g_force [2];
+pthread_t g_threads[NUM_THREADS];
+TaskHandle PxiDAQHandle;
 
 
-#define DES_FPGA_CONFIGURATION_FILE   "des.bit"
-#if defined(_WIN32)
-  #define strncpy strncpy_s
-  #define sscanf  sscanf_s
-#endif
+OGLGraph* myGraph;
 
-bool
-performDES(okCFrontPanel *xem, unsigned char key[8],
-		   char *infilename, char *outfilename, bool decrypt)
+void init ( GLvoid )     // Create Some Everyday Functions
 {
-	unsigned char buf[2048];
-	long len;
-	int i, j;
-	std::ifstream f_in;
-	std::ofstream f_out;
-	int got;
+	glClearColor(0.0f, 0.0f, 0.0f, 0.f);				// Black Background
+	//glClearDepth(1.0f);								// Depth Buffer Setup
+	myGraph = OGLGraph::Instance();
+	myGraph->setup( 500, 100, 10, 10, 2, 2, 1, 200 );
+}
 
+void display ( void )   // Create The Display Function
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(60.0, (float) 800 / (float) 600, 0.1, 100.0);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
 
-	// Assert then deassert RESET.
-	xem->SetWireInValue(0x10, 0xff, 0x01);
-	xem->UpdateWireIns();
-	xem->SetWireInValue(0x10, 0x00, 0x01);
-	xem->UpdateWireIns();
+	// This is a dummy function. Replace with custom input/data
+	float time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+	float value;
+	value = 5*sin( 5*time ) + 10.f;
 
-	// Set the DES key value (WireIns).
-	for (i=0; i<8; i++)
-		xem->SetWireInValue(0x0f-i, key[i], 0xff);
+	myGraph->update( 1000.0 * g_force[0] );
+	//printf("%.4lf \n", g_force[0]);
+	myGraph->draw();
 
-	// Set the encrypt/decrypt bit (WireIn).
-	if (decrypt)
-		xem->SetWireInValue(0x10, 0xff, 0x10);
-	else
-		xem->SetWireInValue(0x10, 0x00, 0x10);
+	glutSwapBuffers ( );
+}
 
-	xem->UpdateWireIns();
+void reshape ( int w, int h )   // Create The Reshape Function (the viewport)
+{
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(60.0, (float) w / (float) h, 0.1, 100.0);
 
-	// Open our input and output files.
-	f_in.open(infilename, std::ios::binary);
-	if (false == f_in.is_open()) {
-		printf("Error: Input file could not be opened.\n");
-		return(false);
+    glMatrixMode(GL_MODELVIEW);
+    glViewport(0, 0, w, h);
+}
+
+void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
+{
+	switch ( key ) 
+	{
+	case 27:        // When Escape Is Pressed...
+		exit ( 0 );   // Exit The Program
+		break;        // Ready For Next Case
+	default:        // Now Wrap It Up
+		break;
 	}
-	f_out.open(outfilename, std::ios::binary);
-	if (false == f_out.is_open()) {
-		printf("Error: Output file could not be opened.\n");
-		return(false);
-	}
+}
 
-	// Reset the RAM address pointer.
-	xem->ActivateTriggerIn(0x41, 0);
-	
-	// This block works through the file in 2048-byte chunks, writing
-	// each one to the FPGA and initiating the DES processing.  It then
-	// reads out the results and stores them in the output file.
-	while (1) {
-		// Read a block from the file.
-		if (f_in.eof())
-			break;
-		f_in.read((char *)buf, 2048);
+void idle(void)
+{
+  glutPostRedisplay();
+}
 
-		// Zero-pad to the end of a block.
-		got = (int)f_in.gcount();
-		if (got == 0)
-			break;
-		if (got < 2048)
-			for (i=got; i<2048; buf[i++] = 0);
+// This Fucntion performs the Experimental Protocol
+void* 
+control_loop(void*)
+{
+	StartEmg(PxiDAQHandle);
+	while (1)
+	{
+		if(_kbhit())
+        {
+            break;
+        }
+	} 
 
-		// Write a block of data.
-		xem->WriteToPipeIn(0x80, 2048, buf);
-
-		// Perform DES on the block.
-		xem->ActivateTriggerIn(0x40, 0);
-
-		// Wait for the TriggerOut indicating DONE.
-		for (j=0; j<10; j++) {
-			xem->UpdateTriggerOuts();
-			if (xem->IsTriggered(0x60, 1))
-				break;
-		}
-		if (j==10) {
-			printf("DES did not complete properly.\n");
-			return(false);
-		}
-
-		// Read the resulting RAM block.
-		len = 2048;
-		xem->ReadFromPipeOut(0xA0, len, buf);
-
-		// Write the block to the output file.
-		f_out.write((char *)buf, 2048);
-	}
-
-	f_in.close();
-	f_out.close();
-
-	return(true);
+	StopEmg(PxiDAQHandle);
+	printf ("\nSwitch to the 3D Window, Hit ESC to Quit!");
+	return 0;	
 }
 
 
-okCFrontPanel *
-initializeFPGA()
+void main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
 {
-	okCFrontPanel *dev;
+  glutInit( &argc, argv ); // Erm Just Write It =)
+  init();
 
-	// Open the first XEM - try all board types.
-	dev = new okCFrontPanel;
-	if (okCFrontPanel::NoError != dev->OpenBySerial()) {
-		delete dev;
-		printf("Device could not be opened.  Is one connected?\n");
-		return(NULL);
-	}
-	
-	printf("Found a device: %s\n", dev->GetBoardModelString(dev->GetBoardModel()).c_str());
+  glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE ); // Display Mode
+  glutInitWindowSize( 500, 250 ); // If glutFullScreen wasn't called this is the window size
+  glutCreateWindow( "OpenGL Graph Component" ); // Window Title (argv[0] for current directory as title)
+  glutDisplayFunc( display );  // Matching Earlier Functions To Their Counterparts
+  glutReshapeFunc( reshape );
+  glutKeyboardFunc( keyboard );
+  glutIdleFunc(idle);
 
-	dev->LoadDefaultPLLConfiguration();	
+  int ctrl_handle = pthread_create(&g_threads[0], NULL, control_loop,	(void *)g_force);
 
-	// Get some general information about the XEM.
-	std::string str;
-	printf("Device firmware version: %d.%d\n", dev->GetDeviceMajorVersion(), dev->GetDeviceMinorVersion());
-	str = dev->GetSerialNumber();
-	printf("Device serial number: %s\n", str.c_str());
-	str = dev->GetDeviceID();
-	printf("Device device ID: %s\n", str.c_str());
-
-	// Download the configuration file.
-	if (okCFrontPanel::NoError != dev->ConfigureFPGA(DES_FPGA_CONFIGURATION_FILE)) {
-		printf("FPGA configuration failed.\n");
-		delete dev;
-		return(NULL);
-	}
-
-	// Check for FrontPanel support in the FPGA configuration.
-	if (dev->IsFrontPanelEnabled())
-		printf("FrontPanel support is enabled.\n");
-	else
-		printf("FrontPanel support is not enabled.\n");
-
-	return(dev);
+  glutMainLoop( );          // Initialize The Main Loop
 }
 
-
-static void
-printUsage(char *progname)
-{
-	printf("Usage: %s [d|e] key infile outfile\n", progname);
-	printf("   [d|e]   - d to decrypt the input file.  e to encrypt it.\n");
-	printf("   key     - 64-bit hexadecimal string used for the key.\n");
-	printf("   infile  - an input file to encrypt/decrypt.\n");
-	printf("   outfile - destination output file.\n");
-}
-
-
-int
-main(int argc, char *argv[])
-{
-	bool decrypt;
-	char infilename[128];
-	char outfilename[128];
-	char keystr[32];
-	unsigned char key[8];
-	char dll_date[32], dll_time[32];
-	int i, j;
-
-	printf("---- Opal Kelly ---- FPGA-DES Application v1.0 ----\n");
-	if (FALSE == okFrontPanelDLL_LoadLib(NULL)) {
-		printf("FrontPanel DLL could not be loaded.\n");
-		return(-1);
-	}
-	okFrontPanelDLL_GetVersion(dll_date, dll_time);
-	printf("FrontPanel DLL loaded.  Built: %s  %s\n", dll_date, dll_time);
-
-
-	if (argc != 5) {
-		printUsage(argv[0]);
-		return(-1);
-	}
-
-	strncpy(keystr, argv[2], 16);
-	strncpy(infilename, argv[3], 128);
-	strncpy(outfilename, argv[4], 128);
-
-	if (argv[1][0] == 'd') {
-		decrypt = true;
-	} else if (argv[1][0] == 'e') {
-		decrypt = false;
-	} else {
-		printUsage(argv[0]);
-		return(-1);
-	}
-
-	if (strlen(argv[2]) < 16) {
-		printUsage(argv[0]);
-		return(-1);
-	}
-
-	for (i=0; i<8; i++) {
-		sscanf(keystr+i*2, "%02x", &j);
-		key[i] = j;
-	}
-
-	// Initialize the FPGA with our configuration bitfile.
-	okCFrontPanel *xem;
-	xem = initializeFPGA();
-	if (NULL == xem) {
-		printf("FPGA could not be initialized.\n");
-		return(-1);
-	}
-
-	// Now perform the encryption/decryption process.
-	if (performDES(xem, key, infilename, outfilename, decrypt) == false) {
-		printf("DES process failed.\n");
-		return(-1);
-	} else {
-		printf("DES process succeeded!\n");
-	}
-
-	return(0);
-}

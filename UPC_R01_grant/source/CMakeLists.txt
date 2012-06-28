@@ -1,6 +1,6 @@
 ##########################################################################
 #
-# Author: Minos Niu 
+# Author: C. Minos Niu 
 # Email:  minos.niu AT sangerlab.net
 #
 # Try to find the HapticAPI library and include files. Note that
@@ -22,7 +22,7 @@ FIND_PATH(CMN_CMAKE_MODULES FindHapticAPI.cmake
 	DOC "Folder containing custom CMake modules")
 SET(CMAKE_MODULE_PATH ${CMN_CMAKE_MODULES} ${CMAKE_MODULE_PATH})
 
-#FIND_PACKAGE(GLUT REQUIRED)
+FIND_PACKAGE(GLUT REQUIRED)
 #FIND_PACKAGE(OpenGL REQUIRED)
 #FIND_PACKAGE(HapticAPI REQUIRED)
 #FIND_PACKAGE(ScopeAPI REQUIRED)
@@ -56,7 +56,7 @@ INCLUDE_DIRECTORIES(
 # THe examples link against the same libraries, so group them here to
 # make the TARGET_LINK_LIBRARIES easier to read.
 SET(SYS_LIBRARIES
-#	${GLUT_LIBRARIES}
+	${GLUT_LIBRARIES}
 # 	${HAPTICAPI_LIBRARIES}
 # 	${SCOPEAPI_LIBRARIES}
  	${PTHREADS_WIN32_LIBRARY}
@@ -68,32 +68,32 @@ SET(SYS_LIBRARIES
 # 	ExampleLib
 	)
 # Make sure custom-written libraries get the correct dependencies
-SET(CMN_LIB_NAMES
+SET(CMN_LIBRARIES
 	Utilities
 	PxiDAQ
+	OGLGraph
 	#ReadParadigm
 	#TriggerOutput
 	)
 
-FOREACH(LIB ${CMN_LIB_NAMES})
+FOREACH(LIB ${CMN_LIBRARIES})
 	ADD_LIBRARY(${LIB} ${LIB}.cpp)
 	TARGET_LINK_LIBRARIES(${LIB} ${SYS_LIBRARIES})
 ENDFOREACH(LIB)
 
 #ADD_DEPENDENCIES(ReadParadigm Utilities)
-ADD_DEPENDENCIES(PxiDAQ Utilities)
+ADD_DEPENDENCIES(PxiDAQ Utilities okFrontPanelDLL OGLGraph)
 
 # Rather than individually listing each example, let's take advantage
 # of CMake's loop capabilities. Just list each example's base name.
 SET(CMN_EXECUTABLE_NAMES
 	reflex_single_muscle
+	OGLGraph_test
 	)
 
 # Now loop through each name, defining the executable by grabbing the
 # identically-named source file and linking the required libraries.
 FOREACH(EXEC ${CMN_EXECUTABLE_NAMES})
-	ADD_EXECUTABLE(${EXEC} ${EXEC}.cpp okFrontPanelDLL.cpp)
-	TARGET_LINK_LIBRARIES(${EXEC} ${SYS_LIBRARIES})
-	#ADD_DEPENDENCIES(${EXEC} PxiDAQ Utilities ReadParadigm TriggerOutput)
-	ADD_DEPENDENCIES(${EXEC} PxiDAQ Utilities)
+	ADD_EXECUTABLE(${EXEC} ${EXEC}.cpp)
+	TARGET_LINK_LIBRARIES(${EXEC} ${SYS_LIBRARIES} ${CMN_LIBRARIES})
 ENDFOREACH(EXEC)

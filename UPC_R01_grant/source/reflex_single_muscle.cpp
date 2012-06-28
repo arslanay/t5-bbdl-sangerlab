@@ -71,7 +71,7 @@ using namespace std;
 double g_force [2];
 pthread_t g_threads[NUM_THREADS];
 pthread_mutex_t mutexPosition;
-TaskHandle PxiDAQHandle;
+TaskHandle g_ForceReadTaskHandle=0, g_DigitalOutTaskHandle=0, g_AOTaskHandle=NULL;
 
 
 OGLGraph* myGraph;
@@ -138,10 +138,13 @@ void*
 {
     while (1)
     {
+
+
         printf("f1 %.4lf :: f2 %.4lf \n", g_force[0], g_force[1]);
         if(_kbhit())
         {
             break;
+
         }
     } 
     printf ("\nSwitch to the 3D Window, Hit ESC to Quit!");
@@ -162,11 +165,11 @@ void main ( int argc, char** argv )   // Create Main Function For Bringing It Al
     glutKeyboardFunc( keyboard );
     glutIdleFunc(idle);
 
-    StartEmg(PxiDAQHandle);
+    StartEmg(g_ForceReadTaskHandle);
 
     int ctrl_handle = pthread_create(&g_threads[0], NULL, control_loop,	(void *)g_force);
 
-    StopEmg(PxiDAQHandle);
+    StopEmg(g_ForceReadTaskHandle);
 
     glutMainLoop( );          // Initialize The Main Loop
 }

@@ -6,7 +6,7 @@
 
 FIND_LIBRARY(OK_WIN32_LIBRARY
 	NAMES okFrontPanel
-	PATHS ${PROJECT_SOURCE_DIR}/OpalKelly
+	PATHS "C:/T5_BbdlSanger/UPC_R01_grant/source/OpalKelly"
 	DOC "Path to the OpalKelly-win32 DLL"
 	)
 

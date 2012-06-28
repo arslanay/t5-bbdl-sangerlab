@@ -138,6 +138,7 @@ void*
 {
     while (1)
     {
+        printf("f1 %.4lf :: f2 %.4lf \n", g_force[0], g_force[1]);
         if(_kbhit())
         {
             break;

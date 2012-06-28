@@ -56,36 +56,59 @@
 *    signal is connected to the terminal specified in Trigger Source.
 *
 *********************************************************************/
-int StartEmg(TaskHandle taskHandleDAQmx)
+
+int StartEmg(TaskHandle ForceReadTaskHandle)
 {
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
+	float64     AOdata[1]={0.0};
+
 
 	/*********************************************/
 	// DAQmx Configure Code
 	/*********************************************/
-	DAQmxErrChk (DAQmxCreateTask("",&taskHandleDAQmx));
-	DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandleDAQmx,"PXI1Slot5/ai1","force0", DAQmx_Val_NRSE ,-5.0,5.0,DAQmx_Val_Volts,NULL));
-	DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandleDAQmx,"PXI1Slot5/ai9","force1", DAQmx_Val_NRSE ,-5.0,5.0,DAQmx_Val_Volts,NULL));
-	//DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandleDAQmx,"PXI1Slot5/ai2","flex2",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCreateTask("",&ForceReadTaskHandle));
+	DAQmxErrChk (DAQmxCreateAIVoltageChan(ForceReadTaskHandle,"PXI1Slot5/ai1","force0", DAQmx_Val_NRSE ,-5.0,5.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCreateAIVoltageChan(ForceReadTaskHandle,"PXI1Slot5/ai9","force1", DAQmx_Val_NRSE ,-5.0,5.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCfgSampClkTiming(ForceReadTaskHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
+    
+    //DAQmxErrChk (DAQmxCreateTask("",&g_DigitalOutTaskHandle));
+    //DAQmxErrChk (DAQmxCreateDOChan(g_DigitalOutTaskHandle,"PXI1Slot2/port0/line0:7","enable07",DAQmx_Val_ChanForAllLines));
+    //DAQmxErrChk (DAQmxCfgSampClkTiming(g_DigitalOutTaskHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
+    //DAQmxErrChk (DAQmxCfgDigEdgeStartTrig(g_DigitalOutTaskHandle,trigName,DAQmx_Val_Rising));
+
+    DAQmxErrChk (DAQmxCreateTask("",&g_AOTaskHandle));
+    DAQmxErrChk (DAQmxCreateAOVoltageChan(g_AOTaskHandle,"PXI1Slot2/ao11","motor1", -5.0,5.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCfgSampClkTiming(g_AOTaskHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
+	
+
+    DAQmxErrChk (DAQmxRegisterSignalEvent(ForceReadTaskHandle,DAQmx_Val_SampleClock, 0, update_data ,NULL));
+	DAQmxErrChk (DAQmxRegisterDoneEvent(ForceReadTaskHandle,0,DoneCallback,NULL));
+
+    //DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandleDAQmx,"PXI1Slot5/ai2","flex2",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
 	//DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandleDAQmx,"PXI1Slot5/ai3","ext2",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
 	//DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandleDAQmx,"PXI1Slot5/ai4","flex3",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
 	//DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandleDAQmx,"PXI1Slot5/ai5","ext3",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
 	//DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandleDAQmx,"PXI1Slot5/ai6","flex4",DAQmx_Val_Diff ,-1.0,1.0,DAQmx_Val_Volts,NULL));
 	//DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandleDAQmx,"PXI1Slot5/ai7","ext4",DAQmx_Val_Diff ,-10.0,10.0,DAQmx_Val_Volts,NULL));
-
 	// DAQmxErrChk(TaskHandle, ChannelName, MaxExternalClkEMG_SAMPLING_RATE, DAQMode, BufferSize);
-	DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandleDAQmx,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
 	//DAQmxErrChk (DAQmxCreateCOPulseChanFreq(taskHandleDAQmx,"PXI1Slot3/Ctr4","",DAQmx_Val_Hz,DAQmx_Val_Rising,0.0,100.00,0.50));
 	//DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandleDAQmx,"PXI1Slot3/Ctr4",DAQmx_Val_Hz,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1000));
 	//DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent(taskHandleDAQmx,DAQmx_Val_Acquired_Into_Buffer,100,0,EveryNCallback,NULL));
-	DAQmxErrChk (DAQmxRegisterSignalEvent(taskHandleDAQmx,DAQmx_Val_SampleClock, 0, update_data, NULL));
-	DAQmxErrChk (DAQmxRegisterDoneEvent(taskHandleDAQmx,0,DoneCallback,NULL));
+
+    //DAQmxErrChk (DAQmxWriteAnalogF64(g_AOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, AOdata, NULL, NULL));
+
+    //DIO
+	
+    //DAQmxErrChk (DAQmxRegisterSignalEvent(taskHandleDAQmxEnableMotors,DAQmx_Val_SampleClock, 0, update_dataEnableMotors, NULL));
+	//DAQmxErrChk (DAQmxRegisterDoneEvent(DigitalOutTaskHandle,0,DoneCallback,NULL));
 
 	/*********************************************/
 	// DAQmx Start Code
 	/*********************************************/
-	DAQmxErrChk (DAQmxStartTask(taskHandleDAQmx));
+	DAQmxErrChk (DAQmxStartTask(ForceReadTaskHandle));
+	DAQmxErrChk (DAQmxStartTask(g_DigitalOutTaskHandle));
+
 
 	//printf("Ready for EMG recording!\n");
 	//getchar();
@@ -94,12 +117,13 @@ int StartEmg(TaskHandle taskHandleDAQmx)
 Error:
 	if( DAQmxFailed(error) )
 		DAQmxGetExtendedErrorInfo(errBuff,2048);
-	if( DAQmxFailed(error) )
+	
+    if( DAQmxFailed(error) )
 		printf("DAQmx Error: %s\n",errBuff);
 	return 0;
 }
 
-int StopEmg(TaskHandle taskHandleDAQmx)
+int StopEmg(TaskHandle ForceReadTaskHandle)
 {
 	int32       error=0;
 	char        errBuff[2048] = {'\0'};
@@ -107,12 +131,14 @@ int StopEmg(TaskHandle taskHandleDAQmx)
 	//printf( "\nStopping EMG ...\n" );
 	if( DAQmxFailed(error) )
 		DAQmxGetExtendedErrorInfo(errBuff,2048);
-	if( taskHandleDAQmx!=0 ) {
+	if( ForceReadTaskHandle!=0 ) {
 		/*********************************************/
 		// DAQmx Stop Code
 		/*********************************************/
-		DAQmxStopTask(taskHandleDAQmx);
-		DAQmxClearTask(taskHandleDAQmx);
+		DAQmxStopTask(ForceReadTaskHandle);
+		DAQmxStopTask(g_DigitalOutTaskHandle);
+		DAQmxClearTask(ForceReadTaskHandle);
+		DAQmxClearTask(g_DigitalOutTaskHandle);
 	}
     printf ("\nDAQ stopped!");
 	if( DAQmxFailed(error) )
@@ -125,7 +151,8 @@ int StopEmg(TaskHandle taskHandleDAQmx)
 int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *callbackData)
 {
 	int32   error=0;
-	float64   data[200]={0.0};
+	float64 data[200]={0.0};
+	uInt8   dataEnable[8]={2};
 	int32   numRead;
 	uInt32  i=0;
 	char    buff[512], *buffPtr;
@@ -133,25 +160,28 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 	char	*timeStr;
 	time_t	currTime;
 
+
+
 	if( taskHandleDAQmx ) {
 		//time (&currTime);
 		//timeStr = ctime(&currTime);
 		//timeStr[strlen(timeStr)-1]='\0';  // Remove trailing newline.
 
-
-
 		/*********************************************/
 		// DAQmx Read Code
 		/*********************************************/
 		//DAQmxErrChk (DAQmxReadDigitalLines(taskHandle,1,10.0,DAQmx_Val_GroupByScanNumber,data,8,&numRead,NULL,NULL));
-		DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, data, 1*CHANNEL_NUM,&numRead,NULL));
-
+        DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, data, 1*CHANNEL_NUM,&numRead,NULL));
+    	//DAQmxErrChk (DAQmxWriteDigitalLines(g_DigitalOutTaskHandle,1,1,10.0,DAQmx_Val_GroupByChannel,dataEnable,NULL,NULL));
 		if( numRead ) {
 //			printf("f1 %.4lf :: f2 %.4lf \n", data[0], data[1]);
 			g_force[0] = data[0];
 			g_force[1] = data[1];
 		}
+
 	}
+    
+
 	return 0;
 
 Error:
@@ -159,11 +189,15 @@ Error:
 	{
 		DAQmxGetExtendedErrorInfo(errBuff,2048);
 		DAQmxStopTask(taskHandleDAQmx);
+		DAQmxStopTask(g_DigitalOutTaskHandle);
 		DAQmxClearTask(taskHandleDAQmx);
+		DAQmxClearTask(g_DigitalOutTaskHandle);
 		printf("DAQmx Error: %s\n",errBuff);
 	}
 	return 0;
 }
+
+
 //
 //int32 CVICALLBACK EveryNCallback(TaskHandle taskHandleDAQmx, int32 everyNsamplesEventType, uInt32 nSamples, void *callbackData)
 //{
@@ -222,3 +256,20 @@ Error:
 	}
 	return 0;
 }
+//int32 CVICALLBACK DoneCallbackEnableMotors(TaskHandle taskHandleDAQmxEnableMotors, int32 status, void *callbackData)
+//{
+//	int32   error=0;
+//	char    errBuff[2048]={'\0'};
+//
+//	// Check to see if an error stopped the task.
+//	DAQmxErrChk (status);
+//
+//Error:
+//	if( DAQmxFailed(error) ) {
+//		DAQmxGetExtendedErrorInfo(errBuff,2048);
+//		DAQmxClearTask(taskHandleDAQmx);
+//		DAQmxClearTask(taskHandleDAQmxEnableMotors);
+//		printf("DAQmx Error: %s\n",errBuff);
+//	}
+//	return 0;
+//}

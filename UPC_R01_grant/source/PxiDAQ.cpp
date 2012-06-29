@@ -101,7 +101,9 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 		/*********************************************/
 
         DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, loadcell_data, 1*CHANNEL_NUM,&numRead,NULL));
-        AOdata[0] = fabs(g_auxvar[0]) * 1.1;
+        double motor_cmd = (fabs(g_auxvar[0]) * 1.1);
+
+        AOdata[0] = motor_cmd > MAX_VOLT ? MAX_VOLT : motor_cmd;
         DAQmxErrChk (DAQmxWriteAnalogF64(g_AOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, AOdata, NULL, NULL));
 
 		if( numRead ) {
@@ -186,20 +188,21 @@ int DisableMotors(TaskHandle *rawHandle)
 	char        errBuff[2048] = {'\0'};
     uInt32      dataDisable=0x00000000;
     int32		written;
-
-    DAQmxErrChk (DAQmxWriteDigitalU32(motorTaskHandle,1,1,10.0,DAQmx_Val_GroupByChannel,&dataDisable,&written,NULL));
-
-	printf( "\nStopping Enable ...\n" );
-
+    
 	if( motorTaskHandle!=0 ) {
+        DAQmxErrChk (DAQmxWriteDigitalU32(motorTaskHandle,1,1,10.0,DAQmx_Val_GroupByChannel,&dataDisable,&written,NULL));
+	    //printf( "\nStopping Enable ...\n" );
 		/*********************************************/
 		// DAQmx Stop Code
 		/*********************************************/
 		DAQmxStopTask(motorTaskHandle);
 		DAQmxClearTask(motorTaskHandle);
+        *rawHandle = 0;
 	}
-
-    *rawHandle = motorTaskHandle;
+    else
+    {
+        *rawHandle = motorTaskHandle;
+    }
     return 0;
 
 Error:
@@ -220,13 +223,15 @@ int StartPositionRead(TaskHandle *rawHandle)
     uInt32      dataDisable=0x00000000;
 
     int32		written;
-
-    //DAQmxLoadTask ("EncoderSlot3Ctr3",&encoderTaskHandle);
-
     DAQmxCreateTask ("",&encoderTaskHandle);
-    DAQmxErrChk (DAQmxCreateCIAngEncoderChan(encoderTaskHandle,"PXI1Slot3/ctr3","",DAQmx_Val_X4,0,0.0,DAQmx_Val_AHighBHigh,DAQmx_Val_Degrees,24,0.0,""));
+    //printf("IN");
+    //DAQmxLoadTask ("EncoderSlot3Ctr3",&encoderTaskHandle);
+	if( encoderTaskHandle!=0 ) {
+        DAQmxErrChk (DAQmxCreateCIAngEncoderChan(encoderTaskHandle,"PXI1Slot3/ctr3","",DAQmx_Val_X4,0,0.0,DAQmx_Val_AHighBHigh,DAQmx_Val_Degrees,24,0.0,""));
 
-	DAQmxErrChk (DAQmxStartTask(encoderTaskHandle));
+	    DAQmxErrChk (DAQmxStartTask(encoderTaskHandle));
+    }
+    //printf("IN");
 
 	*rawHandle = encoderTaskHandle;
 
@@ -248,17 +253,18 @@ int StopPositionRead(TaskHandle *rawHandle)
     uInt32      dataDisable=0x00000000;
     int32		written;
 
-	printf( "\nStopping Encoder ...\n" );
-
 	if( encoderTaskHandle!=0 ) {
 		/*********************************************/
 		// DAQmx Stop Code
 		/*********************************************/
 		DAQmxStopTask(encoderTaskHandle);
 		DAQmxClearTask(encoderTaskHandle);
-	}
-
-    *rawHandle = encoderTaskHandle;
+        *rawHandle = 0;
+    }
+    else 
+    {
+        *rawHandle = encoderTaskHandle;
+    }
     return 0;
 
 Error:

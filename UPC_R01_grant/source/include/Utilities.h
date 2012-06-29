@@ -26,6 +26,9 @@
 #define		FLG_IN_FREEMOVE 1
 #define		FLG_OUT_FREEMOVE 0
 
+/* Safety Configurations */
+#define		MAX_VOLT 2.0
+
 /* EVENT FLAGS */
 #define		MAX_PTB_NUM 6
 #define		MAX_PRACTICE_NUM 3

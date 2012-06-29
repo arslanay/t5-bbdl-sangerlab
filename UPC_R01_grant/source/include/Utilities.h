@@ -8,6 +8,7 @@
 #define		PosY 1
 #define		PosZ 2
 #define		NUM_THREADS 2
+#define     NUM_AUXVAR 4 // { force0, force1, pos0, pos1}
 #define		TRAJ_TIME 2.0
 #define		FzColorFact 0.8
 #define		ForceBufLeng 500

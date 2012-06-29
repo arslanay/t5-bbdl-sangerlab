@@ -74,7 +74,7 @@ int StopPositionRead(TaskHandle *rawHandle);
 
 
 // *** Global variables
-double g_force [2];
+double g_auxvar [NUM_AUXVAR];
 pthread_t g_threads[NUM_THREADS];
 pthread_mutex_t mutexPosition;
 TaskHandle g_DOTaskHandle, g_ForceReadTaskHandle, g_AOTaskHandle, g_PositionRead;
@@ -104,7 +104,7 @@ void display ( void )   // Create The Display Function
     float value;
     value = 5*sin( 5*time ) + 10.f;
 
-    myGraph->update( 10.0 * g_force[0] );
+    myGraph->update( 10.0 * g_auxvar[0] );
     //printf("%.4lf \n", g_force[0]);
     myGraph->draw();
 
@@ -139,8 +139,6 @@ void idle(void)
     glutPostRedisplay();
 }
 
-int32       readEncoder;
-float64     dataEncoder[1];
 // This Fucntion performs the Experimental Protocol
 
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
@@ -154,12 +152,11 @@ void* control_loop(void*)
     while (1)
     {
         int i=0;
-		DAQmxErrChk (DAQmxReadCounterF64(g_PositionRead,1,10.0,dataEncoder,1,&readEncoder,0));
-		printf("\n\t%f",dataEncoder[0]); 
 
+		//printf("\n\t%f",dataEncoder[0]); 
 
-
-        //printf("f1 %.4lf :: f2 %.4lf \n", g_force[0], g_force[1]);
+        printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
+            g_auxvar[0], g_auxvar[1], g_auxvar[2], g_auxvar[3]);
         if(_kbhit())
         {
             break;
@@ -167,20 +164,20 @@ void* control_loop(void*)
         }
     } 
 
-Error:
-	if( DAQmxFailed(error) )
-		DAQmxGetExtendedErrorInfo(errBuff,2048);
-	if( g_PositionRead!=0 ) {
-		/*********************************************/
-		// DAQmx Stop Code
-		/*********************************************/
-		DAQmxStopTask(g_PositionRead);
-		DAQmxClearTask(g_PositionRead);
-	}
-	if( DAQmxFailed(error) )
-		printf("DAQmx Error: %s\n",errBuff);
-	printf("End of program, press Enter key to quit\n");
-	getchar();
+//Error:
+//	if( DAQmxFailed(error) )
+//		DAQmxGetExtendedErrorInfo(errBuff,2048);
+//	if( g_PositionRead!=0 ) {
+//		/*********************************************/
+//		// DAQmx Stop Code
+//		/*********************************************/
+//		DAQmxStopTask(g_PositionRead);
+//		DAQmxClearTask(g_PositionRead);
+//	}
+//	if( DAQmxFailed(error) )
+//		printf("DAQmx Error: %s\n",errBuff);
+//	printf("End of program, press Enter key to quit\n");
+//	getchar();
 	return 0;
 }
 
@@ -194,9 +191,9 @@ void exitProgram()
 
 void initProgram()
 {
+    StartPositionRead(&g_PositionRead);
     StartSignalLoop(g_ForceReadTaskHandle);
     EnableMotors(&g_DOTaskHandle);
-    StartPositionRead(&g_PositionRead);
 
 }
 
@@ -216,7 +213,8 @@ void main ( int argc, char** argv )   // Create Main Function For Bringing It Al
     initProgram();
     atexit( exitProgram );
 
-    int ctrl_handle = pthread_create(&g_threads[0], NULL, control_loop,	(void *)g_force);
+    // g_auxvar = {current force 0, current force 1, current pos 0, current pos 1};
+    int ctrl_handle = pthread_create(&g_threads[0], NULL, control_loop,	(void *)g_auxvar);
    
     glutMainLoop( );          // Initialize The Main Loop
   
@@ -236,12 +234,12 @@ int StartPositionRead(TaskHandle *rawHandle)
 
     int32		written;
 
-    DAQmxLoadTask ("EncoderSlot3Ctr3",&encoderTaskHandle);
+    //DAQmxLoadTask ("EncoderSlot3Ctr3",&encoderTaskHandle);
 
- /*   DAQmxCreateTask ("",&encoderTaskHandle);
+    DAQmxCreateTask ("",&encoderTaskHandle);
     DAQmxErrChk (DAQmxCreateCIAngEncoderChan(encoderTaskHandle,"PXI1Slot3/ctr3","",DAQmx_Val_X4,0,0.0,DAQmx_Val_AHighBHigh,DAQmx_Val_Degrees,24,0.0,""));
-	DAQmxErrChk (DAQmxCfgSampClkTiming(encoderTaskHandle,"/PXI1Slot3/PFI24",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
-*/
+	//DAQmxErrChk (DAQmxCfgSampClkTiming(encoderTaskHandle,"/PXI1Slot3/PFI25",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
+
 	DAQmxErrChk (DAQmxStartTask(encoderTaskHandle));
 
 	*rawHandle = encoderTaskHandle;

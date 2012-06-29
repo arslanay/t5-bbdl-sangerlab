@@ -9,9 +9,7 @@ int StartSignalLoop(TaskHandle ForceReadTaskHandle)
 {
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
-
-
-
+    
 	/*********************************************/
 	// DAQmx Configure Code
 	/*********************************************/
@@ -57,8 +55,7 @@ int StopSignalLoop(TaskHandle ForceReadTaskHandle)
     const float64     ZERO_VOLTS[1]={0.0};
 
     DAQmxErrChk (DAQmxWriteAnalogF64(g_AOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, ZERO_VOLTS, NULL, NULL));
-
-
+    
 	//printf( "\nStopping EMG ...\n" );
 	if( DAQmxFailed(error) )
 		DAQmxGetExtendedErrorInfo(errBuff,2048);
@@ -163,16 +160,12 @@ int EnableMotors(TaskHandle *rawHandle)
 	char        errBuff[2048]={'\0'};
     uInt32      dataEnable=0xffffffff;
     uInt32      dataDisable=0x00000000;
-
     int32		written;
-
 
 	DAQmxErrChk (DAQmxCreateTask("",&motorTaskHandle));
     DAQmxErrChk (DAQmxCreateDOChan(motorTaskHandle,"PXI1Slot2/port0","enable07",DAQmx_Val_ChanForAllLines));
 	DAQmxErrChk (DAQmxStartTask(motorTaskHandle));
    	DAQmxErrChk (DAQmxWriteDigitalU32(motorTaskHandle,1,1,10.0,DAQmx_Val_GroupByChannel,&dataEnable,&written,NULL));
-    //Sleep(1000);
-    //DAQmxErrChk (DAQmxWriteDigitalU32(motorTaskHandle,1,1,10.0,DAQmx_Val_GroupByChannel,&dataDisable,&written,NULL));
 
 	*rawHandle = motorTaskHandle;
 
@@ -212,6 +205,65 @@ int DisableMotors(TaskHandle *rawHandle)
 Error:
 	if( DAQmxFailed(error) )
 		printf("DisableMotor Error: %s\n",errBuff);
+	//fclose(emgLogHandle);
+	//printf("\nStopped EMG !\n");
+	return 0;
+}
+
+
+int StartPositionRead(TaskHandle *rawHandle)
+{
+	TaskHandle  encoderTaskHandle = *rawHandle;
+	int32       error=0;
+	char        errBuff[2048]={'\0'};
+    uInt32      dataEnable=0xffffffff;
+    uInt32      dataDisable=0x00000000;
+
+    int32		written;
+
+    //DAQmxLoadTask ("EncoderSlot3Ctr3",&encoderTaskHandle);
+
+    DAQmxCreateTask ("",&encoderTaskHandle);
+    DAQmxErrChk (DAQmxCreateCIAngEncoderChan(encoderTaskHandle,"PXI1Slot3/ctr3","",DAQmx_Val_X4,0,0.0,DAQmx_Val_AHighBHigh,DAQmx_Val_Degrees,24,0.0,""));
+
+	DAQmxErrChk (DAQmxStartTask(encoderTaskHandle));
+
+	*rawHandle = encoderTaskHandle;
+
+Error:
+	if( DAQmxFailed(error) )
+		DAQmxGetExtendedErrorInfo(errBuff,2048);
+	
+    if( DAQmxFailed(error) )
+		printf("EnableEncoder Error: %s\n",errBuff);
+	return 0;
+}
+
+int StopPositionRead(TaskHandle *rawHandle)
+{
+    TaskHandle encoderTaskHandle = *rawHandle;
+
+	int32       error=0;
+	char        errBuff[2048] = {'\0'};
+    uInt32      dataDisable=0x00000000;
+    int32		written;
+
+	printf( "\nStopping Encoder ...\n" );
+
+	if( encoderTaskHandle!=0 ) {
+		/*********************************************/
+		// DAQmx Stop Code
+		/*********************************************/
+		DAQmxStopTask(encoderTaskHandle);
+		DAQmxClearTask(encoderTaskHandle);
+	}
+
+    *rawHandle = encoderTaskHandle;
+    return 0;
+
+Error:
+	if( DAQmxFailed(error) )
+		printf("DisableEncoder Error: %s\n",errBuff);
 	//fclose(emgLogHandle);
 	//printf("\nStopped EMG !\n");
 	return 0;

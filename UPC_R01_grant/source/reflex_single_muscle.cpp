@@ -69,9 +69,6 @@ using namespace std;
 #include	"OGLGraph.h"
 
 
-int StartPositionRead(TaskHandle *rawHandle);
-int StopPositionRead(TaskHandle *rawHandle);
-
 
 // *** Global variables
 double g_auxvar [NUM_AUXVAR];
@@ -163,24 +160,8 @@ void* control_loop(void*)
 
         }
     } 
-
-//Error:
-//	if( DAQmxFailed(error) )
-//		DAQmxGetExtendedErrorInfo(errBuff,2048);
-//	if( g_PositionRead!=0 ) {
-//		/*********************************************/
-//		// DAQmx Stop Code
-//		/*********************************************/
-//		DAQmxStopTask(g_PositionRead);
-//		DAQmxClearTask(g_PositionRead);
-//	}
-//	if( DAQmxFailed(error) )
-//		printf("DAQmx Error: %s\n",errBuff);
-//	printf("End of program, press Enter key to quit\n");
-//	getchar();
 	return 0;
 }
-
 
 void exitProgram() 
 {
@@ -191,6 +172,7 @@ void exitProgram()
 
 void initProgram()
 {
+    //WARNING: DON'T CHANGE THE SEQUENCE BELOW
     StartPositionRead(&g_PositionRead);
     StartSignalLoop(g_ForceReadTaskHandle);
     EnableMotors(&g_DOTaskHandle);
@@ -216,69 +198,9 @@ void main ( int argc, char** argv )   // Create Main Function For Bringing It Al
     // g_auxvar = {current force 0, current force 1, current pos 0, current pos 1};
     int ctrl_handle = pthread_create(&g_threads[0], NULL, control_loop,	(void *)g_auxvar);
    
-    glutMainLoop( );          // Initialize The Main Loop
-  
+    glutMainLoop( );          // Initialize The Main Loop  
 
     return;
 
 }
 
-
-int StartPositionRead(TaskHandle *rawHandle)
-{
-	TaskHandle  encoderTaskHandle = *rawHandle;
-	int32       error=0;
-	char        errBuff[2048]={'\0'};
-    uInt32      dataEnable=0xffffffff;
-    uInt32      dataDisable=0x00000000;
-
-    int32		written;
-
-    //DAQmxLoadTask ("EncoderSlot3Ctr3",&encoderTaskHandle);
-
-    DAQmxCreateTask ("",&encoderTaskHandle);
-    DAQmxErrChk (DAQmxCreateCIAngEncoderChan(encoderTaskHandle,"PXI1Slot3/ctr3","",DAQmx_Val_X4,0,0.0,DAQmx_Val_AHighBHigh,DAQmx_Val_Degrees,24,0.0,""));
-	//DAQmxErrChk (DAQmxCfgSampClkTiming(encoderTaskHandle,"/PXI1Slot3/PFI25",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
-
-	DAQmxErrChk (DAQmxStartTask(encoderTaskHandle));
-
-	*rawHandle = encoderTaskHandle;
-
-Error:
-	if( DAQmxFailed(error) )
-		DAQmxGetExtendedErrorInfo(errBuff,2048);
-	
-    if( DAQmxFailed(error) )
-		printf("EnableEncoder Error: %s\n",errBuff);
-	return 0;
-}
-
-int StopPositionRead(TaskHandle *rawHandle)
-{
-    TaskHandle encoderTaskHandle = *rawHandle;
-
-	int32       error=0;
-	char        errBuff[2048] = {'\0'};
-    uInt32      dataDisable=0x00000000;
-    int32		written;
-
-	printf( "\nStopping Encoder ...\n" );
-
-	if( encoderTaskHandle!=0 ) {
-		/*********************************************/
-		// DAQmx Stop Code
-		/*********************************************/
-		DAQmxStopTask(encoderTaskHandle);
-		DAQmxClearTask(encoderTaskHandle);
-	}
-
-    *rawHandle = encoderTaskHandle;
-    return 0;
-
-Error:
-	if( DAQmxFailed(error) )
-		printf("DisableEncoder Error: %s\n",errBuff);
-	//fclose(emgLogHandle);
-	//printf("\nStopped EMG !\n");
-	return 0;
-}

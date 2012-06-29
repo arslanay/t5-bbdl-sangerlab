@@ -15,6 +15,9 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 //int32 CVICALLBACK update_dataEnableMotors(TaskHandle taskHandleDAQmxEnableMotors, int32 signalID, void *callbackData);
 
 
+int StartPositionRead(TaskHandle *rawHandle);
+int StopPositionRead(TaskHandle *rawHandle);
+
 int StartSignalLoop(TaskHandle taskHandleDAQmx);
 int StopSignalLoop(TaskHandle taskHandleDAQmxs);
 

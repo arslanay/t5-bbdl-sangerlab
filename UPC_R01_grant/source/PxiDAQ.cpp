@@ -56,7 +56,7 @@
 *    signal is connected to the terminal specified in Trigger Source.
 *
 *********************************************************************/
-float64     AOdata[1]={0.5};
+float64     AOdata[1]={0.7};
 
 int StartEmg(TaskHandle ForceReadTaskHandle)
 {
@@ -121,7 +121,7 @@ Error:
 		DAQmxGetExtendedErrorInfo(errBuff,2048);
 	
     if( DAQmxFailed(error) )
-		printf("DAQmx Error: %s\n",errBuff);
+		printf("StartEmg Error: %s\n",errBuff);
 	return 0;
 }
 
@@ -138,13 +138,13 @@ int StopEmg(TaskHandle ForceReadTaskHandle)
 		// DAQmx Stop Code
 		/*********************************************/
 		DAQmxStopTask(ForceReadTaskHandle);
-		DAQmxStopTask(g_DigitalOutTaskHandle);
+        DAQmxStopTask(g_AOTaskHandle);
 		DAQmxClearTask(ForceReadTaskHandle);
-		DAQmxClearTask(g_DigitalOutTaskHandle);
+		DAQmxClearTask(g_AOTaskHandle);
 	}
-    printf ("\nDAQ stopped!");
+Error:
 	if( DAQmxFailed(error) )
-		printf("DAQmx Error: %s\n",errBuff);
+		printf("StopEmg Error: %s\n",errBuff);
 	//fclose(emgLogHandle);
 	//printf("\nStopped EMG !\n");
 	return 0;
@@ -154,7 +154,6 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 {
 	int32   error=0;
 	float64 data[200]={0.0};
-	uInt8   dataEnable[8]={2};
 	int32   numRead;
 	uInt32  i=0;
 	char    buff[512], *buffPtr;
@@ -192,9 +191,9 @@ Error:
 	{
 		DAQmxGetExtendedErrorInfo(errBuff,2048);
 		DAQmxStopTask(taskHandleDAQmx);
-		DAQmxStopTask(g_DigitalOutTaskHandle);
+		DAQmxStopTask(g_AOTaskHandle);
 		DAQmxClearTask(taskHandleDAQmx);
-		DAQmxClearTask(g_DigitalOutTaskHandle);
+		DAQmxClearTask(g_AOTaskHandle);
 		printf("DAQmx Error: %s\n",errBuff);
 	}
 	return 0;

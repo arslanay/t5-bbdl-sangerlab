@@ -13,8 +13,10 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 //int32 CVICALLBACK update_dataEnableMotors(TaskHandle taskHandleDAQmxEnableMotors, int32 signalID, void *callbackData);
 
 
-//int StartEmg(TaskHandle taskHandleDAQmx);
-int StartEmg(TaskHandle taskHandleDAQmx);
-int StopEmg(TaskHandle taskHandleDAQmxs);
-//int StopEmg(TaskHandle taskHandleDAQmx);
+int StartSignalLoop(TaskHandle taskHandleDAQmx);
+int StopSignalLoop(TaskHandle taskHandleDAQmxs);
+
+int EnableMotors(TaskHandle *rawHandle);
+int DisableMotors(TaskHandle *rawHandle);
+
 #endif

@@ -5,7 +5,6 @@
 #include	"pthread.h"
 
 extern double g_force[2];
-extern TaskHandle g_DigitalOutTaskHandle;
 extern TaskHandle g_AOTaskHandle;
 
 int32 CVICALLBACK EveryNCallback(TaskHandle taskHandleDAQmx, int32 everyNsamplesEventType, uInt32 nSamples, void *callbackData);

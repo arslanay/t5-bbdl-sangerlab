@@ -68,13 +68,12 @@ using namespace std;
 #include	"glut.h"   // The GL Utility Toolkit (Glut) Header
 #include	"OGLGraph.h"
 
-int DisableMotors(TaskHandle *rawHandle);
 
 // *** Global variables
 double g_force [2];
 pthread_t g_threads[NUM_THREADS];
 pthread_mutex_t mutexPosition;
-TaskHandle g_ForceReadTaskHandle, g_DOTaskHandle, g_AOTaskHandle;
+TaskHandle g_DOTaskHandle, g_ForceReadTaskHandle, g_AOTaskHandle;
 
 
 OGLGraph* myGraph;
@@ -157,73 +156,15 @@ void*
 
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 
-int EnableMotors(TaskHandle *rawHandle)
-{
-    TaskHandle  motorTaskHandle = *rawHandle;
-	int32       error=0;
-	char        errBuff[2048]={'\0'};
-    uInt32      dataEnable=0xffffffff;
-    uInt32      dataDisable=0x00000000;
-
-    int32		written;
-
-
-	DAQmxErrChk (DAQmxCreateTask("",&motorTaskHandle));
-    DAQmxErrChk (DAQmxCreateDOChan(motorTaskHandle,"PXI1Slot2/port0","enable07",DAQmx_Val_ChanForAllLines));
-	DAQmxErrChk (DAQmxStartTask(motorTaskHandle));
-   	DAQmxErrChk (DAQmxWriteDigitalU32(motorTaskHandle,1,1,10.0,DAQmx_Val_GroupByChannel,&dataEnable,&written,NULL));
-    //Sleep(1000);
-    //DAQmxErrChk (DAQmxWriteDigitalU32(motorTaskHandle,1,1,10.0,DAQmx_Val_GroupByChannel,&dataDisable,&written,NULL));
-
-	*rawHandle = motorTaskHandle;
-
-Error:
-	if( DAQmxFailed(error) )
-		DAQmxGetExtendedErrorInfo(errBuff,2048);
-	
-    if( DAQmxFailed(error) )
-		printf("EnableMotor Error: %s\n",errBuff);
-	return 0;
-}
-
-int DisableMotors(TaskHandle *rawHandle)
-{
-    TaskHandle motorTaskHandle = *rawHandle;
-
-	int32       error=0;
-	char        errBuff[2048] = {'\0'};
-    uInt32      dataDisable=0x00000000;
-    int32		written;
-
-    DAQmxErrChk (DAQmxWriteDigitalU32(motorTaskHandle,1,1,10.0,DAQmx_Val_GroupByChannel,&dataDisable,&written,NULL));
-
-	printf( "\nStopping Enable ...\n" );
-
-	if( motorTaskHandle!=0 ) {
-		/*********************************************/
-		// DAQmx Stop Code
-		/*********************************************/
-		DAQmxStopTask(motorTaskHandle);
-		DAQmxClearTask(motorTaskHandle);
-	}
-    return 0;
-
-Error:
-	if( DAQmxFailed(error) )
-		printf("DisableMotor Error: %s\n",errBuff);
-	//fclose(emgLogHandle);
-	//printf("\nStopped EMG !\n");
-	return 0;
-}
 void exitProgram() 
 {
     DisableMotors(&g_DOTaskHandle);
-    StopEmg(g_ForceReadTaskHandle);
+    StopSignalLoop(g_ForceReadTaskHandle);
 }
 
 void initProgram()
 {
-    StartEmg(g_ForceReadTaskHandle);
+    StartSignalLoop(g_ForceReadTaskHandle);
     EnableMotors(&g_DOTaskHandle);
 }
 

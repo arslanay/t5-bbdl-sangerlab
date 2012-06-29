@@ -56,12 +56,13 @@
 *    signal is connected to the terminal specified in Trigger Source.
 *
 *********************************************************************/
+float64     AOdata[1]={0.5};
 
 int StartEmg(TaskHandle ForceReadTaskHandle)
 {
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
-	float64     AOdata[1]={0.0};
+
 
 
 	/*********************************************/
@@ -96,7 +97,6 @@ int StartEmg(TaskHandle ForceReadTaskHandle)
 	//DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandleDAQmx,"PXI1Slot3/Ctr4",DAQmx_Val_Hz,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1000));
 	//DAQmxErrChk (DAQmxRegisterEveryNSamplesEvent(taskHandleDAQmx,DAQmx_Val_Acquired_Into_Buffer,100,0,EveryNCallback,NULL));
 
-    //DAQmxErrChk (DAQmxWriteAnalogF64(g_AOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, AOdata, NULL, NULL));
 
     //DIO
 	
@@ -107,7 +107,9 @@ int StartEmg(TaskHandle ForceReadTaskHandle)
 	// DAQmx Start Code
 	/*********************************************/
 	DAQmxErrChk (DAQmxStartTask(ForceReadTaskHandle));
-	DAQmxErrChk (DAQmxStartTask(g_DigitalOutTaskHandle));
+	DAQmxErrChk (DAQmxStartTask(g_AOTaskHandle));
+
+
 
 
 	//printf("Ready for EMG recording!\n");
@@ -172,6 +174,7 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 		/*********************************************/
 		//DAQmxErrChk (DAQmxReadDigitalLines(taskHandle,1,10.0,DAQmx_Val_GroupByScanNumber,data,8,&numRead,NULL,NULL));
         DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, data, 1*CHANNEL_NUM,&numRead,NULL));
+        DAQmxErrChk (DAQmxWriteAnalogF64(g_AOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, AOdata, NULL, NULL));
     	//DAQmxErrChk (DAQmxWriteDigitalLines(g_DigitalOutTaskHandle,1,1,10.0,DAQmx_Val_GroupByChannel,dataEnable,NULL,NULL));
 		if( numRead ) {
 //			printf("f1 %.4lf :: f2 %.4lf \n", data[0], data[1]);

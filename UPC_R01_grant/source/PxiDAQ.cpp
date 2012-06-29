@@ -82,7 +82,8 @@ Error:
 int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *callbackData)
 {
 	int32   error=0;
-	float64 data[200]={0.0};
+	float64 loadcell_data[200]={0.0};
+    float64 encoder_data[200]={0.0};
 	int32   numRead;
 	uInt32  i=0;
 	char    buff[512], *buffPtr;
@@ -101,16 +102,22 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 		/*********************************************/
 		// DAQmx Read Code
 		/*********************************************/
-		//DAQmxErrChk (DAQmxReadDigitalLines(taskHandle,1,10.0,DAQmx_Val_GroupByScanNumber,data,8,&numRead,NULL,NULL));
-        DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, data, 1*CHANNEL_NUM,&numRead,NULL));
-//        DAQmxErrChk (DAQmxWriteAnalogF64(g_AOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, AOdata, NULL, NULL));
-        AOdata[0] = fabs(g_force[0]) * 1.1;
+
+        DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, loadcell_data, 1*CHANNEL_NUM,&numRead,NULL));
+        AOdata[0] = fabs(g_auxvar[0]) * 1.1;
         DAQmxErrChk (DAQmxWriteAnalogF64(g_AOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, AOdata, NULL, NULL));
 
 		if( numRead ) {
 //			printf("f1 %.4lf :: f2 %.4lf \n", data[0], data[1]);
-			g_force[0] = data[0];
-			g_force[1] = data[1];
+			g_auxvar[0] = loadcell_data[0];
+			g_auxvar[1] = loadcell_data[1];
+		}
+
+		DAQmxErrChk (DAQmxReadCounterF64(g_PositionRead,1,10.0,encoder_data,1,&numRead,0));        
+		if( numRead ) {
+//			printf("f1 %.4lf :: f2 %.4lf \n", data[0], data[1]);
+			g_auxvar[2] = encoder_data[0];
+			g_auxvar[3] = encoder_data[1];
 		}
 
 	}

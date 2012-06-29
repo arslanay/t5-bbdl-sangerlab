@@ -3,9 +3,11 @@
 
 #include	<NIDAQmx.h>
 #include	"pthread.h"
+#include    "Utilities.h"
 
-extern double g_force[2];
+extern double g_auxvar[NUM_AUXVAR];
 extern TaskHandle g_AOTaskHandle;
+extern TaskHandle g_PositionRead;
 
 int32 CVICALLBACK EveryNCallback(TaskHandle taskHandleDAQmx, int32 everyNsamplesEventType, uInt32 nSamples, void *callbackData);
 int32 CVICALLBACK DoneCallback(TaskHandle taskHandleDAQmx, int32 status, void *callbackData);

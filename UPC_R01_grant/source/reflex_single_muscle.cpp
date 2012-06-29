@@ -125,8 +125,11 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     case 27:        // When Escape Is Pressed...
 
         exit(0);   // Exit The Program
-        break;        // Ready For Next Case
-    default:        // Now Wrap It Up
+        break;        
+    case 32:        // SpaceBar 
+        DisableMotors(&g_DOTaskHandle);
+        break;        
+    default:        
         break;
     }
 }
@@ -152,8 +155,8 @@ void* control_loop(void*)
 
 		//printf("\n\t%f",dataEncoder[0]); 
 
-        printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
-            g_auxvar[0], g_auxvar[1], g_auxvar[2], g_auxvar[3]);
+        //printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
+        //    g_auxvar[0], g_auxvar[1], g_auxvar[2], g_auxvar[3]);
         if(_kbhit())
         {
             break;

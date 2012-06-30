@@ -128,7 +128,12 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         break;        
     case 32:        // SpaceBar 
         DisableMotors(&g_DOTaskHandle);
-        break;        
+        break;  
+
+    case 69:        // SpaceBar 
+    case 101:        // SpaceBar 
+        EnableMotors(&g_DOTaskHandle);
+        break;  
     default:        
         break;
     }

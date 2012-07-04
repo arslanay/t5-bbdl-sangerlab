@@ -28,6 +28,7 @@
 
 /* Safety Configurations */
 #define		MAX_VOLT 2.0
+#define     NUM_MOTOR 1
 
 /* EVENT FLAGS */
 #define		MAX_PTB_NUM 6

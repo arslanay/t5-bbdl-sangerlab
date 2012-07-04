@@ -8,14 +8,14 @@
 #include "glut.h"   // The GL Utility Toolkit (Glut) Header
 #include "OGLGraph.h"
 
-OGLGraph* myGraph;
+OGLGraph* gMyGraph;
 
 void init ( GLvoid )     // Create Some Everyday Functions
 {
 	glClearColor(0.0f, 0.0f, 0.0f, 0.f);				// Black Background
 	//glClearDepth(1.0f);								// Depth Buffer Setup
-	myGraph = OGLGraph::Instance();
-	myGraph->setup( 500, 100, 10, 10, 2, 2, 1, 200 );
+	gMyGraph = OGLGraph::Instance();
+	gMyGraph->setup( 500, 100, 10, 10, 2, 2, 1, 200 );
 }
 
 void display ( void )   // Create The Display Function
@@ -32,8 +32,8 @@ void display ( void )   // Create The Display Function
 	float value;
 	value = 5*sin( 5*time ) + 10.f;
 
-	myGraph->update( value );
-	myGraph->draw();
+	gMyGraph->update( value );
+	gMyGraph->draw();
 
 	glutSwapBuffers ( );
 }

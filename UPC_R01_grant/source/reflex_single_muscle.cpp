@@ -71,20 +71,25 @@ using namespace std;
 
 
 // *** Global variables
-double g_auxvar [NUM_AUXVAR];
-pthread_t g_threads[NUM_THREADS];
-pthread_mutex_t mutexPosition;
-TaskHandle g_DOTaskHandle, g_ForceReadTaskHandle, g_AOTaskHandle, g_PositionRead;
+double gAuxvar [NUM_AUXVAR];
+pthread_t gThreads[NUM_THREADS];
+pthread_mutex_t gMutexPosition;
+TaskHandle gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle;
+void ledIndicator ( float w, float h );
+float64 gLenOrig, gLenScale, gMuscleLce;
+bool gIsWindingUp,bEnableMotors,gIsRecording=false;
+LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
+FILE *gDataFile;
+float64 gMotorCmd[NUM_MOTOR]={0.0};
 
-
-OGLGraph* myGraph;
+OGLGraph* gMyGraph;
 
 void init ( GLvoid )     // Create Some Everyday Functions
 {
     glClearColor(0.0f, 0.0f, 0.0f, 0.f);				// Black Background
     //glClearDepth(1.0f);								// Depth Buffer Setup
-    myGraph = OGLGraph::Instance();
-    myGraph->setup( 500, 100, 10, 20, 2, 2, 1, 200 );
+    gMyGraph = OGLGraph::Instance();
+    gMyGraph->setup( 500, 100, 10, 20, 2, 2, 1, 200 );
 }
 
 void display ( void )   // Create The Display Function
@@ -101,13 +106,42 @@ void display ( void )   // Create The Display Function
     float value;
     value = 5*sin( 5*time ) + 10.f;
 
-    myGraph->update( 10.0 * g_auxvar[0] );
+    
+    gMyGraph->update( 10.0 * gAuxvar[0] );
     //printf("%.4lf \n", g_force[0]);
-    myGraph->draw();
+    gMyGraph->draw();
+    
+    
+    if(!bEnableMotors)
+        glColor3f(1.0f,0.0f,0.0f);
+    else
+        glColor3f(0.0f,1.0f,0.0f);
+    ledIndicator ( 10.0f,80.0f );
 
+    if(gIsWindingUp)
+        glColor3f(1.0f,0.0f,0.0f);
+    else
+        glColor3f(0.0f,1.0f,0.0f);
+    ledIndicator ( 30.0f,80.0f );
+
+    if(!gIsRecording)
+        glColor3f(1.0f,0.0f,0.0f);
+    else
+        glColor3f(0.0f,1.0f,0.0f);
+    ledIndicator ( 50.0f,80.0f );
+    glColor3f(1.0f,1.0f,1.0f);
     glutSwapBuffers ( );
 }
 
+void ledIndicator ( float w, float h )   // Create The Reshape Function (the viewport)
+{
+    glBegin(GL_TRIANGLE_FAN);
+        glVertex3f(w,h,0.0f);
+        glVertex3f(w,h+10.0f,0.0f);
+        glVertex3f(w+10.0,h+10.0f,0.0f);
+        glVertex3f(w+10.0f,h,0.0f);
+    glEnd();
+}
 void reshape ( int w, int h )   // Create The Reshape Function (the viewport)
 {
     glMatrixMode(GL_PROJECTION);
@@ -118,6 +152,7 @@ void reshape ( int w, int h )   // Create The Reshape Function (the viewport)
     glViewport(0, 0, w, h);
 }
 
+
 void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
 {
     switch ( key ) 
@@ -127,12 +162,30 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         exit(0);   // Exit The Program
         break;        
     case 32:        // SpaceBar 
-        DisableMotors(&g_DOTaskHandle);
+        DisableMotors(&gEnableHandle);
+        bEnableMotors=false;
         break;  
-
-    case 69:        // SpaceBar 
-    case 101:        // SpaceBar 
-        EnableMotors(&g_DOTaskHandle);
+    case 'R':       //Winding up
+    case 'r':
+        if(!gIsRecording)
+            gIsRecording=true;
+        else
+            gIsRecording=false;
+        break;case 'W':       //Winding up
+    case 'w':
+        if(!gIsWindingUp)
+            gIsWindingUp=true;
+        else
+            gIsWindingUp=false;
+        break;
+    case 'z':       //Rezero
+    case 'Z':
+        gLenOrig=gAuxvar[2];
+        break;
+    case 69:        // E 
+    case 101:        // e
+        EnableMotors(&gEnableHandle);
+        bEnableMotors=true;
         break;  
     default:        
         break;
@@ -160,8 +213,9 @@ void* control_loop(void*)
 
 		//printf("\n\t%f",dataEncoder[0]); 
 
+        
         //printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
-        //    g_auxvar[0], g_auxvar[1], g_auxvar[2], g_auxvar[3]);
+        //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
         if(_kbhit())
         {
             break;
@@ -173,22 +227,25 @@ void* control_loop(void*)
 
 void exitProgram() 
 {
-    DisableMotors(&g_DOTaskHandle);
-    StopPositionRead(&g_PositionRead);
-    StopSignalLoop(g_ForceReadTaskHandle);
+    DisableMotors(&gEnableHandle);
+    StopPositionRead(&gEncoderHandle);
+    StopSignalLoop(gForceReadTaskHandle);
 }
 
 void initProgram()
 {
     //WARNING: DON'T CHANGE THE SEQUENCE BELOW
-    StartPositionRead(&g_PositionRead);
-    StartSignalLoop(g_ForceReadTaskHandle);
-    EnableMotors(&g_DOTaskHandle);
+    StartPositionRead(&gEncoderHandle);
+    StartSignalLoop(gForceReadTaskHandle);
+    EnableMotors(&gEnableHandle);
+    bEnableMotors=true;
 
 }
 
 void main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
 {
+    gLenOrig=0.0;
+    gLenScale=0.0001;
     glutInit( &argc, argv ); // Erm Just Write It =)
     init();
 
@@ -203,8 +260,8 @@ void main ( int argc, char** argv )   // Create Main Function For Bringing It Al
     initProgram();
     atexit( exitProgram );
 
-    // g_auxvar = {current force 0, current force 1, current pos 0, current pos 1};
-    int ctrl_handle = pthread_create(&g_threads[0], NULL, control_loop,	(void *)g_auxvar);
+    // gAuxvar = {current force 0, current force 1, current pos 0, current pos 1};
+    int ctrl_handle = pthread_create(&gThreads[0], NULL, control_loop,	(void *)gAuxvar);
    
     glutMainLoop( );          // Initialize The Main Loop  
 

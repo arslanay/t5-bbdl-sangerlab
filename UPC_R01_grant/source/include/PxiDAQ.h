@@ -4,10 +4,14 @@
 #include	<NIDAQmx.h>
 #include	"pthread.h"
 #include    "Utilities.h"
+#include    <windows.h>
 
-extern double g_auxvar[NUM_AUXVAR];
-extern TaskHandle g_AOTaskHandle;
-extern TaskHandle g_PositionRead;
+extern double gAuxvar[NUM_AUXVAR];
+extern TaskHandle gAOTaskHandle;
+extern TaskHandle gEncoderHandle;
+extern bool gIsWindingUp;
+extern bool gIsRecording;
+extern float64 gLenOrig, gLenScale, gMuscleLce;
 
 int32 CVICALLBACK EveryNCallback(TaskHandle taskHandleDAQmx, int32 everyNsamplesEventType, uInt32 nSamples, void *callbackData);
 int32 CVICALLBACK DoneCallback(TaskHandle taskHandleDAQmx, int32 status, void *callbackData);
@@ -24,4 +28,8 @@ int StopSignalLoop(TaskHandle taskHandleDAQmxs);
 int EnableMotors(TaskHandle *rawHandle);
 int DisableMotors(TaskHandle *rawHandle);
 
+extern FILE *gDataFile;
+extern float64 gMotorCmd[];
+
+extern LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 #endif

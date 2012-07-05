@@ -13,7 +13,7 @@ int StartSignalLoop(TaskHandle ForceReadTaskHandle)
 	char        errBuff[2048]={'\0'};
     
 
-    gDataFile =fopen("TestRec03.txt","a");
+    gDataFile = fopen("TestRec03.txt","a");
 
 
 	/*********************************************/

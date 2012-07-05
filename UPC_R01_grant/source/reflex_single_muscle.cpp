@@ -45,6 +45,7 @@ using namespace std;
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
+#include <AntTweakBar.h>
 
 #include "okFrontPanelDLL.h"
 /*
@@ -68,7 +69,7 @@ using namespace std;
 #include	"glut.h"   // The GL Utility Toolkit (Glut) Header
 #include	"OGLGraph.h"
 
-
+#pragma comment(lib, "AntTweakBar")
 
 // *** Global variables
 double gAuxvar [NUM_AUXVAR];
@@ -79,10 +80,12 @@ void ledIndicator ( float w, float h );
 float64 gLenOrig, gLenScale, gMuscleLce;
 bool gIsWindingUp,bEnableMotors,gIsRecording=false;
 LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
-FILE *gDataFile;
+FILE *gDataFile, *gConfigFile;
 float64 gMotorCmd[NUM_MOTOR]={0.0};
 
 OGLGraph* gMyGraph;
+char glceLabel[40];
+
 
 void init ( GLvoid )     // Create Some Everyday Functions
 {
@@ -91,9 +94,19 @@ void init ( GLvoid )     // Create Some Everyday Functions
     gMyGraph = OGLGraph::Instance();
     gMyGraph->setup( 500, 100, 10, 20, 2, 2, 1, 200 );
 }
-
+void outputText(int x, int y, char *string)
+{
+  int len, i;
+  glRasterPos2f(x, y);
+  len = (int) strlen(string);
+  for (i = 0; i < len; i++)
+  {
+    glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, string[i]);
+  }
+}
 void display ( void )   // Create The Display Function
 {
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -130,6 +143,11 @@ void display ( void )   // Create The Display Function
         glColor3f(0.0f,1.0f,0.0f);
     ledIndicator ( 50.0f,80.0f );
     glColor3f(1.0f,1.0f,1.0f);
+
+    // Draw tweak bars
+    TwDraw();
+    sprintf(glceLabel,"%.2f    %.2f",gAuxvar[0], gMuscleLce);
+    outputText(10,95,glceLabel);
     glutSwapBuffers ( );
 }
 
@@ -150,6 +168,9 @@ void reshape ( int w, int h )   // Create The Reshape Function (the viewport)
 
     glMatrixMode(GL_MODELVIEW);
     glViewport(0, 0, w, h);
+
+    // Send the new window size to AntTweakBar
+    TwWindowSize(w, h);
 }
 
 
@@ -190,6 +211,7 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     default:        
         break;
     }
+    TwEventKeyboardGLUT(NULL,NULL,NULL);
 }
 
 void idle(void)
@@ -225,11 +247,21 @@ void* control_loop(void*)
 	return 0;
 }
 
+void saveConfigCache()
+{
+    FILE *ConfigCacheFile;
+    ConfigCacheFile= fopen("ConfigPXI.cache","w");
+    fprintf(ConfigCacheFile,"%lf",gLenScale);
+    fclose(ConfigCacheFile);
+}
+
 void exitProgram() 
 {
+    saveConfigCache();
     DisableMotors(&gEnableHandle);
     StopPositionRead(&gEncoderHandle);
     StopSignalLoop(gForceReadTaskHandle);
+    TwTerminate();
 }
 
 void initProgram()
@@ -244,25 +276,56 @@ void initProgram()
 
 void main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
 {
+    TwBar *bar; // Pointer to the tweak bar
     gLenOrig=0.0;
-    gLenScale=0.0001;
+    //gLenScale=0.0001;
+    
+    FILE *ConfigFile;
+    ConfigFile= fopen("ConfigPXI.txt","r");
+
+    fscanf(ConfigFile,"%lf",&gLenScale);
+
+    fclose(ConfigFile);
     glutInit( &argc, argv ); // Erm Just Write It =)
     init();
 
     glutInitDisplayMode( GLUT_RGB | GLUT_DOUBLE ); // Display Mode
-    glutInitWindowSize( 500, 250 ); // If glutFullScreen wasn't called this is the window size
+    glutInitWindowSize( 800, 600); // If glutFullScreen wasn't called this is the window size
     glutCreateWindow( "OpenGL Graph Component" ); // Window Title (argv[0] for current directory as title)
     glutDisplayFunc( display );  // Matching Earlier Functions To Their Counterparts
     glutReshapeFunc( reshape );
+
+    TwInit(TW_OPENGL, NULL);
+
+    glutMouseFunc((GLUTmousebuttonfun)TwEventMouseButtonGLUT);
+    glutMotionFunc((GLUTmousemotionfun)TwEventMouseMotionGLUT);
+    glutPassiveMotionFunc((GLUTmousemotionfun)TwEventMouseMotionGLUT); // same as MouseMotion
+    glutKeyboardFunc((GLUTkeyboardfun)TwEventKeyboardGLUT);
+    glutSpecialFunc((GLUTspecialfun)TwEventSpecialGLUT);
+
+    // send the ''glutGetModifers'' function pointer to AntTweakBar
+    TwGLUTModifiersFunc(glutGetModifiers);
+
     glutKeyboardFunc( keyboard );
     glutIdleFunc(idle);
   
     initProgram();
     atexit( exitProgram );
 
+
     // gAuxvar = {current force 0, current force 1, current pos 0, current pos 1};
     int ctrl_handle = pthread_create(&gThreads[0], NULL, control_loop,	(void *)gAuxvar);
    
+    bar = TwNewBar("TweakBar");
+    TwDefine(" GLOBAL help='This is our interface for the T5 Project BBDL-SangerLab.' "); // Message added to the help bar.
+    TwDefine(" TweakBar size='400 200' color='96 216 224' "); // change default tweak bar size and color
+
+    // Add 'g_Zoom' to 'bar': this is a modifable (RW) variable of type TW_TYPE_FLOAT. Its key shortcuts are [z] and [Z].
+    TwAddVarRW(bar, "Gain", TW_TYPE_DOUBLE, &gLenScale, 
+               " min=0.0000 max=0.0002 step=0.000001 keyIncr=l keyDecr=L help='Scale the object (1=original size).' ");
+    /*TwAddVarRO(bar, "LoadCell", TW_TYPE_DOUBLE,&gAuxvar[0],"");
+    TwAddVarRO(bar, "lce", TW_TYPE_DOUBLE,&gMuscleLce,"");
+    TwAddVarRO(bar, "MotorCmd", TW_TYPE_DOUBLE,&gMotorCmd[0],"");*/
     glutMainLoop( );          // Initialize The Main Loop  
 
     return;

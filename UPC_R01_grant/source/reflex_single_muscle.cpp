@@ -69,6 +69,8 @@ using namespace std;
 #include	"glut.h"   // The GL Utility Toolkit (Glut) Header
 #include	"OGLGraph.h"
 
+#define     CONFIGURATION_FILE         "C:/nerf_sangerlab/projects/stretch_reflex/stretch_reflex_xem6010.bit"
+
 
 // *** Global variables
 double gAuxvar [NUM_AUXVAR];
@@ -81,6 +83,7 @@ bool gIsWindingUp,bEnableMotors,gIsRecording=false;
 LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 FILE *gDataFile, *gConfigFile;
 float64 gMotorCmd[NUM_MOTOR]={0.0};
+okCFrontPanel *gFPGA;
 
 OGLGraph* gMyGraph;
 char glceLabel[40];
@@ -145,7 +148,7 @@ void display ( void )   // Create The Display Function
 
     // Draw tweak bars
     TwDraw();
-    sprintf(glceLabel,"%.2f    %.2f",gAuxvar[0], gMuscleLce);
+    sprintf_s(glceLabel,"%.2f    %.2f",gAuxvar[0], gMuscleLce);
     outputText(10,95,glceLabel);
     glutSwapBuffers ( );
 }
@@ -220,7 +223,7 @@ void idle(void)
 
 // This Fucntion performs the Experimental Protocol
 
-#define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
+//#define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 
 void* control_loop(void*)
 {
@@ -237,6 +240,8 @@ void* control_loop(void*)
         
         //printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
+        //gFpgaVar[0] = readFpga();
+
         if(_kbhit())
         {
             break;
@@ -263,6 +268,51 @@ void exitProgram()
     TwTerminate();
 }
 
+okCFrontPanel* initFPGA()
+{
+
+    
+
+	okCFrontPanel *dev;
+
+	// Open the first XEM - try all board types.
+	dev = new okCFrontPanel;
+	if (okCFrontPanel::NoError != dev->OpenBySerial()) {
+		delete dev;
+		printf("Device could not be opened.  Is one connected?\n");
+		return(NULL);
+	}
+	
+	printf("Found a device: %s\n", dev->GetBoardModelString(dev->GetBoardModel()).c_str());
+
+    // Configure the PLL appropriately
+	dev->LoadDefaultPLLConfiguration();
+
+	// Get some general information about the XEM.
+	printf("Device firmware version: %d.%d\n", dev->GetDeviceMajorVersion(), dev->GetDeviceMinorVersion());
+	printf("Device serial number: %s\n", dev->GetSerialNumber().c_str());
+	printf("Device ID string: %s\n", dev->GetDeviceID().c_str());
+
+	// Download the configuration file.
+	if (okCFrontPanel::NoError != dev->ConfigureFPGA(CONFIGURATION_FILE)) {
+		printf("FPGA configuration failed.\n");
+		delete dev;
+		return(NULL);
+	}
+
+	// Check for FrontPanel support in the FPGA configuration.
+	if (false == dev->IsFrontPanelEnabled()) {
+		printf("FrontPanel support is not enabled.\n");
+		delete dev;
+		return(NULL);
+	}
+
+	printf("FrontPanel support is enabled.\n");
+
+	return(dev);
+}
+
+
 void initProgram()
 {
     //WARNING: DON'T CHANGE THE SEQUENCE BELOW
@@ -271,9 +321,12 @@ void initProgram()
     EnableMotors(&gEnableHandle);
     bEnableMotors=true;
 
+
+
+
 }
 
-void main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
+int main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
 {
     TwBar *bar; // Pointer to the tweak bar
     gLenOrig=0.0;
@@ -307,6 +360,28 @@ void main ( int argc, char** argv )   // Create Main Function For Bringing It Al
 
     glutKeyboardFunc( keyboard );
     glutIdleFunc(idle);
+
+
+    // *** load fpga dll. TODO: move it elsewhere
+    char dll_date[32], dll_time[32];
+
+	printf("---- Opal Kelly ---- FPGA-DES Application v1.0 ----\n");
+	if (FALSE == okFrontPanelDLL_LoadLib(NULL)) {
+		printf("FrontPanel DLL could not be loaded.\n");
+		return(-1);
+	}
+	okFrontPanelDLL_GetVersion(dll_date, dll_time);
+	printf("FrontPanel DLL loaded.  Built: %s  %s\n", dll_date, dll_time);
+
+
+
+    gFPGA = initFPGA(); // a pointer to the FPGA device
+    if (NULL == gFPGA) {
+		printf("FPGA could not be initialized.\n");
+		return(-1);
+	}
+
+    // *** load fpga dll
   
     initProgram();
     atexit( exitProgram );
@@ -327,7 +402,7 @@ void main ( int argc, char** argv )   // Create Main Function For Bringing It Al
     TwAddVarRO(bar, "MotorCmd", TW_TYPE_DOUBLE,&gMotorCmd[0],"");*/
     glutMainLoop( );          // Initialize The Main Loop  
 
-    return;
+    return 0;
 
 }
 

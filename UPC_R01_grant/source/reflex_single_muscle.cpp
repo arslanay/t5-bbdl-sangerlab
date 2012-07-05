@@ -69,7 +69,6 @@ using namespace std;
 #include	"glut.h"   // The GL Utility Toolkit (Glut) Header
 #include	"OGLGraph.h"
 
-#pragma comment(lib, "AntTweakBar")
 
 // *** Global variables
 double gAuxvar [NUM_AUXVAR];

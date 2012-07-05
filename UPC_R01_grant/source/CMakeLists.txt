@@ -33,7 +33,7 @@ FIND_PACKAGE(Pthreads REQUIRED)
 #SET(Boost_USE_MULTITHREADED ON)
 #FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
 FIND_PACKAGE(NIDAQMX REQUIRED)
-FIND_PACKAGE(OpalKelly REQUIRED)
+#FIND_PACKAGE(OpalKelly REQUIRED)
 FIND_PACKAGE(AntTweakBar REQUIRED)
 
 
@@ -97,6 +97,6 @@ SET(CMN_EXECUTABLE_NAMES
 # Now loop through each name, defining the executable by grabbing the
 # identically-named source file and linking the required libraries.
 FOREACH(EXEC ${CMN_EXECUTABLE_NAMES})
-	ADD_EXECUTABLE(${EXEC} ${EXEC}.cpp)
+	ADD_EXECUTABLE(${EXEC} ${EXEC}.cpp okFrontPanelDLL.cpp)
 	TARGET_LINK_LIBRARIES(${EXEC} ${SYS_LIBRARIES} ${CMN_LIBRARIES})
 ENDFOREACH(EXEC)

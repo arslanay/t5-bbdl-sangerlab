@@ -282,18 +282,19 @@ int ReadFPGA(okCFrontPanel *xem, BYTE getAddr, char *type, float *outVal)
     return 0;
 }
 
-int WriteFPGA(okCFrontPanel *xem, float32 newVal, char *type, int trigEvent)
+int ReInterpret(float32 in, int32 *out)
+{
+    memcpy(out, &in, sizeof(int32));
+}
+
+int ReInterpret(int32 in, int32 *out)
+{
+    memcpy(out, &in, sizeof(int32));
+}
+
+int WriteFPGA(okCFrontPanel *xem, int32 bitVal, char *type, int trigEvent)
 {
     int32 bitVal = 0;
-    if (0 == strcmp(type, "int32"))
-    {
-        //bitVal = newVal;
-    }
-    else if (0 == strcmp(type, "float32"))
-    {     
-        // convert to Int32
-        memcpy(&bitVal, &newVal, sizeof(int32));
-    }
 
     int32 bitValLo = bitVal & 0xffff;
     int32 bitValHi = (bitVal >> 16) & 0xffff;
@@ -323,9 +324,7 @@ void* ControlLoop(void*)
     while (1)
     {
         int i=0;
-
 		//printf("\n\t%f",dataEncoder[0]); 
-
         
         //printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
@@ -362,10 +361,7 @@ void exitProgram()
 }
 
 okCFrontPanel* initFPGA()
-{
-
-    
-
+{   
 	okCFrontPanel *dev;
 
 	// Open the first XEM - try all board types.
@@ -385,6 +381,23 @@ okCFrontPanel* initFPGA()
 	printf("Device firmware version: %d.%d\n", dev->GetDeviceMajorVersion(), dev->GetDeviceMinorVersion());
 	printf("Device serial number: %s\n", dev->GetSerialNumber().c_str());
 	printf("Device ID string: %s\n", dev->GetDeviceID().c_str());
+
+
+    okCPLL22393 *pll;
+    pll = new okCPLL22393;
+    pll -> SetReference(48);        //base clock frequency
+    int baseRate = 200; //in MHz
+    pll -> SetPLLParameters(0, baseRate, 48,  true);
+    pll -> SetOutputSource(0, okCPLL22393::ClkSrc_PLL0_0);
+    int clkRate = 200; //mhz; 200 is fastest
+    pll -> SetOutputDivider(0, baseRate / clkRate) ;
+    pll -> SetOutputEnable(0, true);
+    dev -> SetPLL22393Configuration(*pll);
+
+    
+    //int newHalfCnt = 1 * 200 * (10 **6) / SAMPLING_RATE / NUM_NEURON / (value*4) / 2 / 2;
+    int32 newHalfCnt = 1 * 200 * (10 **6) / 1024 / 128 / (1) / 2 / 2;
+    WriteFPGA(dev, newHalfCnt, DATA_EVT_CLKRATE);  // CMN 7/9/2012: stretch_reflex in fpga project is WRONG
 
 	// Download the configuration file.
 	if (okCFrontPanel::NoError != dev->ConfigureFPGA(CONFIGURATION_FILE)) {

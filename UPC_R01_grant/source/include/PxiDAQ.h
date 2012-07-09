@@ -30,6 +30,7 @@ int DisableMotors(TaskHandle *rawHandle);
 
 extern FILE *gDataFile;
 extern float64 gMotorCmd[];
+extern float gCtrlFromFPGA[];
 
 extern LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 #endif

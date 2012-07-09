@@ -31,6 +31,10 @@
 #define     NUM_MOTOR 1
 #define     NUM_FPGA_CH 1
 
+/* FPGA Trigger events */
+#define     DATA_EVT_CLKRATE 7
+
+
 /* EVENT FLAGS */
 #define		MAX_PTB_NUM 6
 #define		MAX_PRACTICE_NUM 3

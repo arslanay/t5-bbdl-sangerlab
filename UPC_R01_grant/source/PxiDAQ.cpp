@@ -13,7 +13,7 @@ int StartSignalLoop(TaskHandle ForceReadTaskHandle)
 	char        errBuff[2048]={'\0'};
     
 
-    gDataFile = fopen("TestRec03.txt","a");
+    gDataFile = fopen("TestRec04.txt","a");
 
 
 	/*********************************************/
@@ -95,7 +95,7 @@ void LogData( void)
     if (gIsRecording)
     {
         fprintf(gDataFile,"%.3lf\t",actualTime );																			//1
-        fprintf(gDataFile,"%f\t%f\t%f\t", gAuxvar[0], gMuscleLce, gMotorCmd[0]);										//2,3
+        fprintf(gDataFile,"%f\t%f\t%f\t%f\t", gAuxvar[0], gMuscleLce, gMotorCmd[0],gCtrlFromFPGA[0]);										//2,3
         fprintf(gDataFile,"\n");
 
         //printf("%lf\t",actualTime );																			//1

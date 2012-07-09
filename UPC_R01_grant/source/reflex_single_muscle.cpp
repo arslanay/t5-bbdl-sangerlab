@@ -79,11 +79,12 @@ pthread_mutex_t gMutexPosition;
 TaskHandle gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle;
 void ledIndicator ( float w, float h );
 float64 gLenOrig, gLenScale, gMuscleLce;
-bool gIsWindingUp,bEnableMotors,gIsRecording=false;
+bool gIsWindingUp,gResetSim,bEnableMotors,gIsRecording=false;
 LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 FILE *gDataFile, *gConfigFile;
 float64 gMotorCmd[NUM_MOTOR]={0.0};
-okCFrontPanel *gFPGA;
+okCFrontPanel *gFpgaHandle;
+float gCtrlFromFPGA[NUM_FPGA_CH];
 
 OGLGraph* gMyGraph;
 char glceLabel[40];
@@ -122,7 +123,8 @@ void display ( void )   // Create The Display Function
     value = 5*sin( 5*time ) + 10.f;
 
     
-    gMyGraph->update( 10.0 * gAuxvar[0] );
+    //gMyGraph->update( 10.0 * gAuxvar[0] );
+    gMyGraph->update( 0.1 * gCtrlFromFPGA[0] );
     //printf("%.4lf \n", g_force[0]);
     gMyGraph->draw();
     
@@ -175,6 +177,19 @@ void reshape ( int w, int h )   // Create The Reshape Function (the viewport)
     TwWindowSize(w, h);
 }
 
+int SendButton(okCFrontPanel *xem, int buttonValue, char *evt)
+{
+    if (0 == strcmp(evt, "BUTTON_RESET_SIM"))
+    {
+        if (buttonValue) 
+            xem -> SetWireInValue(0x00, 0x02, 0xff);
+        else 
+            xem -> SetWireInValue(0x00, 0x00, 0x02);
+        xem -> UpdateWireIns();
+    }
+    return 0;
+}
+
 
 void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
 {
@@ -194,7 +209,15 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
             gIsRecording=true;
         else
             gIsRecording=false;
-        break;case 'W':       //Winding up
+        break;
+    case '0':       //Winding up
+        if(!gResetSim)
+            gResetSim=true;
+        else
+            gResetSim=false;
+        SendButton(gFpgaHandle, (int) gResetSim, "BUTTON_RESET_SIM");
+        break;
+    case 'W':       //Winding up
     case 'w':
         if(!gIsWindingUp)
             gIsWindingUp=true;
@@ -221,11 +244,77 @@ void idle(void)
     glutPostRedisplay();
 }
 
-// This Fucntion performs the Experimental Protocol
 
-//#define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 
-void* control_loop(void*)
+int ReadFPGA(okCFrontPanel *xem, BYTE getAddr, char *type, float *outVal)
+{
+    xem -> UpdateWireOuts();
+    // Read 18-bit integer from FPGA
+    if (0 == strcmp(type, "int18"))
+    {
+        //intValLo = self.xem.GetWireOutValue(getAddr) & 0xffff # length = 16-bit
+        //intValHi = self.xem.GetWireOutValue(getAddr + 0x01) & 0x0003 # length = 2-bit
+        //intVal = ((intValHi << 16) + intValLo) & 0xFFFFFFFF
+        //if intVal > 0x1FFFF:
+        //    intVal = -(0x3FFFF - intVal + 0x1)
+        //outVal = float(intVal) # in mV De-Scaling factor = 0xFFFF
+    }
+    // Read 32-bit float
+    else if (0 == strcmp(type, "float32")) 
+    {
+        int32 outValLo = xem -> GetWireOutValue(getAddr) & 0xffff;
+        int32 outValHi = xem -> GetWireOutValue(getAddr + 0x01) & 0xffff;
+        int32 outValInt = ((outValHi << 16) + outValLo) & 0xFFFFFFFF;
+        memcpy(&outVal[0], &outValInt, sizeof(float));
+        //outVal = ConvertType(outVal, 'I', 'f')
+        //#print outVal
+    }
+    // Read 32-bit signed integer from FPGA
+    else if (0 == strcmp(type, "int32"))
+    {
+    //elif type == "int32" :
+    //    intValLo = self.xem.GetWireOutValue(getAddr) & 0xffff # length = 16-bit
+    //    intValHi = self.xem.GetWireOutValue(getAddr + 0x01) & 0xffff # length = 16-bit
+    //    intVal = ((intValHi << 16) + intValLo) & 0xFFFFFFFF
+    //    outVal = ConvertType(intVal, 'I',  'i')  # in mV De-Scaling factor = 128  #????
+    }
+
+    return 0;
+}
+
+int WriteFPGA(okCFrontPanel *xem, float32 newVal, char *type, int trigEvent)
+{
+    int32 bitVal = 0;
+    if (0 == strcmp(type, "int32"))
+    {
+        //bitVal = newVal;
+    }
+    else if (0 == strcmp(type, "float32"))
+    {     
+        // convert to Int32
+        memcpy(&bitVal, &newVal, sizeof(int32));
+    }
+
+    int32 bitValLo = bitVal & 0xffff;
+    int32 bitValHi = (bitVal >> 16) & 0xffff;
+
+    
+    //xem -> SetWireInValue(0x01, bitValLo, 0xffff);
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x01, bitValLo, 0xffff)) {
+		printf("SetWireIn failed.\n");
+		delete xem;
+		return -1;
+	}
+
+    xem -> SetWireInValue(0x02, bitValHi, 0xffff);
+    xem -> UpdateWireIns();
+    xem -> ActivateTriggerIn(0x50, trigEvent)   ;
+    
+    return 0;
+}
+
+
+void* ControlLoop(void*)
 {
     
 	int32       error=0;
@@ -240,13 +329,17 @@ void* control_loop(void*)
         
         //printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
-        //gFpgaVar[0] = readFpga();
 
-        if(_kbhit())
-        {
-            break;
+        // gCtrlFromFPGA[] holds the signal already converted from binary trains 
+        ReadFPGA(gFpgaHandle, 0x24, "float32", gCtrlFromFPGA);
 
-        }
+        //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
+
+        //WriteFPGA(gFpgaHandle, gMuscleLce, "float32", 2);
+        WriteFPGA(gFpgaHandle, (float32) 1.0 - 0.5* gAuxvar[0], "float32", 2);
+        //printf("Input = %0.4f :: Out = %0.4f \n", 1.0-gAuxvar[0], gCtrlFromFPGA); 
+
+        if(_kbhit()) break;
     } 
 	return 0;
 }
@@ -375,8 +468,8 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
 
 
 
-    gFPGA = initFPGA(); // a pointer to the FPGA device
-    if (NULL == gFPGA) {
+    gFpgaHandle = initFPGA(); // a pointer to the FPGA device
+    if (NULL == gFpgaHandle) {
 		printf("FPGA could not be initialized.\n");
 		return(-1);
 	}
@@ -388,7 +481,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
 
 
     // gAuxvar = {current force 0, current force 1, current pos 0, current pos 1};
-    int ctrl_handle = pthread_create(&gThreads[0], NULL, control_loop,	(void *)gAuxvar);
+    int ctrl_handle = pthread_create(&gThreads[0], NULL, ControlLoop,	(void *)gAuxvar);
    
     bar = TwNewBar("TweakBar");
     TwDefine(" GLOBAL help='This is our interface for the T5 Project BBDL-SangerLab.' "); // Message added to the help bar.

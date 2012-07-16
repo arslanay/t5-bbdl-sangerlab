@@ -27,7 +27,7 @@
 #define		FLG_OUT_FREEMOVE 0
 
 /* Safety Configurations */
-#define		MAX_VOLT 2.0
+#define		MAX_VOLT 1.0
 #define     NUM_MOTOR 1
 #define     NUM_FPGA_CH 1
 

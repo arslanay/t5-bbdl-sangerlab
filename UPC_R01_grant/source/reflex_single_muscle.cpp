@@ -79,7 +79,7 @@ pthread_mutex_t gMutexPosition;
 TaskHandle gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle;
 void ledIndicator ( float w, float h );
 float64 gLenOrig, gLenScale, gMuscleLce;
-bool gIsWindingUp,gResetSim,bEnableMotors,gIsRecording=false;
+bool gIsWindingUp = true,gResetSim,bEnableMotors,gIsRecording=false;
 LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 FILE *gDataFile, *gConfigFile;
 float64 gMotorCmd[NUM_MOTOR]={0.0};
@@ -124,7 +124,7 @@ void display ( void )   // Create The Display Function
 
     
     //gMyGraph->update( 10.0 * gAuxvar[0] );
-    gMyGraph->update( 0.1 * gCtrlFromFPGA[0] );
+    gMyGraph->update( 1.0 * gCtrlFromFPGA[0] );
     //printf("%.4lf \n", g_force[0]);
     gMyGraph->draw();
     
@@ -150,7 +150,7 @@ void display ( void )   // Create The Display Function
 
     // Draw tweak bars
     TwDraw();
-    sprintf_s(glceLabel,"%.2f    %.2f",gAuxvar[0], gMuscleLce);
+    sprintf_s(glceLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
     outputText(10,95,glceLabel);
     glutSwapBuffers ( );
 }
@@ -285,16 +285,18 @@ int ReadFPGA(okCFrontPanel *xem, BYTE getAddr, char *type, float *outVal)
 int ReInterpret(float32 in, int32 *out)
 {
     memcpy(out, &in, sizeof(int32));
+    return 0;
 }
 
 int ReInterpret(int32 in, int32 *out)
 {
     memcpy(out, &in, sizeof(int32));
+    return 0;
 }
 
 int WriteFPGA(okCFrontPanel *xem, int32 bitVal, char *type, int trigEvent)
 {
-    int32 bitVal = 0;
+    //bitVal = 0;
 
     int32 bitValLo = bitVal & 0xffff;
     int32 bitValHi = (bitVal >> 16) & 0xffff;
@@ -330,13 +332,19 @@ void* ControlLoop(void*)
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
 
         // gCtrlFromFPGA[] holds the signal already converted from binary trains 
-        ReadFPGA(gFpgaHandle, 0x24, "float32", gCtrlFromFPGA);
-
+        float32 rawCtrl;
+        ReadFPGA(gFpgaHandle, 0x24, "float32", &rawCtrl);
+        gCtrlFromFPGA[0] = (rawCtrl - 224) * 0.005;
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
 
         //WriteFPGA(gFpgaHandle, gMuscleLce, "float32", 2);
-        WriteFPGA(gFpgaHandle, (float32) 1.0 - 0.5* gAuxvar[0], "float32", 2);
-        //printf("Input = %0.4f :: Out = %0.4f \n", 1.0-gAuxvar[0], gCtrlFromFPGA); 
+        int32 temp;
+        //if (0 == ReInterpret((float32)(1.0 - 0.5* gAuxvar[0]), &temp)) 
+        if (0 == ReInterpret((float32)(gMuscleLce), &temp)) 
+        {
+            WriteFPGA(gFpgaHandle, temp, "float32", 2);
+        }
+        //printf("Input = %0.4f :: Out = %0.4f \n", (float32) 1.0 - 0.5* gAuxvar[0], gCtrlFromFPGA); 
 
         if(_kbhit()) break;
     } 
@@ -396,8 +404,8 @@ okCFrontPanel* initFPGA()
 
     
     //int newHalfCnt = 1 * 200 * (10 **6) / SAMPLING_RATE / NUM_NEURON / (value*4) / 2 / 2;
-    int32 newHalfCnt = 1 * 200 * (10 **6) / 1024 / 128 / (1) / 2 / 2;
-    WriteFPGA(dev, newHalfCnt, DATA_EVT_CLKRATE);  // CMN 7/9/2012: stretch_reflex in fpga project is WRONG
+    int32 newHalfCnt = 1 * 200 * (int32)(1e6) / 1024 / 128 / (1) / 2 / 2;
+    //WriteFPGA(dev, newHalfCnt, DATA_EVT_CLKRATE);  // CMN 7/9/2012: stretch_reflex in fpga project is WRONG
 
 	// Download the configuration file.
 	if (okCFrontPanel::NoError != dev->ConfigureFPGA(CONFIGURATION_FILE)) {

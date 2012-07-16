@@ -130,10 +130,12 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, loadcell_data, 1*CHANNEL_NUM,&numRead,NULL));
         double motor_cmd;
         if(!gIsWindingUp)
-            motor_cmd= 0.0 + (fabs(gAuxvar[0]) * 1.5);
+            motor_cmd = 0.4 + gCtrlFromFPGA[0] * 0.5;
+            //motor_cmd = 0.4;
         else
-            motor_cmd= 0.4;
-        AOdata[0] = motor_cmd > MAX_VOLT ? MAX_VOLT : motor_cmd;
+            motor_cmd = 0.4;
+        //AOdata[0] = (motor_cmd > MAX_VOLT) ? MAX_VOLT : motor_cmd;
+        AOdata[0] = (motor_cmd > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd < 0.0 ) ? 0.0 :motor_cmd) ;
         DAQmxErrChk (DAQmxWriteAnalogF64(gAOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, AOdata, NULL, NULL));
 
 		if( numRead ) {
@@ -149,7 +151,7 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 			gAuxvar[3] = encoder_data[1];
 		}
 
-        gMuscleLce = gLenScale * (-gAuxvar[2] + gLenOrig) + 1.0;
+        gMuscleLce = -gLenScale * (-gAuxvar[2] + gLenOrig) + 1.0;
 		//printf("\n\t%f",gMuscleLce); 
         LogData();
 

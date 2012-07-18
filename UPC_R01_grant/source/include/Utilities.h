@@ -20,14 +20,18 @@
 #define		EMG_SAMPLING_RATE 1000 // samples/s
 #define		INIT_HEIGHT -0.05
 #define		SERVO_SAMPLING_RATE 150 // in Hz, Sampling Constants for Servoing
-#define		FLG_BELOW_DELAY 0
-#define		FLG_ABOVE_DELAY_ABOVE_THRESHOLD 1
-#define		FLG_ABOVE_DELAY_BELOW_THRESHOLD 2
-#define		FLG_IN_FREEMOVE 1
-#define		FLG_OUT_FREEMOVE 0
+
+/* Motor States for FSM*/
+#define MOTOR_STATE_INIT 0
+#define MOTOR_STATE_WINDING_UP 1
+#define MOTOR_STATE_OPEN_LOOP 2
+#define MOTOR_STATE_CLOSED_LOOP 3
+#define MOTOR_STATE_SHUTTING_DOWN 4
 
 /* Safety Configurations */
 #define		MAX_VOLT 1.0
+#define		SAFE_MOTOR_VOLTAGE 0.4
+#define		ZERO_MOTOR_VOLTAGE 0.0
 #define     NUM_MOTOR 1
 #define     NUM_FPGA_CH 1
 

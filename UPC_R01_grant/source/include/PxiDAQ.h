@@ -9,7 +9,8 @@
 extern double gAuxvar[NUM_AUXVAR];
 extern TaskHandle gAOTaskHandle;
 extern TaskHandle gEncoderHandle;
-extern bool gIsWindingUp;
+extern int gCurrMotorState;
+
 extern bool gIsRecording;
 extern float64 gLenOrig, gLenScale, gMuscleLce;
 
@@ -19,11 +20,11 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 //int32 CVICALLBACK update_dataEnableMotors(TaskHandle taskHandleDAQmxEnableMotors, int32 signalID, void *callbackData);
 
 
-int StartPositionRead(TaskHandle *rawHandle);
+int StartReadPos(TaskHandle *rawHandle);
 int StopPositionRead(TaskHandle *rawHandle);
 
-int StartSignalLoop(TaskHandle taskHandleDAQmx);
-int StopSignalLoop(TaskHandle taskHandleDAQmxs);
+int StartSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle);
+int StopSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle);
 
 int EnableMotors(TaskHandle *rawHandle);
 int DisableMotors(TaskHandle *rawHandle);

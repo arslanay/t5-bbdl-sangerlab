@@ -7,13 +7,15 @@
 
 
 
-int StartSignalLoop(TaskHandle ForceReadTaskHandle)
+int StartSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
 {
+    TaskHandle AOHandle = *rawAOHandle;
+    TaskHandle ForceReadTaskHandle = *rawForceHandle;
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
     
 
-    gDataFile = fopen("TestRec04.txt","a");
+    gDataFile = fopen("TestRec06.txt","a");
 
 
 	/*********************************************/
@@ -24,15 +26,14 @@ int StartSignalLoop(TaskHandle ForceReadTaskHandle)
 	DAQmxErrChk (DAQmxCreateAIVoltageChan(ForceReadTaskHandle,"PXI1Slot5/ai9","force1", DAQmx_Val_NRSE ,-5.0,5.0,DAQmx_Val_Volts,NULL));
 	DAQmxErrChk (DAQmxCfgSampClkTiming(ForceReadTaskHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
     
-    DAQmxErrChk (DAQmxCreateTask("",&gAOTaskHandle));
-    DAQmxErrChk (DAQmxCreateAOVoltageChan(gAOTaskHandle,"PXI1Slot2/ao11","motor1", -5.0,5.0,DAQmx_Val_Volts,NULL));
-	DAQmxErrChk (DAQmxCfgSampClkTiming(gAOTaskHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
+    DAQmxErrChk (DAQmxCreateTask("",&AOHandle));
+    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao11","motor1", -5.0,5.0,DAQmx_Val_Volts,NULL));
+	DAQmxErrChk (DAQmxCfgSampClkTiming(AOHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
 	
 
     DAQmxErrChk (DAQmxRegisterSignalEvent(ForceReadTaskHandle,DAQmx_Val_SampleClock, 0, update_data ,NULL));
 	DAQmxErrChk (DAQmxRegisterDoneEvent(ForceReadTaskHandle,0,DoneCallback,NULL));
-
-
+    
     QueryPerformanceCounter(&gInitTick);
 	QueryPerformanceFrequency(&gClkFrequency);
 
@@ -40,11 +41,23 @@ int StartSignalLoop(TaskHandle ForceReadTaskHandle)
 	/*********************************************/
 	// DAQmx Start Code
 	/*********************************************/
-	DAQmxErrChk (DAQmxStartTask(ForceReadTaskHandle));
-	DAQmxErrChk (DAQmxStartTask(gAOTaskHandle));
+    if (0 != ForceReadTaskHandle) // Some error occurred
+    {    
+        // Sequence SENSITIVE: Start the tasks at the very end
+        *rawForceHandle = ForceReadTaskHandle;
+        *rawAOHandle = AOHandle;
 
-	//printf("Ready for EMG recording!\n");
-	//getchar();
+        DAQmxErrChk (DAQmxStartTask(ForceReadTaskHandle));
+        DAQmxErrChk (DAQmxStartTask(AOHandle));
+        
+    }
+    else
+    {
+        //printf("Ready for EMG recording!\n");
+        //getchar();
+        *rawForceHandle = 0;
+        *rawAOHandle = 0;
+    }
 	return 0;
 
 Error:
@@ -56,15 +69,17 @@ Error:
 	return 0;
 }
 
-int StopSignalLoop(TaskHandle ForceReadTaskHandle)
+int StopSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
 {
+    TaskHandle AOHandle = *rawAOHandle;
+    TaskHandle ForceReadTaskHandle = *rawForceHandle;
 	int32       error=0;
 	char        errBuff[2048] = {'\0'};
     const float64     ZERO_VOLTS[1]={0.0};
     
     fclose(gDataFile);
 
-    DAQmxErrChk (DAQmxWriteAnalogF64(gAOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, ZERO_VOLTS, NULL, NULL));
+    DAQmxErrChk (DAQmxWriteAnalogF64(AOHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, ZERO_VOLTS, NULL, NULL));
     
 	//printf( "\nStopping EMG ...\n" );
 	if( DAQmxFailed(error) )
@@ -74,10 +89,17 @@ int StopSignalLoop(TaskHandle ForceReadTaskHandle)
 		// DAQmx Stop Code
 		/*********************************************/
 		DAQmxStopTask(ForceReadTaskHandle);
-        DAQmxStopTask(gAOTaskHandle);
+        DAQmxStopTask(AOHandle);
 		DAQmxClearTask(ForceReadTaskHandle);
-		DAQmxClearTask(gAOTaskHandle);
+		DAQmxClearTask(AOHandle);
+        *rawForceHandle = 0;
+        *rawAOHandle = 0;
 	}
+    else
+    {
+        *rawForceHandle = ForceReadTaskHandle;
+        *rawAOHandle = AOHandle;
+    }
 Error:
 	if( DAQmxFailed(error) )
 		printf("StopSignalLoop Error: %s\n",errBuff);
@@ -86,7 +108,7 @@ Error:
 	return 0;
 }
 
-void LogData( void)
+inline void LogData( void)
 {
     double actualTime;
     QueryPerformanceCounter(&gCurrentTick);
@@ -129,13 +151,30 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 
         DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, loadcell_data, 1*CHANNEL_NUM,&numRead,NULL));
         double motor_cmd;
-        if(!gIsWindingUp)
-            motor_cmd = 0.4 + gCtrlFromFPGA[0] * 0.5;
-            //motor_cmd = 0.4;
-        else
-            motor_cmd = 0.4;
+        switch(gCurrMotorState)
+        {
+        case MOTOR_STATE_INIT:
+            motor_cmd = ZERO_MOTOR_VOLTAGE;
+            break;
+        case MOTOR_STATE_WINDING_UP:
+            motor_cmd = SAFE_MOTOR_VOLTAGE;
+            break;
+        case MOTOR_STATE_OPEN_LOOP:
+            motor_cmd = SAFE_MOTOR_VOLTAGE;
+            break;
+        case MOTOR_STATE_CLOSED_LOOP:
+            motor_cmd = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[0] * 0.5;
+            break;
+        case MOTOR_STATE_SHUTTING_DOWN:
+            motor_cmd = ZERO_MOTOR_VOLTAGE;
+            break;
+        default:
+            motor_cmd = ZERO_MOTOR_VOLTAGE;
+        }
+
         //AOdata[0] = (motor_cmd > MAX_VOLT) ? MAX_VOLT : motor_cmd;
         AOdata[0] = (motor_cmd > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd < 0.0 ) ? 0.0 :motor_cmd) ;
+        //printf("\nAO handle = %d \n", gAOTaskHandle);
         DAQmxErrChk (DAQmxWriteAnalogF64(gAOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, AOdata, NULL, NULL));
 
 		if( numRead ) {
@@ -169,7 +208,7 @@ Error:
 		DAQmxStopTask(gAOTaskHandle);
 		DAQmxClearTask(taskHandleDAQmx);
 		DAQmxClearTask(gAOTaskHandle);
-		printf("DAQmx Error: %s\n",errBuff);
+		printf("UpdateData Error: %s\n",errBuff);
 	}
 	return 0;
 }
@@ -251,7 +290,7 @@ Error:
 }
 
 
-int StartPositionRead(TaskHandle *rawHandle)
+int StartReadPos(TaskHandle *rawHandle)
 {
 	TaskHandle  encoderTaskHandle = *rawHandle;
 	int32       error=0;

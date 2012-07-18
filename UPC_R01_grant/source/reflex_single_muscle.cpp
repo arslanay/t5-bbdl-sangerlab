@@ -79,15 +79,23 @@ pthread_mutex_t gMutexPosition;
 TaskHandle gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle;
 void ledIndicator ( float w, float h );
 float64 gLenOrig, gLenScale, gMuscleLce;
-bool gIsWindingUp = true,gResetSim,bEnableMotors,gIsRecording=false;
+bool gResetSim,gIsRecording=false;
 LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 FILE *gDataFile, *gConfigFile;
+int gCurrMotorState = MOTOR_STATE_INIT;
+
+
 float64 gMotorCmd[NUM_MOTOR]={0.0};
 okCFrontPanel *gFpgaHandle;
 float gCtrlFromFPGA[NUM_FPGA_CH];
 
 OGLGraph* gMyGraph;
-char glceLabel[40];
+char gLceLabel[40];
+char gStateLabel[5][30] = { "MOTOR_STATE_INIT",
+                            "MOTOR_STATE_WINDING_UP",
+                            "MOTOR_STATE_OPEN_LOOP",
+                            "MOTOR_STATE_CLOSED_LOOP",
+                            "MOTOR_STATE_SHUTTING_DOWN"};
 
 
 void init ( GLvoid )     // Create Some Everyday Functions
@@ -129,17 +137,17 @@ void display ( void )   // Create The Display Function
     gMyGraph->draw();
     
     
-    if(!bEnableMotors)
+    if(MOTOR_STATE_WINDING_UP)
         glColor3f(1.0f,0.0f,0.0f);
     else
         glColor3f(0.0f,1.0f,0.0f);
     ledIndicator ( 10.0f,80.0f );
 
-    if(gIsWindingUp)
+    /*if(gIsWindingUp)
         glColor3f(1.0f,0.0f,0.0f);
     else
         glColor3f(0.0f,1.0f,0.0f);
-    ledIndicator ( 30.0f,80.0f );
+    ledIndicator ( 30.0f,80.0f );*/
 
     if(!gIsRecording)
         glColor3f(1.0f,0.0f,0.0f);
@@ -150,8 +158,14 @@ void display ( void )   // Create The Display Function
 
     // Draw tweak bars
     TwDraw();
-    sprintf_s(glceLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
-    outputText(10,95,glceLabel);
+    sprintf_s(gLceLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
+    outputText(10,95,gLceLabel);
+    
+    //sprintf_s(gStateLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
+    outputText(300,95,gStateLabel[gCurrMotorState]);
+
+    
+
     glutSwapBuffers ( );
 }
 
@@ -189,7 +203,49 @@ int SendButton(okCFrontPanel *xem, int buttonValue, char *evt)
     }
     return 0;
 }
+int ProceedFSM(int *state);
+int InitMotor(int *state);
 
+int ProceedFSM(int *state)
+{
+    switch(*state)
+    {
+        case MOTOR_STATE_INIT:
+            EnableMotors(&gEnableHandle);
+            *state = MOTOR_STATE_WINDING_UP;
+            break;
+        case MOTOR_STATE_WINDING_UP:
+            *state = MOTOR_STATE_OPEN_LOOP;
+            break;
+        case MOTOR_STATE_OPEN_LOOP:
+            *state = MOTOR_STATE_CLOSED_LOOP;
+            break;
+        case MOTOR_STATE_CLOSED_LOOP:
+            DisableMotors(&gEnableHandle);
+            *state = MOTOR_STATE_SHUTTING_DOWN;
+            break;
+        case MOTOR_STATE_SHUTTING_DOWN:
+            *state = MOTOR_STATE_SHUTTING_DOWN;
+            break;
+        default:
+            *state = MOTOR_STATE_INIT;
+    }
+    return 0;
+}
+int InitMotor(int *state)
+{
+    DisableMotors(&gEnableHandle);
+    *state = MOTOR_STATE_INIT;
+    return 0;
+}
+
+int ShutdownMotor(int *state);
+int ShutdownMotor(int *state)
+{
+    DisableMotors(&gEnableHandle);
+    *state = MOTOR_STATE_SHUTTING_DOWN;
+    return 0;
+}
 
 void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
 {
@@ -200,9 +256,12 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         exit(0);   // Exit The Program
         break;        
     case 32:        // SpaceBar 
-        DisableMotors(&gEnableHandle);
-        bEnableMotors=false;
+        ShutdownMotor(&gCurrMotorState);
         break;  
+    case 'G':       //Proceed in FSM
+    case 'g':
+        ProceedFSM(&gCurrMotorState);
+        break;
     case 'R':       //Winding up
     case 'r':
         if(!gIsRecording)
@@ -217,21 +276,20 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
             gResetSim=false;
         SendButton(gFpgaHandle, (int) gResetSim, "BUTTON_RESET_SIM");
         break;
-    case 'W':       //Winding up
-    case 'w':
-        if(!gIsWindingUp)
-            gIsWindingUp=true;
-        else
-            gIsWindingUp=false;
-        break;
+    //case 'W':       //Winding up
+    //case 'w':
+    //    if(!gIsWindingUp)
+    //        gIsWindingUp=true;
+    //    else
+    //        gIsWindingUp=false;
+    //    break;
     case 'z':       //Rezero
     case 'Z':
         gLenOrig=gAuxvar[2];
         break;
-    case 69:        // E 
-    case 101:        // e
-        EnableMotors(&gEnableHandle);
-        bEnableMotors=true;
+    case 'E':         
+    case 'e':     
+        InitMotor(&gCurrMotorState);
         break;  
     default:        
         break;
@@ -364,7 +422,7 @@ void exitProgram()
     saveConfigCache();
     DisableMotors(&gEnableHandle);
     StopPositionRead(&gEncoderHandle);
-    StopSignalLoop(gForceReadTaskHandle);
+    StopSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
     TwTerminate();
 }
 
@@ -429,15 +487,17 @@ okCFrontPanel* initFPGA()
 
 void initProgram()
 {
+    /*time_t rawtime;
+    struct tm *timeinfo;
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    sprintf_s("",tm.tm_year,  )*/
+
+
     //WARNING: DON'T CHANGE THE SEQUENCE BELOW
-    StartPositionRead(&gEncoderHandle);
-    StartSignalLoop(gForceReadTaskHandle);
-    EnableMotors(&gEnableHandle);
-    bEnableMotors=true;
-
-
-
-
+    StartReadPos(&gEncoderHandle);
+    StartSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
+    InitMotor(&gCurrMotorState);
 }
 
 int main ( int argc, char** argv )   // Create Main Function For Bringing It All Together

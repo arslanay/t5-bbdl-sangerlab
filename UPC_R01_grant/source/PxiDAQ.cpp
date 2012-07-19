@@ -15,8 +15,7 @@ int StartSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
 	char        errBuff[2048]={'\0'};
     
 
-    gDataFile = fopen("TestRec06.txt","a");
-
+    gDataFile = fopen(gTimeStamp,"a");
 
 	/*********************************************/
 	// DAQmx Configure Code

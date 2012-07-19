@@ -33,5 +33,7 @@ extern FILE *gDataFile;
 extern float64 gMotorCmd[];
 extern float gCtrlFromFPGA[];
 
+extern char gTimeStamp[20];
+
 extern LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 #endif

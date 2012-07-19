@@ -91,6 +91,7 @@ float gCtrlFromFPGA[NUM_FPGA_CH];
 
 OGLGraph* gMyGraph;
 char gLceLabel[40];
+char gTimeStamp[20];
 char gStateLabel[5][30] = { "MOTOR_STATE_INIT",
                             "MOTOR_STATE_WINDING_UP",
                             "MOTOR_STATE_OPEN_LOOP",
@@ -265,7 +266,9 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     case 'R':       //Winding up
     case 'r':
         if(!gIsRecording)
+        {
             gIsRecording=true;
+        }
         else
             gIsRecording=false;
         break;
@@ -484,14 +487,14 @@ okCFrontPanel* initFPGA()
 	return(dev);
 }
 
-
+//int recording;
 void initProgram()
 {
-    /*time_t rawtime;
+    time_t rawtime;
     struct tm *timeinfo;
     time(&rawtime);
     timeinfo = localtime(&rawtime);
-    sprintf_s("",tm.tm_year,  )*/
+    sprintf_s(gTimeStamp,"%4d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min);
 
 
     //WARNING: DON'T CHANGE THE SEQUENCE BELOW

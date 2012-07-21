@@ -178,18 +178,20 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 
 		if( numRead ) {
 //			printf("f1 %.4lf :: f2 %.4lf \n", data[0], data[1]);
-			gAuxvar[0] = loadcell_data[0];
-			gAuxvar[1] = loadcell_data[1];
+			gAuxvar[0] = (float32) loadcell_data[0];
+			gAuxvar[1] = (float32) loadcell_data[1];
 		}
 
 		DAQmxErrChk (DAQmxReadCounterF64(gEncoderHandle,1,10.0,encoder_data,1,&numRead,0));        
 		if( numRead ) {
 //			printf("f1 %.4lf :: f2 %.4lf \n", data[0], data[1]);
-			gAuxvar[2] = encoder_data[0];
-			gAuxvar[3] = encoder_data[1];
+			gAuxvar[2] = (float32) encoder_data[0];
+			gAuxvar[3] = (float32) encoder_data[1];
 		}
 
-        gMuscleLce = -gLenScale * (-gAuxvar[2] + gLenOrig) + 1.0;
+        //gMuscleLce = -gLenScale * (-gAuxvar[2] + gLenOrig) + 1.0;
+        
+        gMuscleLce = gLenScale * (-gAuxvar[2] + gLenOrig) + 1.2;
 		//printf("\n\t%f",gMuscleLce); 
         LogData();
 

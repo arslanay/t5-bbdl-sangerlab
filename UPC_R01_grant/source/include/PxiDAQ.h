@@ -6,13 +6,13 @@
 #include    "Utilities.h"
 #include    <windows.h>
 
-extern double gAuxvar[NUM_AUXVAR];
+extern float32 gAuxvar[NUM_AUXVAR];
 extern TaskHandle gAOTaskHandle;
 extern TaskHandle gEncoderHandle;
 extern int gCurrMotorState;
 
 extern bool gIsRecording;
-extern float64 gLenOrig, gLenScale, gMuscleLce;
+extern float32 gLenOrig, gLenScale, gMuscleLce;
 
 int32 CVICALLBACK EveryNCallback(TaskHandle taskHandleDAQmx, int32 everyNsamplesEventType, uInt32 nSamples, void *callbackData);
 int32 CVICALLBACK DoneCallback(TaskHandle taskHandleDAQmx, int32 status, void *callbackData);
@@ -31,7 +31,7 @@ int DisableMotors(TaskHandle *rawHandle);
 
 extern FILE *gDataFile;
 extern float64 gMotorCmd[];
-extern float gCtrlFromFPGA[];
+extern float32 gCtrlFromFPGA[];
 
 extern char gTimeStamp[20];
 

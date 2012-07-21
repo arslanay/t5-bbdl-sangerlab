@@ -69,17 +69,17 @@ using namespace std;
 #include	"glut.h"   // The GL Utility Toolkit (Glut) Header
 #include	"OGLGraph.h"
 
-#define     CONFIGURATION_FILE         "C:/nerf_sangerlab/projects/stretch_reflex/stretch_reflex_xem6010.bit"
+#define     CONFIGURATION_FILE         "C:/nerf_sangerlab/projects/one_joint_robot/one_joint_robot_xem6010.bit"
 
 
 // *** Global variables
-double gAuxvar [NUM_AUXVAR];
+float32 gAuxvar [NUM_AUXVAR];
 pthread_t gThreads[NUM_THREADS];
-pthread_mutex_t gMutexPosition;
+pthread_mutex_t gMutex;
 TaskHandle gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle;
 void ledIndicator ( float w, float h );
-float64 gLenOrig, gLenScale, gMuscleLce;
-bool gResetSim,gIsRecording=false;
+float32 gLenOrig, gLenScale, gMuscleLce;
+bool gResetSim=false,gIsRecording=false, gResetGlobal=false;
 LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 FILE *gDataFile, *gConfigFile;
 int gCurrMotorState = MOTOR_STATE_INIT;
@@ -87,7 +87,7 @@ int gCurrMotorState = MOTOR_STATE_INIT;
 
 float64 gMotorCmd[NUM_MOTOR]={0.0};
 okCFrontPanel *gFpgaHandle;
-float gCtrlFromFPGA[NUM_FPGA_CH];
+float32 gCtrlFromFPGA[NUM_FPGA_CH];
 
 OGLGraph* gMyGraph;
 char gLceLabel[40];
@@ -133,8 +133,8 @@ void display ( void )   // Create The Display Function
 
     
     //gMyGraph->update( 10.0 * gAuxvar[0] );
-    gMyGraph->update( 1.0 * gCtrlFromFPGA[0] );
-    //printf("%.4lf \n", g_force[0]);
+    gMyGraph->update( gCtrlFromFPGA[0] );
+
     gMyGraph->draw();
     
     
@@ -144,11 +144,6 @@ void display ( void )   // Create The Display Function
         glColor3f(0.0f,1.0f,0.0f);
     ledIndicator ( 10.0f,80.0f );
 
-    /*if(gIsWindingUp)
-        glColor3f(1.0f,0.0f,0.0f);
-    else
-        glColor3f(0.0f,1.0f,0.0f);
-    ledIndicator ( 30.0f,80.0f );*/
 
     if(!gIsRecording)
         glColor3f(1.0f,0.0f,0.0f);
@@ -202,6 +197,15 @@ int SendButton(okCFrontPanel *xem, int buttonValue, char *evt)
             xem -> SetWireInValue(0x00, 0x00, 0x02);
         xem -> UpdateWireIns();
     }
+    else if (0 == strcmp(evt, "BUTTON_RESET_GLOBAL"))
+    {
+        if (buttonValue) 
+            xem -> SetWireInValue(0x00, 0x01, 0xff);
+        else 
+            xem -> SetWireInValue(0x00, 0x00, 0x01);
+        xem -> UpdateWireIns();
+    }
+    printf("\n reset_sim OR reset_global");
     return 0;
 }
 int ProceedFSM(int *state);
@@ -272,12 +276,19 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         else
             gIsRecording=false;
         break;
-    case '0':       //Winding up
+    case '0':       //Reset SIM
         if(!gResetSim)
             gResetSim=true;
         else
             gResetSim=false;
         SendButton(gFpgaHandle, (int) gResetSim, "BUTTON_RESET_SIM");
+        break;
+    case '9':       //Reset GLOBAL
+        if(!gResetGlobal)
+            gResetGlobal=true;
+        else
+            gResetGlobal=false;
+        SendButton(gFpgaHandle, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
         break;
     //case 'W':       //Winding up
     //case 'w':
@@ -384,6 +395,13 @@ void* ControlLoop(void*)
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
 
+    
+        
+    // for DEBUG:
+    int32 ieee_1;
+    ReInterpret((float32)(1.0), &ieee_1);
+    WriteFPGA(gFpgaHandle, 0xFFFFFFFF, "float32", 7);
+
     while (1)
     {
         int i=0;
@@ -394,8 +412,13 @@ void* ControlLoop(void*)
 
         // gCtrlFromFPGA[] holds the signal already converted from binary trains 
         float32 rawCtrl;
-        ReadFPGA(gFpgaHandle, 0x24, "float32", &rawCtrl);
-        gCtrlFromFPGA[0] = (rawCtrl - 224) * 0.005;
+        ReadFPGA(gFpgaHandle, 0x30, "float32", &rawCtrl);
+
+        PthreadMutexLock(&gMutex);
+        gCtrlFromFPGA[0] = max(0.0, min(65535.0, (rawCtrl - 30) * 0.005));
+        PthreadMutexUnlock(&gMutex);
+
+        //printf("%.4f\t", gCtrlFromFPGA[0]);
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
 
         //WriteFPGA(gFpgaHandle, gMuscleLce, "float32", 2);
@@ -403,7 +426,7 @@ void* ControlLoop(void*)
         //if (0 == ReInterpret((float32)(1.0 - 0.5* gAuxvar[0]), &temp)) 
         if (0 == ReInterpret((float32)(gMuscleLce), &temp)) 
         {
-            WriteFPGA(gFpgaHandle, temp, "float32", 2);
+            WriteFPGA(gFpgaHandle, temp, "float32", 8);
         }
         //printf("Input = %0.4f :: Out = %0.4f \n", (float32) 1.0 - 0.5* gAuxvar[0], gCtrlFromFPGA); 
 
@@ -423,10 +446,12 @@ void saveConfigCache()
 void exitProgram() 
 {
     saveConfigCache();
-    DisableMotors(&gEnableHandle);
-    StopPositionRead(&gEncoderHandle);
+    DisableMotors(&gEnableHandle);    
     StopSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
+    StopPositionRead(&gEncoderHandle);
     TwTerminate();
+    printf("\nHit any key to quit...\n");
+    getch();
 }
 
 okCFrontPanel* initFPGA()
@@ -512,7 +537,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     FILE *ConfigFile;
     ConfigFile= fopen("ConfigPXI.txt","r");
 
-    fscanf(ConfigFile,"%lf",&gLenScale);
+    fscanf(ConfigFile,"%f",&gLenScale);
 
     fclose(ConfigFile);
     glutInit( &argc, argv ); // Erm Just Write It =)
@@ -565,6 +590,8 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
 
 
     // gAuxvar = {current force 0, current force 1, current pos 0, current pos 1};
+
+    pthread_mutex_init (&gMutex, NULL);
     int ctrl_handle = pthread_create(&gThreads[0], NULL, ControlLoop,	(void *)gAuxvar);
    
     bar = TwNewBar("TweakBar");

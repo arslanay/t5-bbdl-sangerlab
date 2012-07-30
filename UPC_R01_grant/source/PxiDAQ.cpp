@@ -26,12 +26,12 @@ int StartSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
 	DAQmxErrChk (DAQmxCfgSampClkTiming(ForceReadTaskHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
     
     DAQmxErrChk (DAQmxCreateTask("",&AOHandle));
-    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao11","motor1", -5.0,5.0,DAQmx_Val_Volts,NULL));
+    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao10","motor1", -5.0,5.0,DAQmx_Val_Volts,NULL));
 	DAQmxErrChk (DAQmxCfgSampClkTiming(AOHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
 	
 
     DAQmxErrChk (DAQmxRegisterSignalEvent(ForceReadTaskHandle,DAQmx_Val_SampleClock, 0, update_data ,NULL));
-	DAQmxErrChk (DAQmxRegisterDoneEvent(ForceReadTaskHandle,0,DoneCallback,NULL));
+	DAQmxErrChk (DAQmxRegisterDoneEvent(ForceReadTaskHandle,0,DoneCallback,NULL));    
     
     QueryPerformanceCounter(&gInitTick);
 	QueryPerformanceFrequency(&gClkFrequency);
@@ -162,7 +162,7 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
             motor_cmd = SAFE_MOTOR_VOLTAGE;
             break;
         case MOTOR_STATE_CLOSED_LOOP:
-            motor_cmd = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[0] * 0.5;
+            motor_cmd = SAFE_MOTOR_VOLTAGE; // + gCtrlFromFPGA[0] * 0.5;
             break;
         case MOTOR_STATE_SHUTTING_DOWN:
             motor_cmd = ZERO_MOTOR_VOLTAGE;

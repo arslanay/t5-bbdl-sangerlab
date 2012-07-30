@@ -450,8 +450,8 @@ void exitProgram()
     StopSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
     StopPositionRead(&gEncoderHandle);
     TwTerminate();
-    printf("\nHit any key to quit...\n");
-    getch();
+    //printf("\nHit any key to quit...\n");
+    //getch();
 }
 
 okCFrontPanel* initFPGA()

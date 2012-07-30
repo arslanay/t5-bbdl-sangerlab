@@ -32,7 +32,7 @@
 #define		MAX_VOLT 1.0
 #define		SAFE_MOTOR_VOLTAGE 0.4
 #define		ZERO_MOTOR_VOLTAGE 0.0
-#define     NUM_MOTOR 1
+#define     NUM_MOTOR 2
 #define     NUM_FPGA_CH 1
 
 /* FPGA Trigger events */

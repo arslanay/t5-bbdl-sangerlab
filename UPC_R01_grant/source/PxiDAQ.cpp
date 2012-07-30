@@ -26,7 +26,8 @@ int StartSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
 	DAQmxErrChk (DAQmxCfgSampClkTiming(ForceReadTaskHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
     
     DAQmxErrChk (DAQmxCreateTask("",&AOHandle));
-    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao10","motor1", -5.0,5.0,DAQmx_Val_Volts,NULL));
+    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao10","motor0", -5.0,5.0,DAQmx_Val_Volts,NULL));
+    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao11","motor1", -5.0,5.0,DAQmx_Val_Volts,NULL));
 	DAQmxErrChk (DAQmxCfgSampClkTiming(AOHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
 	
 
@@ -124,6 +125,7 @@ inline void LogData( void)
         //printf("\n");
     }
 }
+
 int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *callbackData)
 {
 	int32   error=0;
@@ -135,8 +137,9 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 	char    errBuff[2048]={'\0'};
 	char	*timeStr;
 	time_t	currTime;
-    float64     AOdata[1]={1.7};
+    float64 AOdata[NUM_MOTOR];
 
+    //memset(AOdata,0,NUM_MOTOR*sizeof(float64));
 
 
 	if( taskHandleDAQmx ) {
@@ -173,6 +176,7 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 
         //AOdata[0] = (motor_cmd > MAX_VOLT) ? MAX_VOLT : motor_cmd;
         AOdata[0] = (motor_cmd > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd < 0.0 ) ? 0.0 :motor_cmd) ;
+        AOdata[NUM_MOTOR-1] = (motor_cmd > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd < 0.0 ) ? 0.0 :motor_cmd) ;
         //printf("\nAO handle = %d \n", gAOTaskHandle);
         DAQmxErrChk (DAQmxWriteAnalogF64(gAOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, AOdata, NULL, NULL));
 
@@ -191,7 +195,8 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 
         //gMuscleLce = -gLenScale * (-gAuxvar[2] + gLenOrig) + 1.0;
         
-        gMuscleLce = gLenScale * (-gAuxvar[2] + gLenOrig) + 1.2;
+        //gMuscleLce = gLenScale * (-gAuxvar[2] + gLenOrig) + 1.2;
+        gMuscleLce = gAuxvar[2];
 		//printf("\n\t%f",gMuscleLce); 
         LogData();
 

@@ -130,7 +130,7 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 {
 	int32   error=0;
 	float64 loadcell_data[200]={0.0};
-    float64 encoder_data[200]={0.0};
+    float64 encoder_data[NUM_MOTOR][10]={{0.0}, {0.0}};
 	int32   numRead;
 	uInt32  i=0;
 	char    buff[512], *buffPtr;
@@ -151,7 +151,7 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 		// DAQmx Read Code
 		/*********************************************/
 
-        DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, loadcell_data, 1*CHANNEL_NUM,&numRead,NULL));
+        DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, loadcell_data, 2*CHANNEL_NUM,&numRead,NULL));
         double motor_cmd;
         switch(gCurrMotorState)
         {
@@ -182,21 +182,26 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 
 		if( numRead ) {
 //			printf("f1 %.4lf :: f2 %.4lf \n", data[0], data[1]);
-			gAuxvar[0] = (float32) loadcell_data[0];
-			gAuxvar[1] = (float32) loadcell_data[1];
+			gAuxvar[0+0*NUM_AUXVAR] = (float32) loadcell_data[0];
+            gAuxvar[0+1*NUM_AUXVAR] = (float32) loadcell_data[1];
+			//gAuxvar[1] = (float32) loadcell_data[1];  //???
+			//gAuxvar[1+NUM_AUXVAR] = (float32) loadcell_data[3];
 		}
 
-		DAQmxErrChk (DAQmxReadCounterF64(gEncoderHandle,1,10.0,encoder_data,1,&numRead,0));        
+        DAQmxErrChk (DAQmxReadCounterF64(gEncoderHandle[0],1,10.0,encoder_data[0],NUM_MOTOR*1,&numRead,0));        
 		if( numRead ) {
-//			printf("f1 %.4lf :: f2 %.4lf \n", data[0], data[1]);
-			gAuxvar[2] = (float32) encoder_data[0];
-			gAuxvar[3] = (float32) encoder_data[1];
+			gAuxvar[2] = (float32) encoder_data[0][0];
+		}
+        DAQmxErrChk (DAQmxReadCounterF64(gEncoderHandle[1],1,10.0,encoder_data[1],NUM_MOTOR*1,&numRead,0));        
+		if( numRead ) {
+            gAuxvar[2+NUM_AUXVAR] = (float32) encoder_data[1][0];
 		}
 
         //gMuscleLce = -gLenScale * (-gAuxvar[2] + gLenOrig) + 1.0;
         
         //gMuscleLce = gLenScale * (-gAuxvar[2] + gLenOrig) + 1.2;
-        gMuscleLce = gAuxvar[2];
+        gMuscleLce[0] = gAuxvar[2];
+        gMuscleLce[1] = gAuxvar[2+NUM_AUXVAR];
 		//printf("\n\t%f",gMuscleLce); 
         LogData();
 
@@ -296,26 +301,37 @@ Error:
 }
 
 
-int StartReadPos(TaskHandle *rawHandle)
+int StartReadPos(TaskHandle *rawHandle0,TaskHandle *rawHandle1)
 {
-	TaskHandle  encoderTaskHandle = *rawHandle;
+	TaskHandle  encoderTaskHandle[NUM_MOTOR] ;
+    encoderTaskHandle[0] = *rawHandle0;
+    encoderTaskHandle[1] = *rawHandle1;
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
     uInt32      dataEnable=0xffffffff;
     uInt32      dataDisable=0x00000000;
 
     int32		written;
-    DAQmxCreateTask ("",&encoderTaskHandle);
+    DAQmxCreateTask ("",&encoderTaskHandle[0]);
+    DAQmxCreateTask ("",&encoderTaskHandle[1]);
     //printf("IN");
     //DAQmxLoadTask ("EncoderSlot3Ctr3",&encoderTaskHandle);
-	if( encoderTaskHandle!=0 ) {
-        DAQmxErrChk (DAQmxCreateCIAngEncoderChan(encoderTaskHandle,"PXI1Slot3/ctr3","",DAQmx_Val_X4,0,0.0,DAQmx_Val_AHighBHigh,DAQmx_Val_Degrees,24,0.0,""));
+	if( encoderTaskHandle[0]!=0 ) {
+        DAQmxErrChk (DAQmxCreateCIAngEncoderChan(encoderTaskHandle[0],"PXI1Slot3/ctr3","",DAQmx_Val_X4,0,0.0,DAQmx_Val_AHighBHigh,DAQmx_Val_Degrees,24,0.0,""));
+        //DAQmxErrChk (DAQmxCreateCIAngEncoderChan(encoderTaskHandle,"PXI1Slot3/ctr4","",DAQmx_Val_X4,0,0.0,DAQmx_Val_AHighBHigh,DAQmx_Val_Degrees,24,0.0,""));
 
-	    DAQmxErrChk (DAQmxStartTask(encoderTaskHandle));
+	    DAQmxErrChk (DAQmxStartTask(encoderTaskHandle[0]));
+    }
+
+    if( encoderTaskHandle[1]!=0 ) {
+        DAQmxErrChk (DAQmxCreateCIAngEncoderChan(encoderTaskHandle[1],"PXI1Slot3/ctr4","",DAQmx_Val_X4,0,0.0,DAQmx_Val_AHighBHigh,DAQmx_Val_Degrees,24,0.0,""));
+
+	    DAQmxErrChk (DAQmxStartTask(encoderTaskHandle[1]));
     }
     //printf("IN");
 
-	*rawHandle = encoderTaskHandle;
+	*rawHandle0 = encoderTaskHandle[0];
+	*rawHandle1 = encoderTaskHandle[1];
 
 Error:
 	if( DAQmxFailed(error) )
@@ -326,26 +342,41 @@ Error:
 	return 0;
 }
 
-int StopPositionRead(TaskHandle *rawHandle)
+int StopPositionRead(TaskHandle *rawHandle0,TaskHandle *rawHandle1)
 {
-    TaskHandle encoderTaskHandle = *rawHandle;
+    TaskHandle encoderTaskHandle[NUM_MOTOR]; 
+    encoderTaskHandle[0] = *rawHandle0;
+    encoderTaskHandle[1] = *rawHandle1;
 
 	int32       error=0;
 	char        errBuff[2048] = {'\0'};
     uInt32      dataDisable=0x00000000;
     int32		written;
 
-	if( encoderTaskHandle!=0 ) {
+	if( encoderTaskHandle[0]!=0 ) {
 		/*********************************************/
 		// DAQmx Stop Code
 		/*********************************************/
-		DAQmxStopTask(encoderTaskHandle);
-		DAQmxClearTask(encoderTaskHandle);
-        *rawHandle = 0;
+		DAQmxStopTask(encoderTaskHandle[0]);
+		DAQmxClearTask(encoderTaskHandle[0]);
+        *rawHandle0 = 0;
     }
     else 
     {
-        *rawHandle = encoderTaskHandle;
+        *rawHandle0 = encoderTaskHandle[0];
+    }
+
+    if( encoderTaskHandle[1]!=0 ) {
+		/*********************************************/
+		// DAQmx Stop Code
+		/*********************************************/
+		DAQmxStopTask(encoderTaskHandle[1]);
+		DAQmxClearTask(encoderTaskHandle[1]);
+        *rawHandle1 = 0;
+    }
+    else 
+    {
+        *rawHandle1 = encoderTaskHandle[1];
     }
     return 0;
 

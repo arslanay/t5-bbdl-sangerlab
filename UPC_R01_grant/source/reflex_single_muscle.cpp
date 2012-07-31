@@ -73,12 +73,12 @@ using namespace std;
 
 
 // *** Global variables
-float32 gAuxvar [NUM_AUXVAR];
+float32 gAuxvar [NUM_AUXVAR*NUM_MOTOR];
 pthread_t gThreads[NUM_THREADS];
 pthread_mutex_t gMutex;
-TaskHandle gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle;
+TaskHandle gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
 void ledIndicator ( float w, float h );
-float32 gLenOrig, gLenScale, gMuscleLce;
+float32 gLenOrig, gLenScale, gMuscleLce[NUM_MOTOR];
 bool gResetSim=false,gIsRecording=false, gResetGlobal=false;
 LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 FILE *gDataFile, *gConfigFile;
@@ -90,7 +90,8 @@ okCFrontPanel *gFpgaHandle;
 float32 gCtrlFromFPGA[NUM_FPGA_CH];
 
 OGLGraph* gMyGraph;
-char gLceLabel[40];
+char gLceLabel1[40];
+char gLceLabel2[40];
 char gTimeStamp[20];
 char gStateLabel[5][30] = { "MOTOR_STATE_INIT",
                             "MOTOR_STATE_WINDING_UP",
@@ -154,8 +155,10 @@ void display ( void )   // Create The Display Function
 
     // Draw tweak bars
     TwDraw();
-    sprintf_s(gLceLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
-    outputText(10,95,gLceLabel);
+    sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
+    outputText(10,95,gLceLabel1);
+    sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gAuxvar[0+NUM_AUXVAR], gMuscleLce[1], gCtrlFromFPGA[0]);
+    outputText(10,85,gLceLabel2);
     
     //sprintf_s(gStateLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
     outputText(300,95,gStateLabel[gCurrMotorState]);
@@ -424,7 +427,7 @@ void* ControlLoop(void*)
         //WriteFPGA(gFpgaHandle, gMuscleLce, "float32", 2);
         int32 temp;
         //if (0 == ReInterpret((float32)(1.0 - 0.5* gAuxvar[0]), &temp)) 
-        if (0 == ReInterpret((float32)(gMuscleLce), &temp)) 
+        if (0 == ReInterpret((float32)(gMuscleLce[0]), &temp)) 
         {
             WriteFPGA(gFpgaHandle, temp, "float32", 8);
         }
@@ -448,7 +451,7 @@ void exitProgram()
     saveConfigCache();
     DisableMotors(&gEnableHandle);    
     StopSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
-    StopPositionRead(&gEncoderHandle);
+    StopPositionRead(&gEncoderHandle[0],&gEncoderHandle[1]);
     TwTerminate();
     //printf("\nHit any key to quit...\n");
     //getch();
@@ -523,7 +526,7 @@ void initProgram()
 
 
     //WARNING: DON'T CHANGE THE SEQUENCE BELOW
-    StartReadPos(&gEncoderHandle);
+    StartReadPos(&gEncoderHandle[0],&gEncoderHandle[1]);
     StartSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
     InitMotor(&gCurrMotorState);
 }

@@ -6,13 +6,13 @@
 #include    "Utilities.h"
 #include    <windows.h>
 
-extern float32 gAuxvar[NUM_AUXVAR];
+extern float32 gAuxvar[];
 extern TaskHandle gAOTaskHandle;
-extern TaskHandle gEncoderHandle;
+extern TaskHandle gEncoderHandle[];
 extern int gCurrMotorState;
 
 extern bool gIsRecording;
-extern float32 gLenOrig, gLenScale, gMuscleLce;
+extern float32 gLenOrig, gLenScale, gMuscleLce[];
 
 int32 CVICALLBACK EveryNCallback(TaskHandle taskHandleDAQmx, int32 everyNsamplesEventType, uInt32 nSamples, void *callbackData);
 int32 CVICALLBACK DoneCallback(TaskHandle taskHandleDAQmx, int32 status, void *callbackData);
@@ -20,8 +20,8 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 //int32 CVICALLBACK update_dataEnableMotors(TaskHandle taskHandleDAQmxEnableMotors, int32 signalID, void *callbackData);
 
 
-int StartReadPos(TaskHandle *rawHandle);
-int StopPositionRead(TaskHandle *rawHandle);
+int StartReadPos(TaskHandle *rawHandle0,TaskHandle *rawHandle1);
+int StopPositionRead(TaskHandle *rawHandle0,TaskHandle *rawHandle1);
 
 int StartSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle);
 int StopSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle);

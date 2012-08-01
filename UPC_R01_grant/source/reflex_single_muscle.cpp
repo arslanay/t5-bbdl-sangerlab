@@ -85,9 +85,9 @@ FILE *gDataFile, *gConfigFile;
 int gCurrMotorState = MOTOR_STATE_INIT;
 
 
-float64 gMotorCmd[NUM_MOTOR]={0.0};
-okCFrontPanel *gFpgaHandle;
-float32 gCtrlFromFPGA[NUM_FPGA_CH];
+float64 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
+okCFrontPanel *gFpgaHandle0, *gFpgaHandle1;
+float32 gCtrlFromFPGA[NUM_FPGA];
 
 OGLGraph* gMyGraph;
 char gLceLabel1[40];
@@ -157,7 +157,7 @@ void display ( void )   // Create The Display Function
     TwDraw();
     sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
-    sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gAuxvar[0+NUM_AUXVAR], gMuscleLce[1], gCtrlFromFPGA[0]);
+    sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gAuxvar[0+NUM_AUXVAR], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     
     //sprintf_s(gStateLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
@@ -284,14 +284,16 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
             gResetSim=true;
         else
             gResetSim=false;
-        SendButton(gFpgaHandle, (int) gResetSim, "BUTTON_RESET_SIM");
+        SendButton(gFpgaHandle0, (int) gResetSim, "BUTTON_RESET_SIM");
+        SendButton(gFpgaHandle1, (int) gResetSim, "BUTTON_RESET_SIM");
         break;
     case '9':       //Reset GLOBAL
         if(!gResetGlobal)
             gResetGlobal=true;
         else
             gResetGlobal=false;
-        SendButton(gFpgaHandle, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+        SendButton(gFpgaHandle0, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+        SendButton(gFpgaHandle1, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
         break;
     //case 'W':       //Winding up
     //case 'w':
@@ -380,7 +382,7 @@ int WriteFPGA(okCFrontPanel *xem, int32 bitVal, char *type, int trigEvent)
     //xem -> SetWireInValue(0x01, bitValLo, 0xffff);
     if (okCFrontPanel::NoError != xem -> SetWireInValue(0x01, bitValLo, 0xffff)) {
 		printf("SetWireIn failed.\n");
-		delete xem;
+		//delete xem;
 		return -1;
 	}
 
@@ -402,8 +404,9 @@ void* ControlLoop(void*)
         
     // for DEBUG:
     int32 ieee_1;
-    ReInterpret((float32)(1.0), &ieee_1);
-    WriteFPGA(gFpgaHandle, 0xFFFFFFFF, "float32", 7);
+    ReInterpret((float32)(1.02), &ieee_1);
+    //WriteFPGA(gFpgaHandle0, 0x0, "float32", 7);
+    //WriteFPGA(gFpgaHandle1, 0x0, "float32", 7);
 
     while (1)
     {
@@ -413,23 +416,32 @@ void* ControlLoop(void*)
         //printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
 
-        // gCtrlFromFPGA[] holds the signal already converted from binary trains 
+        // Read FPGA0
         float32 rawCtrl;
-        ReadFPGA(gFpgaHandle, 0x30, "float32", &rawCtrl);
-
+        ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
         PthreadMutexLock(&gMutex);
-        gCtrlFromFPGA[0] = max(0.0, min(65535.0, (rawCtrl - 30) * 0.005));
+        gCtrlFromFPGA[0] = max(0.0, min(65535.0, rawCtrl * 0.00001));
+        PthreadMutexUnlock(&gMutex);
+
+        // Read FPGA1
+        ReadFPGA(gFpgaHandle1, 0x30, "float32", &rawCtrl);
+        PthreadMutexLock(&gMutex);
+        gCtrlFromFPGA[NUM_FPGA - 1] = max(0.0, min(65535.0, rawCtrl * 0.00001));
         PthreadMutexUnlock(&gMutex);
 
         //printf("%.4f\t", gCtrlFromFPGA[0]);
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
 
-        //WriteFPGA(gFpgaHandle, gMuscleLce, "float32", 2);
+        //WriteFPGA(gFpgaHandle0, gMuscleLce, "float32", 2);
         int32 temp;
         //if (0 == ReInterpret((float32)(1.0 - 0.5* gAuxvar[0]), &temp)) 
         if (0 == ReInterpret((float32)(gMuscleLce[0]), &temp)) 
         {
-            WriteFPGA(gFpgaHandle, temp, "float32", 8);
+            WriteFPGA(gFpgaHandle0, temp, "float32", 8);
+        }
+        if (0 == ReInterpret((float32)(gMuscleLce[NUM_MOTOR - 1]), &temp)) 
+        {
+            WriteFPGA(gFpgaHandle1, temp, "float32", 8);
         }
         //printf("Input = %0.4f :: Out = %0.4f \n", (float32) 1.0 - 0.5* gAuxvar[0], gCtrlFromFPGA); 
 
@@ -457,27 +469,23 @@ void exitProgram()
     //getch();
 }
 
-okCFrontPanel* initFPGA()
+int initFPGA(okCFrontPanel *xem0)
 {   
-	okCFrontPanel *dev;
-
-	// Open the first XEM - try all board types.
-	dev = new okCFrontPanel;
-	if (okCFrontPanel::NoError != dev->OpenBySerial()) {
-		delete dev;
+	if (okCFrontPanel::NoError != xem0->OpenBySerial()) {
+		delete xem0;
 		printf("Device could not be opened.  Is one connected?\n");
 		return(NULL);
 	}
 	
-	printf("Found a device: %s\n", dev->GetBoardModelString(dev->GetBoardModel()).c_str());
+	printf("Found a device: %s\n", xem0->GetBoardModelString(xem0->GetBoardModel()).c_str());
 
     // Configure the PLL appropriately
-	dev->LoadDefaultPLLConfiguration();
+	xem0->LoadDefaultPLLConfiguration();
 
 	// Get some general information about the XEM.
-	printf("Device firmware version: %d.%d\n", dev->GetDeviceMajorVersion(), dev->GetDeviceMinorVersion());
-	printf("Device serial number: %s\n", dev->GetSerialNumber().c_str());
-	printf("Device ID string: %s\n", dev->GetDeviceID().c_str());
+	printf("Device firmware version: %d.%d\n", xem0->GetDeviceMajorVersion(), xem0->GetDeviceMinorVersion());
+	printf("Device serial number: %s\n", xem0->GetSerialNumber().c_str());
+	printf("Device ID string: %s\n", xem0->GetDeviceID().c_str());
 
 
     okCPLL22393 *pll;
@@ -489,30 +497,35 @@ okCFrontPanel* initFPGA()
     int clkRate = 200; //mhz; 200 is fastest
     pll -> SetOutputDivider(0, baseRate / clkRate) ;
     pll -> SetOutputEnable(0, true);
-    dev -> SetPLL22393Configuration(*pll);
+    xem0 -> SetPLL22393Configuration(*pll);
 
     
     //int newHalfCnt = 1 * 200 * (10 **6) / SAMPLING_RATE / NUM_NEURON / (value*4) / 2 / 2;
     int32 newHalfCnt = 1 * 200 * (int32)(1e6) / 1024 / 128 / (1) / 2 / 2;
-    //WriteFPGA(dev, newHalfCnt, DATA_EVT_CLKRATE);  // CMN 7/9/2012: stretch_reflex in fpga project is WRONG
+    WriteFPGA(xem0, newHalfCnt, "int32", DATA_EVT_CLKRATE);  // CMN 7/9/2012: stretch_reflex in fpga project is WRONG
 
 	// Download the configuration file.
-	if (okCFrontPanel::NoError != dev->ConfigureFPGA(CONFIGURATION_FILE)) {
+	if (okCFrontPanel::NoError != xem0->ConfigureFPGA(CONFIGURATION_FILE)) {
 		printf("FPGA configuration failed.\n");
-		delete dev;
+		delete xem0;
 		return(NULL);
 	}
 
 	// Check for FrontPanel support in the FPGA configuration.
-	if (false == dev->IsFrontPanelEnabled()) {
+	if (false == xem0->IsFrontPanelEnabled()) {
 		printf("FrontPanel support is not enabled.\n");
-		delete dev;
+		delete xem0;
 		return(NULL);
 	}
 
+    int32 IEEE_30;
+    ReInterpret((float32)(30.0), &IEEE_30);
+    WriteFPGA(xem0, IEEE_30, "float32", 1);
+
 	printf("FrontPanel support is enabled.\n");
 
-	return(dev);
+
+	return 0;
 }
 
 //int recording;
@@ -578,10 +591,13 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
 	okFrontPanelDLL_GetVersion(dll_date, dll_time);
 	printf("FrontPanel DLL loaded.  Built: %s  %s\n", dll_date, dll_time);
 
+	// Open the first XEM - try all board types.
+    gFpgaHandle0 = new okCFrontPanel;
+    gFpgaHandle1 = new okCFrontPanel;
 
-
-    gFpgaHandle = initFPGA(); // a pointer to the FPGA device
-    if (NULL == gFpgaHandle) {
+    initFPGA(gFpgaHandle0);
+    initFPGA(gFpgaHandle1); // a pointer to the FPGA device
+    if (NULL == gFpgaHandle0) {
 		printf("FPGA could not be initialized.\n");
 		return(-1);
 	}

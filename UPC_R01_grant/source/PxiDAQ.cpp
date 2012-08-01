@@ -75,7 +75,7 @@ int StopSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
     TaskHandle ForceReadTaskHandle = *rawForceHandle;
 	int32       error=0;
 	char        errBuff[2048] = {'\0'};
-    const float64     ZERO_VOLTS[1]={0.0};
+    const float64     ZERO_VOLTS[NUM_MOTOR]={0.0, 0.0};
     
     fclose(gDataFile);
 
@@ -200,8 +200,10 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         //gMuscleLce = -gLenScale * (-gAuxvar[2] + gLenOrig) + 1.0;
         
         //gMuscleLce = gLenScale * (-gAuxvar[2] + gLenOrig) + 1.2;
-        gMuscleLce[0] = gAuxvar[2];
-        gMuscleLce[1] = gAuxvar[2+NUM_AUXVAR];
+        //gMuscleLce[0] = gAuxvar[2];
+        //gMuscleLce[1] = gAuxvar[2+NUM_AUXVAR];
+        gMuscleLce[0] = -gLenScale * (-gAuxvar[2] + gLenOrig) + 1.05;
+        gMuscleLce[1] = -gLenScale * (-gAuxvar[2+NUM_AUXVAR] + gLenOrig) + 1.05;
 		//printf("\n\t%f",gMuscleLce); 
         LogData();
 

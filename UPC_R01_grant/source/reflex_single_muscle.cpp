@@ -78,7 +78,7 @@ pthread_t gThreads[NUM_THREADS];
 pthread_mutex_t gMutex;
 TaskHandle gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
 void ledIndicator ( float w, float h );
-float32 gLenOrig, gLenScale, gMuscleLce[NUM_MOTOR];
+float32 gLenOrig[NUM_MOTOR], gLenScale, gMuscleLce[NUM_MOTOR];
 bool gResetSim=false,gIsRecording=false, gResetGlobal=false;
 LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 FILE *gDataFile, *gConfigFile;
@@ -262,9 +262,9 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
 
         exit(0);   // Exit The Program
         break;        
-    case 32:        // SpaceBar 
-        ShutdownMotor(&gCurrMotorState);
-        break;  
+    //case 32:        // SpaceBar 
+    //    //ShutdownMotor(&gCurrMotorState);
+    //    break;  
     case 'G':       //Proceed in FSM
     case 'g':
         ProceedFSM(&gCurrMotorState);
@@ -303,7 +303,8 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     //    break;
     case 'z':       //Rezero
     case 'Z':
-        gLenOrig=gAuxvar[2];
+        gLenOrig[0]=gAuxvar[2];
+        gLenOrig[1]=gAuxvar[2+NUM_AUXVAR];
         break;
     case 'E':         
     case 'e':     
@@ -419,6 +420,12 @@ void* ControlLoop(void*)
 
     while (1)
     {
+        if(GetAsyncKeyState(VK_SPACE))
+        {
+            ShutdownMotor(&gCurrMotorState);
+
+        }
+
         if (MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) continue;
 		//printf("\n\t%f",dataEncoder[0]); 
         
@@ -430,7 +437,7 @@ void* ControlLoop(void*)
         ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
         PthreadMutexLock(&gMutex);
 
-        float32 tGain = 0.0015;
+        float32 tGain = 0.003;
         gCtrlFromFPGA[0] = max(0.0, min(65535.0, rawCtrl * tGain));
         PthreadMutexUnlock(&gMutex);
 
@@ -559,7 +566,8 @@ void initProgram()
 int main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
 {
     TwBar *bar; // Pointer to the tweak bar
-    gLenOrig=0.0;
+    gLenOrig[0]=0.0;
+    gLenOrig[1]=0.0;
     //gLenScale=0.0001;
     
     FILE *ConfigFile;

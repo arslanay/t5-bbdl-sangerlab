@@ -195,7 +195,7 @@ int SendButton(okCFrontPanel *xem, int buttonValue, char *evt)
     if (0 == strcmp(evt, "BUTTON_RESET_SIM"))
     {
         if (buttonValue) 
-            xem -> SetWireInValue(0x00, 0x02, 0xff);
+            xem -> SetWireInValue(0x00, 0xff, 0x02);
         else 
             xem -> SetWireInValue(0x00, 0x00, 0x02);
         xem -> UpdateWireIns();
@@ -203,12 +203,11 @@ int SendButton(okCFrontPanel *xem, int buttonValue, char *evt)
     else if (0 == strcmp(evt, "BUTTON_RESET_GLOBAL"))
     {
         if (buttonValue) 
-            xem -> SetWireInValue(0x00, 0x01, 0xff);
+            xem -> SetWireInValue(0x00, 0xff, 0x01);
         else 
             xem -> SetWireInValue(0x00, 0x00, 0x01);
         xem -> UpdateWireIns();
     }
-    printf("\n reset_sim OR reset_global");
     return 0;
 }
 int ProceedFSM(int *state);
@@ -323,7 +322,7 @@ void idle(void)
 
 
 
-int ReadFPGA(okCFrontPanel *xem, BYTE getAddr, char *type, float *outVal)
+int ReadFPGA(okCFrontPanel *xem, BYTE getAddr, char *type, float32 *outVal)
 {
     xem -> UpdateWireOuts();
     // Read 18-bit integer from FPGA
@@ -342,7 +341,7 @@ int ReadFPGA(okCFrontPanel *xem, BYTE getAddr, char *type, float *outVal)
         int32 outValLo = xem -> GetWireOutValue(getAddr) & 0xffff;
         int32 outValHi = xem -> GetWireOutValue(getAddr + 0x01) & 0xffff;
         int32 outValInt = ((outValHi << 16) + outValLo) & 0xFFFFFFFF;
-        memcpy(&outVal[0], &outValInt, sizeof(float));
+        memcpy(outVal, &outValInt, sizeof(*outVal));
         //outVal = ConvertType(outVal, 'I', 'f')
         //#print outVal
     }
@@ -371,7 +370,7 @@ int ReInterpret(int32 in, int32 *out)
     return 0;
 }
 
-int WriteFPGA(okCFrontPanel *xem, int32 bitVal, char *type, int trigEvent)
+int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
 {
     //bitVal = 0;
 
@@ -381,12 +380,16 @@ int WriteFPGA(okCFrontPanel *xem, int32 bitVal, char *type, int trigEvent)
     
     //xem -> SetWireInValue(0x01, bitValLo, 0xffff);
     if (okCFrontPanel::NoError != xem -> SetWireInValue(0x01, bitValLo, 0xffff)) {
-		printf("SetWireIn failed.\n");
+		printf("SetWireInLo failed.\n");
 		//delete xem;
 		return -1;
 	}
-
-    xem -> SetWireInValue(0x02, bitValHi, 0xffff);
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x02, bitValHi, 0xffff)) {
+		printf("SetWireInHi failed.\n");
+		//delete xem;
+		return -1;
+	}
+   
     xem -> UpdateWireIns();
     xem -> ActivateTriggerIn(0x50, trigEvent)   ;
     
@@ -405,12 +408,18 @@ void* ControlLoop(void*)
     // for DEBUG:
     int32 ieee_1;
     ReInterpret((float32)(1.02), &ieee_1);
-    //WriteFPGA(gFpgaHandle0, 0x0, "float32", 7);
-    //WriteFPGA(gFpgaHandle1, 0x0, "float32", 7);
+
+    
+    int32 IEEE_30;
+    ReInterpret((float32)(3), &IEEE_30);
+    //WriteFPGA(gFpgaHandle0, IEEE_30, 1);
+    //WriteFPGA(gFpgaHandle1, IEEE_30, 1);
+    //WriteFPGA(gFpgaHandle0, 0xFFFFFFFF, 7);
+    //WriteFPGA(gFpgaHandle1, 0xFFFFFFFF, 7);
 
     while (1)
     {
-        int i=0;
+        if (MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) continue;
 		//printf("\n\t%f",dataEncoder[0]); 
         
         //printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
@@ -420,28 +429,29 @@ void* ControlLoop(void*)
         float32 rawCtrl;
         ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
         PthreadMutexLock(&gMutex);
-        gCtrlFromFPGA[0] = max(0.0, min(65535.0, rawCtrl * 0.00001));
+
+        float32 tGain = 1.0;
+        gCtrlFromFPGA[0] = max(0.0, min(65535.0, rawCtrl * tGain));
         PthreadMutexUnlock(&gMutex);
 
         // Read FPGA1
         ReadFPGA(gFpgaHandle1, 0x30, "float32", &rawCtrl);
         PthreadMutexLock(&gMutex);
-        gCtrlFromFPGA[NUM_FPGA - 1] = max(0.0, min(65535.0, rawCtrl * 0.00001));
+        gCtrlFromFPGA[NUM_FPGA - 1] = max(0.0, min(65535.0, rawCtrl * tGain));
         PthreadMutexUnlock(&gMutex);
 
         //printf("%.4f\t", gCtrlFromFPGA[0]);
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
 
-        //WriteFPGA(gFpgaHandle0, gMuscleLce, "float32", 2);
         int32 temp;
         //if (0 == ReInterpret((float32)(1.0 - 0.5* gAuxvar[0]), &temp)) 
         if (0 == ReInterpret((float32)(gMuscleLce[0]), &temp)) 
         {
-            WriteFPGA(gFpgaHandle0, temp, "float32", 8);
+            WriteFPGA(gFpgaHandle0, temp, 8);
         }
         if (0 == ReInterpret((float32)(gMuscleLce[NUM_MOTOR - 1]), &temp)) 
         {
-            WriteFPGA(gFpgaHandle1, temp, "float32", 8);
+            WriteFPGA(gFpgaHandle1, temp, 8);
         }
         //printf("Input = %0.4f :: Out = %0.4f \n", (float32) 1.0 - 0.5* gAuxvar[0], gCtrlFromFPGA); 
 
@@ -465,8 +475,13 @@ void exitProgram()
     StopSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
     StopPositionRead(&gEncoderHandle[0],&gEncoderHandle[1]);
     TwTerminate();
-    //printf("\nHit any key to quit...\n");
-    //getch();
+    //if (gFpgaHandle0 != gFpgaHandle1) 
+    //{
+    //        delete gFpgaHandle0;
+    //        delete gFpgaHandle1;
+    //} 
+    //else
+    //    delete gFpgaHandle0;
 }
 
 int initFPGA(okCFrontPanel *xem0)
@@ -502,25 +517,21 @@ int initFPGA(okCFrontPanel *xem0)
     
     //int newHalfCnt = 1 * 200 * (10 **6) / SAMPLING_RATE / NUM_NEURON / (value*4) / 2 / 2;
     int32 newHalfCnt = 1 * 200 * (int32)(1e6) / 1024 / 128 / (1) / 2 / 2;
-    WriteFPGA(xem0, newHalfCnt, "int32", DATA_EVT_CLKRATE);  // CMN 7/9/2012: stretch_reflex in fpga project is WRONG
+    WriteFPGA(xem0, 19, DATA_EVT_CLKRATE);
 
 	// Download the configuration file.
 	if (okCFrontPanel::NoError != xem0->ConfigureFPGA(CONFIGURATION_FILE)) {
 		printf("FPGA configuration failed.\n");
 		delete xem0;
-		return(NULL);
+		return(-1);
 	}
 
 	// Check for FrontPanel support in the FPGA configuration.
 	if (false == xem0->IsFrontPanelEnabled()) {
 		printf("FrontPanel support is not enabled.\n");
 		delete xem0;
-		return(NULL);
+		return(-1);
 	}
-
-    int32 IEEE_30;
-    ReInterpret((float32)(30.0), &IEEE_30);
-    WriteFPGA(xem0, IEEE_30, "float32", 1);
 
 	printf("FrontPanel support is enabled.\n");
 
@@ -594,13 +605,15 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
 	// Open the first XEM - try all board types.
     gFpgaHandle0 = new okCFrontPanel;
     gFpgaHandle1 = new okCFrontPanel;
+    //gFpgaHandle1 = gFpgaHandle0;
 
-    initFPGA(gFpgaHandle0);
-    initFPGA(gFpgaHandle1); // a pointer to the FPGA device
-    if (NULL == gFpgaHandle0) {
+    
+    if (0 != initFPGA(gFpgaHandle0)) {
 		printf("FPGA could not be initialized.\n");
 		return(-1);
 	}
+    
+    initFPGA(gFpgaHandle1); // a pointer to the FPGA device
 
     // *** load fpga dll
   

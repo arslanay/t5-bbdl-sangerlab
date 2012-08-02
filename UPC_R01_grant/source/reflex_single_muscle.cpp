@@ -69,7 +69,7 @@ using namespace std;
 #include	"glut.h"   // The GL Utility Toolkit (Glut) Header
 #include	"OGLGraph.h"
 
-#define     CONFIGURATION_FILE         "C:/nerf_sangerlab/projects/one_joint_robot/one_joint_robot_xem6010.bit"
+#define     FPGA_BIT_FILENAME         "C:/nerf_sangerlab/projects/one_joint_robot/one_joint_robot_xem6010.bit"
 
 
 // *** Global variables
@@ -411,9 +411,9 @@ void* ControlLoop(void*)
 
     
     int32 IEEE_30;
-    ReInterpret((float32)(3), &IEEE_30);
-    //WriteFPGA(gFpgaHandle0, IEEE_30, 1);
-    //WriteFPGA(gFpgaHandle1, IEEE_30, 1);
+    ReInterpret((float32)(50.0), &IEEE_30);
+    WriteFPGA(gFpgaHandle0, IEEE_30, 1);
+    WriteFPGA(gFpgaHandle1, IEEE_30, 1);
     //WriteFPGA(gFpgaHandle0, 0xFFFFFFFF, 7);
     //WriteFPGA(gFpgaHandle1, 0xFFFFFFFF, 7);
 
@@ -430,7 +430,7 @@ void* ControlLoop(void*)
         ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
         PthreadMutexLock(&gMutex);
 
-        float32 tGain = 1.0;
+        float32 tGain = 0.0015;
         gCtrlFromFPGA[0] = max(0.0, min(65535.0, rawCtrl * tGain));
         PthreadMutexUnlock(&gMutex);
 
@@ -510,21 +510,22 @@ int initFPGA(okCFrontPanel *xem0)
     pll -> SetPLLParameters(0, baseRate, 48,  true);
     pll -> SetOutputSource(0, okCPLL22393::ClkSrc_PLL0_0);
     int clkRate = 200; //mhz; 200 is fastest
-    pll -> SetOutputDivider(0, baseRate / clkRate) ;
+    //pll -> SetOutputDivider(0, 1) ;
     pll -> SetOutputEnable(0, true);
     xem0 -> SetPLL22393Configuration(*pll);
 
-    
-    //int newHalfCnt = 1 * 200 * (10 **6) / SAMPLING_RATE / NUM_NEURON / (value*4) / 2 / 2;
-    int32 newHalfCnt = 1 * 200 * (int32)(1e6) / 1024 / 128 / (1) / 2 / 2;
-    WriteFPGA(xem0, 19, DATA_EVT_CLKRATE);
-
-	// Download the configuration file.
-	if (okCFrontPanel::NoError != xem0->ConfigureFPGA(CONFIGURATION_FILE)) {
+    // Download the configuration file.
+	if (okCFrontPanel::NoError != xem0->ConfigureFPGA(FPGA_BIT_FILENAME)) {
 		printf("FPGA configuration failed.\n");
 		delete xem0;
 		return(-1);
 	}
+
+
+    //int newHalfCnt = 1 * 200 * (10 **6) / SAMPLING_RATE / NUM_NEURON / (value*4) / 2 / 2;
+    int32 newHalfCnt = 1 * 200 * (int32)(1e6) / 1024 / 128 / (5) / 2 / 2;
+    WriteFPGA(xem0, 9, DATA_EVT_CLKRATE);
+
 
 	// Check for FrontPanel support in the FPGA configuration.
 	if (false == xem0->IsFrontPanelEnabled()) {

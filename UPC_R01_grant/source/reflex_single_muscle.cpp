@@ -412,7 +412,7 @@ void* ControlLoop(void*)
 
     
     int32 IEEE_30;
-    ReInterpret((float32)(50.0), &IEEE_30);
+    ReInterpret((float32)(30.0), &IEEE_30);
     WriteFPGA(gFpgaHandle0, IEEE_30, 1);
     WriteFPGA(gFpgaHandle1, IEEE_30, 1);
     //WriteFPGA(gFpgaHandle0, 0xFFFFFFFF, 7);
@@ -437,7 +437,7 @@ void* ControlLoop(void*)
         ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
         PthreadMutexLock(&gMutex);
 
-        float32 tGain = 0.003;
+        float32 tGain = 0.012;
         gCtrlFromFPGA[0] = max(0.0, min(65535.0, rawCtrl * tGain));
         PthreadMutexUnlock(&gMutex);
 
@@ -531,7 +531,7 @@ int initFPGA(okCFrontPanel *xem0)
 
     //int newHalfCnt = 1 * 200 * (10 **6) / SAMPLING_RATE / NUM_NEURON / (value*4) / 2 / 2;
     int32 newHalfCnt = 1 * 200 * (int32)(1e6) / 1024 / 128 / (5) / 2 / 2;
-    WriteFPGA(xem0, 9, DATA_EVT_CLKRATE);
+    WriteFPGA(xem0, 197, DATA_EVT_CLKRATE);
 
 
 	// Check for FrontPanel support in the FPGA configuration.
@@ -540,7 +540,9 @@ int initFPGA(okCFrontPanel *xem0)
 		delete xem0;
 		return(-1);
 	}
-
+    
+    SendButton(xem0, (int) true, "BUTTON_RESET_SIM");
+    SendButton(xem0, (int) false, "BUTTON_RESET_SIM");
 	printf("FrontPanel support is enabled.\n");
 
 

@@ -29,7 +29,7 @@
 #define MOTOR_STATE_SHUTTING_DOWN 4
 
 /* Safety Configurations */
-#define		MAX_VOLT 1.0
+#define		MAX_VOLT 1.5
 #define		SAFE_MOTOR_VOLTAGE 0.4
 #define		ZERO_MOTOR_VOLTAGE 0.0
 #define     NUM_MOTOR 2

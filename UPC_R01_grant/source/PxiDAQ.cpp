@@ -152,31 +152,37 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 		/*********************************************/
 
         DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, loadcell_data, 2*CHANNEL_NUM,&numRead,NULL));
-        double motor_cmd;
+        double motor_cmd[NUM_MOTOR];
         switch(gCurrMotorState)
         {
         case MOTOR_STATE_INIT:
-            motor_cmd = ZERO_MOTOR_VOLTAGE;
+            motor_cmd[0] = ZERO_MOTOR_VOLTAGE;
+            motor_cmd[1] = ZERO_MOTOR_VOLTAGE;
             break;
         case MOTOR_STATE_WINDING_UP:
-            motor_cmd = SAFE_MOTOR_VOLTAGE;
+            motor_cmd[0] = SAFE_MOTOR_VOLTAGE;
+            motor_cmd[1] = SAFE_MOTOR_VOLTAGE;
             break;
         case MOTOR_STATE_OPEN_LOOP:
-            motor_cmd = SAFE_MOTOR_VOLTAGE;
+            motor_cmd[0] = SAFE_MOTOR_VOLTAGE;
+            motor_cmd[1] = SAFE_MOTOR_VOLTAGE;
             break;
         case MOTOR_STATE_CLOSED_LOOP:
-            motor_cmd = SAFE_MOTOR_VOLTAGE; // + gCtrlFromFPGA[0] * 0.5;
+            motor_cmd[0] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[0];
+            motor_cmd[1] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[1];
             break;
         case MOTOR_STATE_SHUTTING_DOWN:
-            motor_cmd = ZERO_MOTOR_VOLTAGE;
+            motor_cmd[0] = ZERO_MOTOR_VOLTAGE;
+            motor_cmd[1] = ZERO_MOTOR_VOLTAGE;
             break;
         default:
-            motor_cmd = ZERO_MOTOR_VOLTAGE;
+            motor_cmd[0] = ZERO_MOTOR_VOLTAGE;
+            motor_cmd[1] = ZERO_MOTOR_VOLTAGE;
         }
 
         //AOdata[0] = (motor_cmd > MAX_VOLT) ? MAX_VOLT : motor_cmd;
-        AOdata[0] = (motor_cmd > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd < 0.0 ) ? 0.0 :motor_cmd) ;
-        AOdata[NUM_MOTOR-1] = (motor_cmd > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd < 0.0 ) ? 0.0 :motor_cmd) ;
+        AOdata[0] = (motor_cmd[0] > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd[0] < 0.0 ) ? 0.0 : motor_cmd[0]) ;
+        AOdata[1] = (motor_cmd[1] > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd[1] < 0.0 ) ? 0.0 : motor_cmd[1]) ;
         //printf("\nAO handle = %d \n", gAOTaskHandle);
         DAQmxErrChk (DAQmxWriteAnalogF64(gAOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, AOdata, NULL, NULL));
 
@@ -202,8 +208,8 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         //gMuscleLce = gLenScale * (-gAuxvar[2] + gLenOrig) + 1.2;
         //gMuscleLce[0] = gAuxvar[2];
         //gMuscleLce[1] = gAuxvar[2+NUM_AUXVAR];
-        gMuscleLce[0] = -gLenScale * (-gAuxvar[2] + gLenOrig[0]) + 1.01;
-        gMuscleLce[1] = -gLenScale * (-gAuxvar[2+NUM_AUXVAR] + gLenOrig[1]) + 1.01;
+        gMuscleLce[0] = -gLenScale * (-gAuxvar[2] + gLenOrig[0]) + 1.03;
+        gMuscleLce[1] = -gLenScale * (-gAuxvar[2+NUM_AUXVAR] + gLenOrig[1]) + 1.03;
 		//printf("\n\t%f",gMuscleLce); 
         LogData();
 

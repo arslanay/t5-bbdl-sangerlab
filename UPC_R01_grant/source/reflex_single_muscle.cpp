@@ -426,7 +426,7 @@ void* ControlLoop(void*)
 
         }
 
-        if (MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) continue;
+        if ((MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
 		//printf("\n\t%f",dataEncoder[0]); 
         
         //printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
@@ -435,17 +435,19 @@ void* ControlLoop(void*)
         // Read FPGA0
         float32 rawCtrl;
         ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
-        PthreadMutexLock(&gMutex);
-
+        
         float32 tGain = 0.010;
-        gCtrlFromFPGA[0] = max(0.0, min(65535.0, (rawCtrl - 60.0) * tGain));
-        PthreadMutexUnlock(&gMutex);
+
+        //PthreadMutexLock(&gMutex);
+
+        gCtrlFromFPGA[0] = max(0.0, min(65535.0, (rawCtrl - 40.0) * tGain));
+        //PthreadMutexUnlock(&gMutex);
 
         // Read FPGA1
         ReadFPGA(gFpgaHandle1, 0x30, "float32", &rawCtrl);
-        PthreadMutexLock(&gMutex);
-        gCtrlFromFPGA[NUM_FPGA - 1] = max(0.0, min(65535.0, (rawCtrl - 60.0) * tGain));
-        PthreadMutexUnlock(&gMutex);
+        //PthreadMutexLock(&gMutex);
+        gCtrlFromFPGA[NUM_FPGA - 1] = max(0.0, min(65535.0, (rawCtrl - 40.0) * tGain));
+        //PthreadMutexUnlock(&gMutex);
 
         //printf("%.4f\t", gCtrlFromFPGA[0]);
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
@@ -456,7 +458,7 @@ void* ControlLoop(void*)
         {
             WriteFPGA(gFpgaHandle0, temp, 8);
         }
-        if (0 == ReInterpret((float32)(gMuscleLce[NUM_MOTOR - 1]), &temp)) 
+        if (0 == ReInterpret((float32)(gMuscleLce[1]), &temp)) 
         {
             WriteFPGA(gFpgaHandle1, temp, 8);
         }
@@ -531,6 +533,7 @@ int initFPGA(okCFrontPanel *xem0)
 
     //int newHalfCnt = 1 * 200 * (10 **6) / SAMPLING_RATE / NUM_NEURON / (value*4) / 2 / 2;
     int32 newHalfCnt = 1 * 200 * (int32)(1e6) / 1024 / 128 / (5) / 2 / 2;
+//    WriteFPGA(xem0, 197, DATA_EVT_CLKRATE);
     WriteFPGA(xem0, 197, DATA_EVT_CLKRATE);
 
 

@@ -29,14 +29,14 @@
 #define MOTOR_STATE_SHUTTING_DOWN 4
 
 /* Safety Configurations */
-#define		MAX_VOLT 1.5
+#define		MAX_VOLT 1.4
 #define		SAFE_MOTOR_VOLTAGE 0.4
 #define		ZERO_MOTOR_VOLTAGE 0.0
 #define     NUM_MOTOR 2
 #define     NUM_FPGA 2
 
 /* FPGA Trigger events */
-#define     DATA_EVT_CLKRATE 0
+const int    DATA_EVT_CLKRATE = 0;
 
 
 /* EVENT FLAGS */

@@ -436,17 +436,17 @@ void* ControlLoop(void*)
         float32 rawCtrl;
         ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
         
-        float32 tGain = 0.010;
+        float32 tGain = 0.014;
 
         //PthreadMutexLock(&gMutex);
 
-        gCtrlFromFPGA[0] = max(0.0, min(65535.0, (rawCtrl - 40.0) * tGain));
+        gCtrlFromFPGA[0] = max(0.0, min(65535.0, (rawCtrl - 50.0) * tGain));
         //PthreadMutexUnlock(&gMutex);
 
         // Read FPGA1
         ReadFPGA(gFpgaHandle1, 0x30, "float32", &rawCtrl);
         //PthreadMutexLock(&gMutex);
-        gCtrlFromFPGA[NUM_FPGA - 1] = max(0.0, min(65535.0, (rawCtrl - 40.0) * tGain));
+        gCtrlFromFPGA[NUM_FPGA - 1] = max(0.0, min(65535.0, (rawCtrl - 50.0) * tGain));
         //PthreadMutexUnlock(&gMutex);
 
         //printf("%.4f\t", gCtrlFromFPGA[0]);

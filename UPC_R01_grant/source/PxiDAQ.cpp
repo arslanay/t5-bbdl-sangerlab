@@ -168,8 +168,10 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
             motor_cmd[1] = SAFE_MOTOR_VOLTAGE;
             break;
         case MOTOR_STATE_CLOSED_LOOP:
-            motor_cmd[0] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[0];
-            motor_cmd[1] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[1];
+            //motor_cmd[0] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[0];
+            //motor_cmd[1] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[1];
+            motor_cmd[0] = gCtrlFromFPGA[0];
+            motor_cmd[1] = gCtrlFromFPGA[1];
             break;
         case MOTOR_STATE_SHUTTING_DOWN:
             motor_cmd[0] = ZERO_MOTOR_VOLTAGE;
@@ -181,8 +183,8 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         }
 
         //AOdata[0] = (motor_cmd > MAX_VOLT) ? MAX_VOLT : motor_cmd;
-        AOdata[0] = (motor_cmd[0] > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd[0] < 0.0 ) ? 0.0 : motor_cmd[0]) ;
-        AOdata[1] = (motor_cmd[1] > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd[1] < 0.0 ) ? 0.0 : motor_cmd[1]) ;
+        AOdata[0] = (motor_cmd[0] > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd[0] < SAFE_MOTOR_VOLTAGE ) ? SAFE_MOTOR_VOLTAGE : motor_cmd[0]) ;
+        AOdata[1] = (motor_cmd[1] > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd[1] < SAFE_MOTOR_VOLTAGE ) ? SAFE_MOTOR_VOLTAGE : motor_cmd[1]) ;
         //printf("\nAO handle = %d \n", gAOTaskHandle);
         DAQmxErrChk (DAQmxWriteAnalogF64(gAOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, AOdata, NULL, NULL));
 
@@ -210,6 +212,9 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         //gMuscleLce[1] = gAuxvar[2+NUM_AUXVAR];
         gMuscleLce[0] = -gLenScale * (-gAuxvar[2] + gLenOrig[0]) + 1.0;
         gMuscleLce[1] = -gLenScale * (-gAuxvar[2+NUM_AUXVAR] + gLenOrig[1]) + 1.0;
+        float32 residuleMuscleLce = (2.0 - gMuscleLce[0] - gMuscleLce[1]) / 2.0;
+        gMuscleLce[0] += residuleMuscleLce;
+        gMuscleLce[1] += residuleMuscleLce;
 		//printf("\n\t%f",gMuscleLce); 
         LogData();
 

@@ -153,6 +153,10 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 
         DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, loadcell_data, 2*CHANNEL_NUM,&numRead,NULL));
         double motor_cmd[NUM_MOTOR];
+        
+        float32 tGain = 15.0;
+
+
         switch(gCurrMotorState)
         {
         case MOTOR_STATE_INIT:
@@ -164,12 +168,18 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
             motor_cmd[1] = SAFE_MOTOR_VOLTAGE;
             break;
         case MOTOR_STATE_OPEN_LOOP:
-            motor_cmd[0] = SAFE_MOTOR_VOLTAGE;
-            motor_cmd[1] = SAFE_MOTOR_VOLTAGE;
+            //motor_cmd[0] = SAFE_MOTOR_VOLTAGE;
+            //motor_cmd[1] = SAFE_MOTOR_VOLTAGE;
+            gCtrlFromFPGA[0] = (gMuscleLce[0]-1)>0.0 ? tGain*(gMuscleLce[0]-1) : 0.0;
+            gCtrlFromFPGA[1] = (gMuscleLce[1]-1)>0.0 ? tGain*(gMuscleLce[1]-1) : 0.0;
             break;
         case MOTOR_STATE_CLOSED_LOOP:
-            //motor_cmd[0] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[0];
-            //motor_cmd[1] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[1];
+            ////motor_cmd[0] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[0];
+            ////motor_cmd[1] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[1];
+            //motor_cmd[0] = gCtrlFromFPGA[0];
+            //motor_cmd[1] = gCtrlFromFPGA[1];
+            gCtrlFromFPGA[0] = (gMuscleLce[0]-1)>0.0 ? tGain*(gMuscleLce[0]-1) : 0.0;
+            gCtrlFromFPGA[1] = (gMuscleLce[1]-1)>0.0 ? tGain*(gMuscleLce[1]-1) : 0.0;
             motor_cmd[0] = gCtrlFromFPGA[0];
             motor_cmd[1] = gCtrlFromFPGA[1];
             break;

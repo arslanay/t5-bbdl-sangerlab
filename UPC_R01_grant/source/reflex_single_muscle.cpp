@@ -155,8 +155,10 @@ void display ( void )   // Create The Display Function
 
     // Draw tweak bars
     TwDraw();
+    //sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
     sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
+    //sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gAuxvar[0+NUM_AUXVAR], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
     sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gAuxvar[0+NUM_AUXVAR], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     
@@ -436,17 +438,18 @@ void* ControlLoop(void*)
         float32 rawCtrl;
         ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
         
-        float32 tGain = 0.055;
-
         //PthreadMutexLock(&gMutex);
 
-        gCtrlFromFPGA[0] = max(0.0, min(65535.0, (rawCtrl - 110.0) * tGain));
+        //+++
+        //gCtrlFromFPGA[0] = max(0.0, min(65535.0, (rawCtrl - 110.0) * tGain));
+        
         //PthreadMutexUnlock(&gMutex);
 
         // Read FPGA1
         ReadFPGA(gFpgaHandle1, 0x30, "float32", &rawCtrl);
         //PthreadMutexLock(&gMutex);
-        gCtrlFromFPGA[NUM_FPGA - 1] = max(0.0, min(65535.0, (rawCtrl - 110.0) * tGain));
+        //+++
+        //gCtrlFromFPGA[NUM_FPGA - 1] = max(0.0, min(65535.0, (rawCtrl - 110.0) * tGain));
         //PthreadMutexUnlock(&gMutex);
 
         //printf("%.4f\t", gCtrlFromFPGA[0]);

@@ -78,7 +78,7 @@ pthread_t gThreads[NUM_THREADS];
 pthread_mutex_t gMutex;
 TaskHandle gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
 void ledIndicator ( float w, float h );
-float32 gLenOrig[NUM_MOTOR], gLenScale, gMuscleLce[NUM_MOTOR];
+float32 gLenOrig[NUM_MOTOR], gLenScale, gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
 bool gResetSim=false,gIsRecording=false, gResetGlobal=false;
 LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 FILE *gDataFile, *gConfigFile;
@@ -134,7 +134,7 @@ void display ( void )   // Create The Display Function
 
     
     //gMyGraph->update( 10.0 * gAuxvar[0] );
-    gMyGraph->update( gCtrlFromFPGA[0] );
+    gMyGraph->update( gMuscleVel[0] * 1.0 );
 
     gMyGraph->draw();
     
@@ -155,7 +155,8 @@ void display ( void )   // Create The Display Function
 
     // Draw tweak bars
     TwDraw();
-    sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
+    //sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
+    sprintf_s(gLceLabel1,"%.4f    %.2f   %f",gMuscleVel[0], gMuscleLce[0], gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
     sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gAuxvar[0+NUM_AUXVAR], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);

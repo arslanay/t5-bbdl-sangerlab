@@ -5,7 +5,29 @@
 #include    <math.h>
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 
+class TimeData
+{
+private:
 
+
+public:
+    LARGE_INTEGER tick0, tick1, tick2, frequency;
+    float lce0, lce1, lce2;
+    float h1, h2;
+
+    TimeData();
+    //TODO: initialize tick0, tick1, tick2, etc.
+
+    //
+};
+
+TimeData::TimeData() :lce0(1.0), lce1(1.0), lce2(1.0), h1(1.0), h2(1.0)
+{
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&tick0);
+    QueryPerformanceCounter(&tick1);
+    QueryPerformanceCounter(&tick2);
+}
 
 int StartSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
 {
@@ -13,7 +35,8 @@ int StartSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
     TaskHandle ForceReadTaskHandle = *rawForceHandle;
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
-    
+
+    TimeData *time_data = new TimeData();    
 
     gDataFile = fopen(gTimeStamp,"a");
 
@@ -30,8 +53,10 @@ int StartSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
     DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao11","motor1", -5.0,5.0,DAQmx_Val_Volts,NULL));
 	DAQmxErrChk (DAQmxCfgSampClkTiming(AOHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
 	
+    
+    //DAQmxErrChk (DAQmxRegisterSignalEvent(ForceReadTaskHandle,DAQmx_Val_SampleClock, 0, update_data ,NULL));
 
-    DAQmxErrChk (DAQmxRegisterSignalEvent(ForceReadTaskHandle,DAQmx_Val_SampleClock, 0, update_data ,NULL));
+    DAQmxErrChk (DAQmxRegisterSignalEvent(ForceReadTaskHandle,DAQmx_Val_SampleClock, 0, update_data , (void *) time_data));
 	DAQmxErrChk (DAQmxRegisterDoneEvent(ForceReadTaskHandle,0,DoneCallback,NULL));    
     
     QueryPerformanceCounter(&gInitTick);
@@ -139,6 +164,11 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 	time_t	currTime;
     float64 AOdata[NUM_MOTOR];
 
+    //float32 lce0, lce1, lce2;
+    //float32 t0, t1, t2;
+    //LARGE_INTEGER tick0, tick1, tick2, frequency;
+
+
     //memset(AOdata,0,NUM_MOTOR*sizeof(float64));
 
 
@@ -150,6 +180,8 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 		/*********************************************/
 		// DAQmx Read Code
 		/*********************************************/
+
+        
 
         DAQmxErrChk (DAQmxReadAnalogF64(taskHandleDAQmx,1,10.0,DAQmx_Val_GroupByScanNumber, loadcell_data, 2*CHANNEL_NUM,&numRead,NULL));
         double motor_cmd[NUM_MOTOR];
@@ -217,7 +249,23 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         gMuscleLce[1] += residuleMuscleLce;
 		//printf("\n\t%f",gMuscleLce); 
         LogData();
+            
+    	//QueryPerformanceFrequency(&frequency);
 
+        TimeData *td = (TimeData*) callbackData;
+
+        QueryPerformanceCounter(&(td->tick0));
+        td->lce0 = gMuscleLce[0];
+        
+        td->h1 = 1.0 * (td->tick0.QuadPart - td->tick1.QuadPart) / td->frequency.QuadPart;
+        td->h2 = 1.0 * (td->tick1.QuadPart - td->tick2.QuadPart) / td->frequency.QuadPart;
+
+        gMuscleVel[0] = (3*td->lce0 - 4*td->lce1 + td->lce2) / (td->h1 + td->h2);
+
+        td->lce1 = td->lce0;
+        td->lce2 = td->lce1;
+        td->tick1 = td->tick0;
+        td->tick2 = td->tick1;
 
 	}
     

@@ -5,38 +5,25 @@
 #include    <math.h>
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 
-class TimeData
-{
-private:
 
-
-public:
-    LARGE_INTEGER tick0, tick1, tick2, frequency;
-    float lce0, lce1, lce2;
-    float h1, h2;
-
-    TimeData();
-    //TODO: initialize tick0, tick1, tick2, etc.
-
-    //
-};
-
-TimeData::TimeData() :lce0(1.0), lce1(1.0), lce2(1.0), h1(1.0), h2(1.0)
+TimeData::TimeData() :
+    lce00(1.0), lce01(1.0), lce02(1.0), h1(1.0), h2(1.0),
+    lce10(1.0), lce11(1.0), lce12(1.0)
 {
     QueryPerformanceFrequency(&frequency);
     QueryPerformanceCounter(&tick0);
     QueryPerformanceCounter(&tick1);
     QueryPerformanceCounter(&tick2);
 }
+TimeData     gtime_data;    
 
-int StartSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
+int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
 {
     TaskHandle AOHandle = *rawAOHandle;
     TaskHandle ForceReadTaskHandle = *rawForceHandle;
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
 
-    TimeData *time_data = new TimeData();    
 
     gDataFile = fopen(gTimeStamp,"a");
 
@@ -56,7 +43,7 @@ int StartSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
     
     //DAQmxErrChk (DAQmxRegisterSignalEvent(ForceReadTaskHandle,DAQmx_Val_SampleClock, 0, update_data ,NULL));
 
-    DAQmxErrChk (DAQmxRegisterSignalEvent(ForceReadTaskHandle,DAQmx_Val_SampleClock, 0, update_data , (void *) time_data));
+    DAQmxErrChk (DAQmxRegisterSignalEvent(ForceReadTaskHandle,DAQmx_Val_SampleClock, 0, update_data , (void *) &gtime_data));
 	DAQmxErrChk (DAQmxRegisterDoneEvent(ForceReadTaskHandle,0,DoneCallback,NULL));    
     
     QueryPerformanceCounter(&gInitTick);
@@ -200,10 +187,10 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
             motor_cmd[1] = SAFE_MOTOR_VOLTAGE;
             break;
         case MOTOR_STATE_CLOSED_LOOP:
-            //motor_cmd[0] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[0];
-            //motor_cmd[1] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[1];
-            motor_cmd[0] = gCtrlFromFPGA[0];
-            motor_cmd[1] = gCtrlFromFPGA[1];
+            motor_cmd[0] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[0];
+            motor_cmd[1] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[1];
+            //motor_cmd[0] = gCtrlFromFPGA[0];
+            //motor_cmd[1] = gCtrlFromFPGA[1];
             break;
         case MOTOR_STATE_SHUTTING_DOWN:
             motor_cmd[0] = ZERO_MOTOR_VOLTAGE;
@@ -215,8 +202,8 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         }
 
         //AOdata[0] = (motor_cmd > MAX_VOLT) ? MAX_VOLT : motor_cmd;
-        AOdata[0] = (motor_cmd[0] > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd[0] < SAFE_MOTOR_VOLTAGE ) ? SAFE_MOTOR_VOLTAGE : motor_cmd[0]) ;
-        AOdata[1] = (motor_cmd[1] > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd[1] < SAFE_MOTOR_VOLTAGE ) ? SAFE_MOTOR_VOLTAGE : motor_cmd[1]) ;
+        AOdata[0] = (motor_cmd[0] > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd[0] < ZERO_MOTOR_VOLTAGE ) ? ZERO_MOTOR_VOLTAGE : motor_cmd[0]) ;
+        AOdata[1] = (motor_cmd[1] > MAX_VOLT) ? MAX_VOLT : ( (motor_cmd[1] < ZERO_MOTOR_VOLTAGE ) ? ZERO_MOTOR_VOLTAGE : motor_cmd[1]) ;
         //printf("\nAO handle = %d \n", gAOTaskHandle);
         DAQmxErrChk (DAQmxWriteAnalogF64(gAOTaskHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, AOdata, NULL, NULL));
 
@@ -255,15 +242,19 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         TimeData *td = (TimeData*) callbackData;
 
         QueryPerformanceCounter(&(td->tick0));
-        td->lce0 = gMuscleLce[0];
+        td->lce00 = gMuscleLce[0];
+        td->lce10 = gMuscleLce[NUM_MOTOR-1];
         
         td->h1 = 1.0 * (td->tick0.QuadPart - td->tick1.QuadPart) / td->frequency.QuadPart;
         td->h2 = 1.0 * (td->tick1.QuadPart - td->tick2.QuadPart) / td->frequency.QuadPart;
 
-        gMuscleVel[0] = (3*td->lce0 - 4*td->lce1 + td->lce2) / (td->h1 + td->h2);
-
-        td->lce1 = td->lce0;
-        td->lce2 = td->lce1;
+        gMuscleVel[0] =             (3*td->lce00 - 4*td->lce01 + td->lce02) / (td->h1 + td->h2);
+        gMuscleVel[NUM_MOTOR-1] =   (3*td->lce10 - 4*td->lce11 + td->lce12) / (td->h1 + td->h2);
+        
+        td->lce01 = td->lce00;
+        td->lce02 = td->lce01;
+        td->lce11 = td->lce10;
+        td->lce12 = td->lce11;
         td->tick1 = td->tick0;
         td->tick2 = td->tick1;
 

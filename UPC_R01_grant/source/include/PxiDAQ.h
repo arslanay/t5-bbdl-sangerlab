@@ -6,10 +6,29 @@
 #include    "Utilities.h"
 #include    <windows.h>
 
+
+class TimeData
+{
+private:
+
+
+public:
+    LARGE_INTEGER tick0, tick1, tick2, frequency;
+    float lce00, lce01, lce02;
+    float lce10, lce11, lce12;
+    float h1, h2;
+
+    TimeData();
+    //TODO: initialize tick0, tick1, tick2, etc.
+
+    //
+};
+
 extern float32 gAuxvar[];
 extern TaskHandle gAOTaskHandle;
 extern TaskHandle gEncoderHandle[];
 extern int gCurrMotorState;
+
 
 extern bool gIsRecording;
 extern float32 gLenOrig[], gLenScale, gMuscleLce[], gMuscleVel[];

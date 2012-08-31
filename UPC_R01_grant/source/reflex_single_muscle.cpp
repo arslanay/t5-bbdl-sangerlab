@@ -134,7 +134,7 @@ void display ( void )   // Create The Display Function
 
     
     //gMyGraph->update( 10.0 * gAuxvar[0] );
-    gMyGraph->update( gMuscleVel[0] * 1.0 );
+    gMyGraph->update( gMuscleVel[NUM_MOTOR-1] * 1.0 );
 
     gMyGraph->draw();
     
@@ -156,9 +156,11 @@ void display ( void )   // Create The Display Function
     // Draw tweak bars
     TwDraw();
     //sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
+    //sprintf_s(gLceLabel1,"%.4f    %.2f   %f",gMuscleVel[0], gMuscleLce[0], gCtrlFromFPGA[0]);
     sprintf_s(gLceLabel1,"%.4f    %.2f   %f",gMuscleVel[0], gMuscleLce[0], gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
-    sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gAuxvar[0+NUM_AUXVAR], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
+    //sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gMuscleVel[NUM_MOTOR - 1], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
+    sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gMuscleVel[NUM_MOTOR - 1], gMuscleLce[1],gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     
     //sprintf_s(gStateLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
@@ -462,6 +464,14 @@ void* ControlLoop(void*)
         if (0 == ReInterpret((float32)(gMuscleLce[1]), &temp)) 
         {
             WriteFPGA(gFpgaHandle1, temp, 8);
+        }
+        if (0 == ReInterpret((float32)(gMuscleVel[0]), &temp)) 
+        {
+            WriteFPGA(gFpgaHandle0, temp, 9);
+        }
+        if (0 == ReInterpret((float32)(gMuscleVel[1]), &temp)) 
+        {
+            WriteFPGA(gFpgaHandle1, temp, 9);
         }
         //printf("Input = %0.4f :: Out = %0.4f \n", (float32) 1.0 - 0.5* gAuxvar[0], gCtrlFromFPGA); 
 

@@ -250,6 +250,8 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 
         gMuscleVel[0] =             (3*td->lce00 - 4*td->lce01 + td->lce02) / (td->h1 + td->h2);
         gMuscleVel[NUM_MOTOR-1] =   (3*td->lce10 - 4*td->lce11 + td->lce12) / (td->h1 + td->h2);
+        gMuscleVel[0] = (gMuscleVel[0] > 0.0) ? gMuscleVel[0] : 0.0;
+        gMuscleVel[NUM_MOTOR-1] = (gMuscleVel[NUM_MOTOR-1] > 0.0) ? gMuscleVel[NUM_MOTOR-1] : 0.0;
         
         td->lce01 = td->lce00;
         td->lce02 = td->lce01;

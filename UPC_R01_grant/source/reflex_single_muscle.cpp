@@ -78,7 +78,7 @@ pthread_t gThreads[NUM_THREADS];
 pthread_mutex_t gMutex;
 TaskHandle gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
 void ledIndicator ( float w, float h );
-float32 gLenOrig[NUM_MOTOR], gLenScale, gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
+float32 gLenOrig[NUM_MOTOR], gLenScale[NUM_MOTOR], gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
 bool gResetSim=false,gIsRecording=false, gResetGlobal=false;
 LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 FILE *gDataFile, *gConfigFile;
@@ -439,11 +439,11 @@ void* ControlLoop(void*)
         float32 rawCtrl;
         ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
         
-        float32 tGain = 0.065;
+        float32 tGain = 0.085;
         float32 ppsBias = 110.0f;
 
         //PthreadMutexLock(&gMutex);
-
+         
         gCtrlFromFPGA[0] = max(0.0, min(65535.0, (rawCtrl - ppsBias) * tGain));
         //PthreadMutexUnlock(&gMutex);
 
@@ -485,7 +485,7 @@ void saveConfigCache()
 {
     FILE *ConfigCacheFile;
     ConfigCacheFile= fopen("ConfigPXI.cache","w");
-    fprintf(ConfigCacheFile,"%lf",gLenScale);
+    fprintf(ConfigCacheFile,"%lf\t%lf",gLenScale[0],gLenScale[1]);
     fclose(ConfigCacheFile);
 }
 
@@ -590,7 +590,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     FILE *ConfigFile;
     ConfigFile= fopen("ConfigPXI.txt","r");
 
-    fscanf(ConfigFile,"%f",&gLenScale);
+    fscanf(ConfigFile,"%f\t%f",&gLenScale[0],&gLenScale[1]);
 
     fclose(ConfigFile);
     glutInit( &argc, argv ); // Erm Just Write It =)

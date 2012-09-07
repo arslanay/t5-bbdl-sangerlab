@@ -36,8 +36,8 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
 	DAQmxErrChk (DAQmxCfgSampClkTiming(ForceReadTaskHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
     
     DAQmxErrChk (DAQmxCreateTask("",&AOHandle));
-    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao10","motor0", -5.0,5.0,DAQmx_Val_Volts,NULL));
-    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao11","motor1", -5.0,5.0,DAQmx_Val_Volts,NULL));
+    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao10","motor0", 0.0,MAX_VOLT,DAQmx_Val_Volts,NULL));
+    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao11","motor1", 0.0,MAX_VOLT,DAQmx_Val_Volts,NULL));
 	DAQmxErrChk (DAQmxCfgSampClkTiming(AOHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
 	
     
@@ -231,9 +231,14 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         //gMuscleLce[1] = gAuxvar[2+NUM_AUXVAR];
         gMuscleLce[0] = -gLenScale[0] * (-gAuxvar[2] + gLenOrig[0]) + 1.0;
         gMuscleLce[1] = -gLenScale[1] * (-gAuxvar[2+NUM_AUXVAR] + gLenOrig[1]) + 1.0;
-        float32 residuleMuscleLce = (2.0 - gMuscleLce[0] - gMuscleLce[1]) / 2.0;
+        float32 residuleMuscleLce = (2.02 - gMuscleLce[0] - gMuscleLce[1]) / 2.0;
         gMuscleLce[0] += residuleMuscleLce;
         gMuscleLce[1] += residuleMuscleLce;
+        if ((0.0 == gMuscleLce[0]) || (0.0 == gMuscleLce[1]))
+        {
+            gMuscleLce[0] = 1.01;
+            gMuscleLce[1] = 1.01;
+        }
 		//printf("\n\t%f",gMuscleLce); 
         LogData();
             

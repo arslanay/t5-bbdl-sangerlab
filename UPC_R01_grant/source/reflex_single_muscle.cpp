@@ -439,18 +439,19 @@ void* ControlLoop(void*)
         float32 rawCtrl;
         ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
         
-        float32 tGain = 0.085;
+        float32 tGain = 0.145;
         float32 ppsBias = 110.0f;
+        float   coef_damp = 0.4;
 
         //PthreadMutexLock(&gMutex);
          
-        gCtrlFromFPGA[0] = max(0.0, min(65535.0, (rawCtrl - ppsBias) * tGain));
+        gCtrlFromFPGA[0] = max(0.0, min(65535.0, (rawCtrl - ppsBias) * tGain)) + coef_damp * gMuscleVel[0];
         //PthreadMutexUnlock(&gMutex);
 
         // Read FPGA1
         ReadFPGA(gFpgaHandle1, 0x30, "float32", &rawCtrl);
         //PthreadMutexLock(&gMutex);
-        gCtrlFromFPGA[NUM_FPGA - 1] = max(0.0, min(65535.0, (rawCtrl - ppsBias) * tGain));
+        gCtrlFromFPGA[NUM_FPGA - 1] = max(0.0, min(65535.0, (rawCtrl - ppsBias) * tGain)) + coef_damp * gMuscleVel[1];
         //PthreadMutexUnlock(&gMutex);
 
         //printf("%.4f\t", gCtrlFromFPGA[0]);

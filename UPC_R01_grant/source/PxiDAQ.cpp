@@ -229,8 +229,8 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         //gMuscleLce = gLenScale * (-gAuxvar[2] + gLenOrig) + 1.2;
         //gMuscleLce[0] = gAuxvar[2];
         //gMuscleLce[1] = gAuxvar[2+NUM_AUXVAR];
-        gMuscleLce[0] = -gLenScale * (-gAuxvar[2] + gLenOrig[0]) + 1.0;
-        gMuscleLce[1] = -gLenScale * (-gAuxvar[2+NUM_AUXVAR] + gLenOrig[1]) + 1.0;
+        gMuscleLce[0] = -gLenScale[0] * (-gAuxvar[2] + gLenOrig[0]) + 1.0;
+        gMuscleLce[1] = -gLenScale[1] * (-gAuxvar[2+NUM_AUXVAR] + gLenOrig[1]) + 1.0;
         float32 residuleMuscleLce = (2.0 - gMuscleLce[0] - gMuscleLce[1]) / 2.0;
         gMuscleLce[0] += residuleMuscleLce;
         gMuscleLce[1] += residuleMuscleLce;

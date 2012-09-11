@@ -120,23 +120,6 @@ Error:
 	return 0;
 }
 
-inline void LogData( void)
-{
-    double actualTime;
-    QueryPerformanceCounter(&gCurrentTick);
-    actualTime = gCurrentTick.QuadPart - gInitTick.QuadPart;
-    actualTime /= gClkFrequency.QuadPart;
-    if (gIsRecording)
-    {
-        fprintf(gDataFile,"%.3lf\t",actualTime );																			//1
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t", gAuxvar[0], gMuscleLce, gMotorCmd[0],gCtrlFromFPGA[0]);										//2,3
-        fprintf(gDataFile,"\n");
-
-        //printf("%lf\t",actualTime );																			//1
-        //printf("%f\t%f\t", gAuxvar[0], gAuxvar[2]);										//2,3
-        //printf("\n");
-    }
-}
 
 int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *callbackData)
 {
@@ -150,6 +133,7 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 	char	*timeStr;
 	time_t	currTime;
     float64 AOdata[NUM_MOTOR];
+
 
     //float32 lce0, lce1, lce2;
     //float32 t0, t1, t2;
@@ -183,8 +167,8 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
             motor_cmd[1] = SAFE_MOTOR_VOLTAGE;
             break;
         case MOTOR_STATE_OPEN_LOOP:
-            motor_cmd[0] = SAFE_MOTOR_VOLTAGE;
-            motor_cmd[1] = SAFE_MOTOR_VOLTAGE;
+            motor_cmd[0] = 5.0; //5.0 * SAFE_MOTOR_VOLTAGE;  
+            motor_cmd[1] = 5.0; //5.0 * SAFE_MOTOR_VOLTAGE;
             break;
         case MOTOR_STATE_CLOSED_LOOP:
             motor_cmd[0] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[0];
@@ -223,24 +207,27 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
 		if( numRead ) {
             gAuxvar[2+NUM_AUXVAR] = (float32) encoder_data[1][0];
 		}
-
+         
         //gMuscleLce = -gLenScale * (-gAuxvar[2] + gLenOrig) + 1.0;
         
         //gMuscleLce = gLenScale * (-gAuxvar[2] + gLenOrig) + 1.2;
         //gMuscleLce[0] = gAuxvar[2];
         //gMuscleLce[1] = gAuxvar[2+NUM_AUXVAR];
-        gMuscleLce[0] = -gLenScale[0] * (-gAuxvar[2] + gLenOrig[0]) + 1.0;
-        gMuscleLce[1] = -gLenScale[1] * (-gAuxvar[2+NUM_AUXVAR] + gLenOrig[1]) + 1.0;
-        float32 residuleMuscleLce = (2.02 - gMuscleLce[0] - gMuscleLce[1]) / 2.0;
-        gMuscleLce[0] += residuleMuscleLce;
-        gMuscleLce[1] += residuleMuscleLce;
+
+        gEncoderTick[0] = (motor_cmd[0] - 0.9) * (815.0 - 0.00) / 4.1; 
+        gEncoderTick[1] = (motor_cmd[1] - 0.9) * (675.0 - 0.86) / 4.1;
+        
+        gMuscleLce[0] = -gLenScale[0] * (-gAuxvar[2] - gEncoderTick[0] + gLenOrig[0]) + 1.0;
+        gMuscleLce[1] = -gLenScale[1] * (-gAuxvar[2+NUM_AUXVAR] - gEncoderTick[1] + gLenOrig[1]) + 1.0;
+        //float32 residuleMuscleLce = (2.02 - gMuscleLce[0] - gMuscleLce[1]) / 2.0;
+        //gMuscleLce[0] += residuleMuscleLce;
+        //gMuscleLce[1] += residuleMuscleLce;
         if ((0.0 == gMuscleLce[0]) || (0.0 == gMuscleLce[1]))
         {
             gMuscleLce[0] = 1.01;
             gMuscleLce[1] = 1.01;
         }
-		//printf("\n\t%f",gMuscleLce); 
-        LogData();
+
             
     	//QueryPerformanceFrequency(&frequency);
 

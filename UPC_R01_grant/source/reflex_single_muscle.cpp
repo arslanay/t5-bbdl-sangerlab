@@ -83,6 +83,7 @@ bool gResetSim=false,gIsRecording=false, gResetGlobal=false;
 LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 FILE *gDataFile, *gConfigFile;
 int gCurrMotorState = MOTOR_STATE_INIT;
+double gEncoderTick[NUM_MOTOR];
 
 
 float64 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
@@ -157,10 +158,10 @@ void display ( void )   // Create The Display Function
     TwDraw();
     //sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
     //sprintf_s(gLceLabel1,"%.4f    %.2f   %f",gMuscleVel[0], gMuscleLce[0], gCtrlFromFPGA[0]);
-    sprintf_s(gLceLabel1,"%.3f    %.2f   %f",gMuscleVel[0], gMuscleLce[0], gCtrlFromFPGA[0]);
+    sprintf_s(gLceLabel1,"%.3f    %.2f   %f",-gAuxvar[2], gMuscleLce[0], gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
     //sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gMuscleVel[NUM_MOTOR - 1], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
-    sprintf_s(gLceLabel2,"%.3f    %.2f   %f",gMuscleVel[NUM_MOTOR - 1], gMuscleLce[1],gCtrlFromFPGA[NUM_FPGA - 1]);
+    sprintf_s(gLceLabel2,"%.3f    %.2f   %f",-gAuxvar[2+NUM_AUXVAR], gMuscleLce[1],gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     
     //sprintf_s(gStateLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
@@ -306,8 +307,8 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     //    break;
     case 'z':       //Rezero
     case 'Z':
-        gLenOrig[0]=gAuxvar[2];
-        gLenOrig[1]=gAuxvar[2+NUM_AUXVAR];
+        gLenOrig[0]=gAuxvar[2] + gEncoderTick[0];
+        gLenOrig[1]=gAuxvar[2+NUM_AUXVAR] + gEncoderTick[1];
         break;
     case 'E':         
     case 'e':     
@@ -441,7 +442,7 @@ void* ControlLoop(void*)
         
         float32 tGain = 0.145;
         float32 ppsBias = 110.0f;
-        float   coef_damp = 0.4;
+        float   coef_damp = 0.2;
 
         //PthreadMutexLock(&gMutex);
          
@@ -572,13 +573,39 @@ void initProgram()
     struct tm *timeinfo;
     time(&rawtime);
     timeinfo = localtime(&rawtime);
-    sprintf_s(gTimeStamp,"%4d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min);
+    sprintf_s(gTimeStamp,"%4d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min);
 
 
     //WARNING: DON'T CHANGE THE SEQUENCE BELOW
     StartReadPos(&gEncoderHandle[0],&gEncoderHandle[1]);
-    StartSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
+    StartSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle); 
     InitMotor(&gCurrMotorState);
+}
+
+
+inline void LogData( void)
+{   
+    // Approximately 100 Hz Recording
+    //double actualTime;
+    //QueryPerformanceCounter(&gCurrentTick);
+    //actualTime = gCurrentTick.QuadPart - gInitTick.QuadPart;
+    //actualTime /= gClkFrequency.QuadPart;
+    if (gIsRecording)
+    {   
+        //fprintf(gDataFile,"%.3lf\t",actualTime );																			//1
+        fprintf(gDataFile,"%f\t%f\t%f\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0]);								//2,3
+        fprintf(gDataFile,"%f\t%f\t%f\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1]);								//2,3
+        fprintf(gDataFile,"\n");
+    }
+}
+
+
+void TimerCB (int iTimer)
+{
+    LogData();
+
+	// Set The Timer For This Function Again
+	glutTimerFunc (10, TimerCB, 1);
 }
 
 int main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
@@ -610,6 +637,10 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     glutPassiveMotionFunc((GLUTmousemotionfun)TwEventMouseMotionGLUT); // same as MouseMotion
     glutKeyboardFunc((GLUTkeyboardfun)TwEventKeyboardGLUT);
     glutSpecialFunc((GLUTspecialfun)TwEventSpecialGLUT);
+    // TODO: Code the TimerCB() to log data
+    //printf("\n\t%f",gMuscleLce); 
+    //***** RELOCATE THIS -->   
+    glutTimerFunc(10, TimerCB, 1);
 
     // send the ''glutGetModifers'' function pointer to AntTweakBar
     TwGLUTModifiersFunc(glutGetModifiers);

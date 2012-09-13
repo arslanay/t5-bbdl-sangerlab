@@ -442,7 +442,7 @@ void* ControlLoop(void*)
         
         float32 tGain = 0.145;
         float32 ppsBias = 110.0f;
-        float   coef_damp = 0.2;
+        float   coef_damp = 0.1;
 
         //PthreadMutexLock(&gMutex);
          

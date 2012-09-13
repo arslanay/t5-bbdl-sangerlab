@@ -214,8 +214,12 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         //gMuscleLce[0] = gAuxvar[2];
         //gMuscleLce[1] = gAuxvar[2+NUM_AUXVAR];
 
-        gEncoderTick[0] = (motor_cmd[0] - 0.9) * (815.0 - 0.00) / 4.1; 
-        gEncoderTick[1] = (motor_cmd[1] - 0.9) * (675.0 - 0.86) / 4.1;
+        //gEncoderTick[0] = (motor_cmd[0] - 0.9) * (815.0 - 0.00) / 4.1; 
+        //gEncoderTick[1] = (motor_cmd[1] - 0.9) * (675.0 - 0.86) / 4.1;
+
+        
+        gEncoderTick[0] = 0.0; 
+        gEncoderTick[1] = 0.0;
         
         gMuscleLce[0] = -gLenScale[0] * (-gAuxvar[2] - gEncoderTick[0] + gLenOrig[0]) + 1.0;
         gMuscleLce[1] = -gLenScale[1] * (-gAuxvar[2+NUM_AUXVAR] - gEncoderTick[1] + gLenOrig[1]) + 1.0;
@@ -234,17 +238,25 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         TimeData *td = (TimeData*) callbackData;
 
         QueryPerformanceCounter(&(td->tick0));
-        td->lce00 = gMuscleLce[0];
-        td->lce10 = gMuscleLce[NUM_MOTOR-1];
+        //td->lce00 = gMuscleLce[0];
+        //td->lce10 = gMuscleLce[NUM_MOTOR-1];
+        td->lce00 = -gAuxvar[2];
+        td->lce10 = -gAuxvar[2+NUM_AUXVAR];
         
         td->h1 = 1.0 * (td->tick0.QuadPart - td->tick1.QuadPart) / td->frequency.QuadPart;
         td->h2 = 1.0 * (td->tick1.QuadPart - td->tick2.QuadPart) / td->frequency.QuadPart;
 
-        gMuscleVel[0] =             (3*td->lce00 - 4*td->lce01 + td->lce02) / (td->h1 + td->h2);
-        gMuscleVel[NUM_MOTOR-1] =   (3*td->lce10 - 4*td->lce11 + td->lce12) / (td->h1 + td->h2);
+        // How many encoderTicks per second
+        float dEncoderTicks0 =   (3*td->lce00 - 4*td->lce01 + td->lce02) / (td->h1 + td->h2);
+        float dEncoderTicks1 =   (3*td->lce10 - 4*td->lce11 + td->lce12) / (td->h1 + td->h2);
+        // Convert encoderTicks/sec to L0/sec
+        gMuscleVel[0] = -gLenScale[0] * dEncoderTicks0;
+        gMuscleVel[NUM_MOTOR-1] = -gLenScale[1] * dEncoderTicks1;
+        // ensure muscleVel > 0
         gMuscleVel[0] = (gMuscleVel[0] > 0.0) ? gMuscleVel[0] : 0.0;
-        gMuscleVel[NUM_MOTOR-1] = (gMuscleVel[NUM_MOTOR-1] > 0.0) ? gMuscleVel[NUM_MOTOR-1] : 0.0;
-        
+        gMuscleVel[NUM_MOTOR-1] = (gMuscleVel[NUM_MOTOR-1] > 0.0) ? gMuscleVel[NUM_MOTOR-1] : 0.0;        
+
+
         td->lce01 = td->lce00;
         td->lce02 = td->lce01;
         td->lce11 = td->lce10;

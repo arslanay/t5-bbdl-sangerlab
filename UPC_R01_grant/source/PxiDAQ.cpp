@@ -6,6 +6,11 @@
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 
 
+
+int const ORDER_LOWPASS = 2;
+        
+                
+
 TimeData::TimeData() :
     lce00(1.0), lce01(1.0), lce02(1.0), h1(1.0), h2(1.0),
     lce10(1.0), lce11(1.0), lce12(1.0)
@@ -119,6 +124,53 @@ Error:
 	//printf("\nStopped EMG !\n");
 	return 0;
 }
+
+
+float lowpassFilter(float *yQueue, float *xQueue)
+{
+    //Cutoff freq = 40 Hz
+    float b0 = 0.0134f;
+    float b1 = 0.0267f;
+    float b2 = 0.0134f;
+    float a0 = 1.0f;
+    float a1 = -1.6475f;
+    float a2 = 0.7009f;
+    
+    //Cutoff freq = 20 Hz, impulse hold
+    //float b0 = 0.003622;
+    //float b1 = 0.007243;
+    //float b2 = 0.003622;
+    //float a0 = 1.0;
+    //float a1 = -1.823;
+    //float a2 = 0.8372;
+
+    //float y1 = yQueue[1];
+    //float y2 = yQueue[2];
+    //float x0 = xQueue[0];
+    //float x1 = xQueue[1];
+    //float x2 = xQueue[2];
+
+    float y0 = (b0*xQueue[0] + b1*xQueue[1] + b2*xQueue[2] - a1*yQueue[1] - a2*yQueue[2]);
+    return y0;
+}
+
+
+inline int fillQueue(float x, float (&xQueue) [ORDER_LOWPASS + 1])
+{
+    for (int i = ORDER_LOWPASS; i > 0; i--)
+    {
+        xQueue[i] = xQueue[i - 1];
+    }
+    xQueue[0] = x;
+    return 0;
+}
+
+
+        
+#define FILT_DIF 50
+double difSmooth[NUM_MOTOR][FILT_DIF];
+double difMean[NUM_MOTOR];
+
 
 
 int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *callbackData)
@@ -246,23 +298,104 @@ int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *
         td->h1 = 1.0 * (td->tick0.QuadPart - td->tick1.QuadPart) / td->frequency.QuadPart;
         td->h2 = 1.0 * (td->tick1.QuadPart - td->tick2.QuadPart) / td->frequency.QuadPart;
 
+
         // How many encoderTicks per second
-        float dEncoderTicks0 =   (3*td->lce00 - 4*td->lce01 + td->lce02) / (td->h1 + td->h2);
-        float dEncoderTicks1 =   (3*td->lce10 - 4*td->lce11 + td->lce12) / (td->h1 + td->h2);
+        float dEncoderTicks0 =   (td->lce00 * 3.0 - td->lce01 * 4.0 + td->lce02) / (td->h1 + td->h2);
+        float dEncoderTicks1 =   (td->lce10 * 3.0 - td->lce11 * 4.0 + td->lce12) / (td->h1 + td->h2);
+        /*
+        float static dEncoderTicksQueue0[ORDER_LOWPASS + 1];
+        float static dEncoderTicksQueue1[ORDER_LOWPASS + 1];
+
+        float static dEncoderTicksFilteredQueue0[ORDER_LOWPASS + 1];
+        float static dEncoderTicksFilteredQueue1[ORDER_LOWPASS + 1];
+*/
+        //fillQueue(dEncoderTicks0, dEncoderTicksQueue0);
+        //fillQueue(dEncoderTicks1, dEncoderTicksQueue1);
+
+        for (int i = ORDER_LOWPASS; i > 0; i--)
+        {
+            dEncoderTicksQueue0[i] = dEncoderTicksQueue0[i - 1];
+            dEncoderTicksQueue1[i] = dEncoderTicksQueue1[i - 1];
+        }
+        dEncoderTicksQueue0[0] = dEncoderTicks0;
+        dEncoderTicksQueue1[0] = dEncoderTicks1;
+
+        //printf("\n\t%f\t%f", dEncoderTicks0, dEncoderTicks1);
+    
+
+        float dEncoderTicksFiltered0 = (0.003622f*dEncoderTicksFilteredQueue0[0] + 0.007243f*dEncoderTicksFilteredQueue0[1] + 0.003622f*dEncoderTicksFilteredQueue0[2] - (-1.823f)*dEncoderTicksQueue0[1] - 0.8372f*dEncoderTicksQueue0[2]);
+        float dEncoderTicksFiltered1 = (0.003622f*dEncoderTicksFilteredQueue1[0] + 0.007243f*dEncoderTicksFilteredQueue1[1] + 0.003622f*dEncoderTicksFilteredQueue1[2] - (-1.823f)*dEncoderTicksQueue1[1] - 0.8372f*dEncoderTicksQueue1[2]);
+        //printf("\n\t%f\t%f", dEncoderTicksFiltered0, dEncoderTicksFiltered1);
+        
+        //float dEncoderTicksFiltered0 = lowpassFilter(dEncoderTicksFilteredQueue0, dEncoderTicksQueue0);      
+        //float dEncoderTicksFiltered1 = lowpassFilter(dEncoderTicksFilteredQueue1, dEncoderTicksQueue1);
+        
+
+        for (int i = ORDER_LOWPASS; i > 0; i--)
+        { 
+            dEncoderTicksFilteredQueue0[i] = dEncoderTicksFilteredQueue0[i - 1];
+            dEncoderTicksFilteredQueue1[i] = dEncoderTicksFilteredQueue1[i - 1];
+        }
+        dEncoderTicksFilteredQueue0[0] = dEncoderTicksFiltered0;
+        dEncoderTicksFilteredQueue1[0] = dEncoderTicksFiltered1;
+        
+
+
         // Convert encoderTicks/sec to L0/sec
-        gMuscleVel[0] = -gLenScale[0] * dEncoderTicks0;
-        gMuscleVel[NUM_MOTOR-1] = -gLenScale[1] * dEncoderTicks1;
+        auto muscleVel0 = dEncoderTicks0;
+        auto muscleVel1 = dEncoderTicks1;
+         
+        
+        //printf("\n\t%f\t%f", filteredVel0, filteredVel1);
+
+        
         // ensure muscleVel > 0
-        gMuscleVel[0] = (gMuscleVel[0] > 0.0) ? gMuscleVel[0] : 0.0;
-        gMuscleVel[NUM_MOTOR-1] = (gMuscleVel[NUM_MOTOR-1] > 0.0) ? gMuscleVel[NUM_MOTOR-1] : 0.0;        
+        //gMuscleVel[0] = (rawVel0 > 0.0) ? rawVel0 : 0.0;
+        //gMuscleVel[1] = (rawVel1 > 0.0) ? rawVel1 : 0.0;
+        // ensure muscleVel > 0
 
 
-        td->lce01 = td->lce00;
+
+        //C
+	difMean[0]=0.0;
+	difMean[NUM_MOTOR-1]=0.0;
+
+	//Shift this and add to the end of it
+	for(i=0;i<FILT_DIF-1;i++)
+	{
+		difSmooth[0][i]=difSmooth[0][i+1];
+		difSmooth[NUM_MOTOR-1][i]=difSmooth[NUM_MOTOR-1][i+1];
+	}
+
+	difSmooth[0][FILT_DIF-1]=muscleVel0;
+	difSmooth[NUM_MOTOR-1][FILT_DIF-1]=muscleVel1;
+
+	for(i=0;i<FILT_DIF;i++)
+	{
+		difMean[0]+=difSmooth[0][i];
+		difMean[NUM_MOTOR-1]+=difSmooth[NUM_MOTOR-1][i];
+	}
+
+	difMean[0]/=(double)FILT_DIF;
+	difMean[NUM_MOTOR-1]/=(double)FILT_DIF;
+    muscleVel0 = -gLenScale[0]*difMean[0];
+    muscleVel1 = -gLenScale[1]*difMean[1];
+
+    
+    gMuscleVel[0] = (muscleVel0 > 0.0) ? muscleVel0: 0.0;
+    gMuscleVel[1] = (muscleVel1 > 0.0) ? muscleVel1: 0.0;
+
+
+
+        
         td->lce02 = td->lce01;
-        td->lce11 = td->lce10;
+        td->lce01 = td->lce00;
         td->lce12 = td->lce11;
-        td->tick1 = td->tick0;
+        td->lce11 = td->lce10;
+
+        
         td->tick2 = td->tick1;
+        td->tick1 = td->tick0;
 
 	}
     

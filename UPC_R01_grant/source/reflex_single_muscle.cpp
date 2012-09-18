@@ -71,19 +71,23 @@ using namespace std;
 
 #define     FPGA_BIT_FILENAME         "C:/nerf_sangerlab/projects/one_joint_robot/one_joint_robot_xem6010.bit"
 
-
+#define ORDER_LOWPASS 2
 // *** Global variables
-float32 gAuxvar [NUM_AUXVAR*NUM_MOTOR];
+float gAuxvar [NUM_AUXVAR*NUM_MOTOR];
 pthread_t gThreads[NUM_THREADS];
 pthread_mutex_t gMutex;
 TaskHandle gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
 void ledIndicator ( float w, float h );
-float32 gLenOrig[NUM_MOTOR], gLenScale[NUM_MOTOR], gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
+float gLenOrig[NUM_MOTOR], gLenScale[NUM_MOTOR], gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
 bool gResetSim=false,gIsRecording=false, gResetGlobal=false;
 LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 FILE *gDataFile, *gConfigFile;
 int gCurrMotorState = MOTOR_STATE_INIT;
 double gEncoderTick[NUM_MOTOR];
+float dEncoderTicksFilteredQueue0[ORDER_LOWPASS + 1];
+float dEncoderTicksFilteredQueue1[ORDER_LOWPASS + 1];
+float dEncoderTicksQueue0[ORDER_LOWPASS + 1];
+float dEncoderTicksQueue1[ORDER_LOWPASS + 1];
 
 
 float64 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
@@ -91,8 +95,8 @@ okCFrontPanel *gFpgaHandle0, *gFpgaHandle1;
 float32 gCtrlFromFPGA[NUM_FPGA];
 
 OGLGraph* gMyGraph;
-char gLceLabel1[40];
-char gLceLabel2[40];
+char gLceLabel1[60];
+char gLceLabel2[60];
 char gTimeStamp[20];
 char gStateLabel[5][30] = { "MOTOR_STATE_INIT",
                             "MOTOR_STATE_WINDING_UP",
@@ -135,7 +139,7 @@ void display ( void )   // Create The Display Function
 
     
     //gMyGraph->update( 10.0 * gAuxvar[0] );
-    gMyGraph->update( gMuscleVel[NUM_MOTOR-1] * 1.0 );
+    gMyGraph->update( gMuscleVel[NUM_MOTOR-1] );
 
     gMyGraph->draw();
     
@@ -158,11 +162,12 @@ void display ( void )   // Create The Display Function
     TwDraw();
     //sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
     //sprintf_s(gLceLabel1,"%.4f    %.2f   %f",gMuscleVel[0], gMuscleLce[0], gCtrlFromFPGA[0]);
-    sprintf_s(gLceLabel1,"%.3f    %.2f   %f",-gAuxvar[2], gMuscleLce[0], gCtrlFromFPGA[0]);
+    sprintf_s(gLceLabel1,"%f    %.2f   %f",-gAuxvar[2], gMuscleLce[0], gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
     //sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gMuscleVel[NUM_MOTOR - 1], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
-    sprintf_s(gLceLabel2,"%.3f    %.2f   %f",-gAuxvar[2+NUM_AUXVAR], gMuscleLce[1],gCtrlFromFPGA[NUM_FPGA - 1]);
+    sprintf_s(gLceLabel2,"%f    %.2f   %f",-gAuxvar[2+NUM_AUXVAR], gMuscleLce[1],gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
+    //printf("\n\t%f\t%f", gMuscleVel[0], gMuscleVel[1]);
     
     //sprintf_s(gStateLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
     outputText(300,95,gStateLabel[gCurrMotorState]);
@@ -440,19 +445,23 @@ void* ControlLoop(void*)
         float32 rawCtrl;
         ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
         
-        float32 tGain = 0.145;
+        float32 tGain = 0.121;
         float32 ppsBias = 110.0f;
-        float   coef_damp = 0.1;
+        float   coef_damp = 0.8;
 
         //PthreadMutexLock(&gMutex);
          
-        gCtrlFromFPGA[0] = max(0.0, min(65535.0, (rawCtrl - ppsBias) * tGain)) + coef_damp * gMuscleVel[0];
+        float muscleFoo0 = max(0.0, min(65535.0, (rawCtrl - ppsBias) * tGain)) + coef_damp * gMuscleVel[0];
         //PthreadMutexUnlock(&gMutex);
 
         // Read FPGA1
         ReadFPGA(gFpgaHandle1, 0x30, "float32", &rawCtrl);
         //PthreadMutexLock(&gMutex);
-        gCtrlFromFPGA[NUM_FPGA - 1] = max(0.0, min(65535.0, (rawCtrl - ppsBias) * tGain)) + coef_damp * gMuscleVel[1];
+        float muscleFoo1 = max(0.0, min(65535.0, (rawCtrl - ppsBias) * tGain)) + coef_damp * gMuscleVel[1];
+
+        
+        gCtrlFromFPGA[0] = muscleFoo0;
+        gCtrlFromFPGA[1] = muscleFoo1;
         //PthreadMutexUnlock(&gMutex);
 
         //printf("%.4f\t", gCtrlFromFPGA[0]);
@@ -468,11 +477,11 @@ void* ControlLoop(void*)
         {
             WriteFPGA(gFpgaHandle1, temp, 8);
         }
-        if (0 == ReInterpret((float32)(gMuscleVel[0]), &temp)) 
+        if (0 == ReInterpret((float32)(5.0 * gMuscleVel[0]), &temp)) 
         {
             WriteFPGA(gFpgaHandle0, temp, 9);
         }
-        if (0 == ReInterpret((float32)(gMuscleVel[1]), &temp)) 
+        if (0 == ReInterpret((float32)(5.0 * gMuscleVel[1]), &temp)) 
         {
             WriteFPGA(gFpgaHandle1, temp, 9);
         }
@@ -586,15 +595,15 @@ void initProgram()
 inline void LogData( void)
 {   
     // Approximately 100 Hz Recording
-    //double actualTime;
-    //QueryPerformanceCounter(&gCurrentTick);
-    //actualTime = gCurrentTick.QuadPart - gInitTick.QuadPart;
-    //actualTime /= gClkFrequency.QuadPart;
+    double actualTime;
+    QueryPerformanceCounter(&gCurrentTick);
+    actualTime = gCurrentTick.QuadPart - gInitTick.QuadPart;
+    actualTime /= gClkFrequency.QuadPart;
     if (gIsRecording)
     {   
-        //fprintf(gDataFile,"%.3lf\t",actualTime );																			//1
-        fprintf(gDataFile,"%f\t%f\t%f\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0]);								//2,3
-        fprintf(gDataFile,"%f\t%f\t%f\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1]);								//2,3
+        fprintf(gDataFile,"%.3lf\t",actualTime );																			//1
+        fprintf(gDataFile,"%f\t%f\t%f\t", gAuxvar[2],gMuscleVel[0],gCtrlFromFPGA[0]);								//2,3
+        fprintf(gDataFile,"%f\t%f\t%f\t", gAuxvar[2+NUM_AUXVAR],gMuscleVel[1],gCtrlFromFPGA[1]);								//2,3
         fprintf(gDataFile,"\n");
     }
 }
@@ -615,6 +624,20 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     gLenOrig[1]=0.0;
     //gLenScale=0.0001;
     
+    dEncoderTicksFilteredQueue0[0] = 0.0;
+    dEncoderTicksFilteredQueue0[1] = 0.0;
+    dEncoderTicksFilteredQueue0[2] = 0.0;
+    dEncoderTicksFilteredQueue1[0] = 0.0;
+    dEncoderTicksFilteredQueue1[1] = 0.0;
+    dEncoderTicksFilteredQueue1[2] = 0.0;
+
+    dEncoderTicksQueue0[0] = 0.0;
+    dEncoderTicksQueue0[1] = 0.0;
+    dEncoderTicksQueue0[2] = 0.0;
+    dEncoderTicksQueue1[0] = 0.0;
+    dEncoderTicksQueue1[1] = 0.0;
+    dEncoderTicksQueue1[2] = 0.0;
+
     FILE *ConfigFile;
     ConfigFile= fopen("ConfigPXI.txt","r");
 

@@ -24,16 +24,19 @@ public:
     //
 };
 
-extern float32 gAuxvar[];
+extern float gAuxvar[];
 extern TaskHandle gAOTaskHandle;
 extern TaskHandle gEncoderHandle[];
 extern int gCurrMotorState;
 
 
 extern bool gIsRecording;
-extern float32 gLenOrig[], gLenScale[], gMuscleLce[], gMuscleVel[];
+extern float gLenOrig[], gLenScale[], gMuscleLce[], gMuscleVel[];
 extern double gEncoderTick[];
-
+extern float dEncoderTicksFilteredQueue0[];
+extern float dEncoderTicksFilteredQueue1[];
+extern float dEncoderTicksQueue0[];
+extern float dEncoderTicksQueue1[];
 int32 CVICALLBACK EveryNCallback(TaskHandle taskHandleDAQmx, int32 everyNsamplesEventType, uInt32 nSamples, void *callbackData);
 int32 CVICALLBACK DoneCallback(TaskHandle taskHandleDAQmx, int32 status, void *callbackData);
 int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *callbackData);

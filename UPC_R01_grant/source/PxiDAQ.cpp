@@ -167,7 +167,7 @@ inline int fillQueue(float x, float (&xQueue) [ORDER_LOWPASS + 1])
 
 
         
-#define FILT_DIF 50
+#define FILT_DIF 30
 double difSmooth[NUM_MOTOR][FILT_DIF];
 double difMean[NUM_MOTOR];
 

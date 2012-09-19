@@ -139,7 +139,7 @@ void display ( void )   // Create The Display Function
 
     
     //gMyGraph->update( 10.0 * gAuxvar[0] );
-    gMyGraph->update( gMuscleVel[NUM_MOTOR-1] );
+    gMyGraph->update( gMuscleVel[0] );
 
     gMyGraph->draw();
     
@@ -445,9 +445,9 @@ void* ControlLoop(void*)
         float32 rawCtrl;
         ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
         
-        float32 tGain = 0.121;
-        float32 ppsBias = 110.0f;
-        float   coef_damp = 0.8;
+        float32 tGain = 0.141; // working = 0.141
+        float32 ppsBias = 120.0f;
+        float   coef_damp = 0.3; // working = 0.3
 
         //PthreadMutexLock(&gMutex);
          
@@ -477,11 +477,11 @@ void* ControlLoop(void*)
         {
             WriteFPGA(gFpgaHandle1, temp, 8);
         }
-        if (0 == ReInterpret((float32)(5.0 * gMuscleVel[0]), &temp)) 
+        if (0 == ReInterpret((float32)(2.0 * gMuscleVel[0]), &temp)) 
         {
             WriteFPGA(gFpgaHandle0, temp, 9);
         }
-        if (0 == ReInterpret((float32)(5.0 * gMuscleVel[1]), &temp)) 
+        if (0 == ReInterpret((float32)(2.0 * gMuscleVel[1]), &temp)) 
         {
             WriteFPGA(gFpgaHandle1, temp, 9);
         }

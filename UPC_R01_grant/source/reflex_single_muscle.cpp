@@ -1,4 +1,3 @@
-
 using namespace std;
 
 //------------------------------------------------------------------------
@@ -69,41 +68,38 @@ using namespace std;
 #include	"glut.h"   // The GL Utility Toolkit (Glut) Header
 #include	"OGLGraph.h"
 
-#define     FPGA_BIT_FILENAME         "C:/nerf_sangerlab/projects/one_joint_robot/one_joint_robot_xem6010.bit"
 
-#define ORDER_LOWPASS 2
 // *** Global variables
-float gAuxvar [NUM_AUXVAR*NUM_MOTOR];
-pthread_t gThreads[NUM_THREADS];
-pthread_mutex_t gMutex;
-TaskHandle gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
+float                   gAuxvar [NUM_AUXVAR*NUM_MOTOR];
+pthread_t               gThreads[NUM_THREADS];
+pthread_mutex_t         gMutex;
+TaskHandle              gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
+float                   gLenOrig[NUM_MOTOR], gLenScale[NUM_MOTOR], gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
+bool                    gResetSim=false,gIsRecording=false, gResetGlobal=false;
+LARGE_INTEGER           gInitTick, gCurrentTick, gClkFrequency;
+FILE                    *gDataFile, *gConfigFile;
+int                     gCurrMotorState = MOTOR_STATE_INIT;
+double                  gEncoderCount[NUM_MOTOR];
+float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
+okCFrontPanel           *gFpgaHandle0, *gFpgaHandle1;
+float                   gCtrlFromFPGA[NUM_FPGA];
+int                     gMuscleEMG[NUM_FPGA];
+
+OGLGraph*               gMyGraph;
+char                    gLceLabel1[60];
+char                    gLceLabel2[60];
+char                    gTimeStamp[20];
+char                    gStateLabel[5][30] = { "MOTOR_STATE_INIT",
+                                               "MOTOR_STATE_WINDING_UP",
+                                               "MOTOR_STATE_OPEN_LOOP",
+                                               "MOTOR_STATE_CLOSED_LOOP",                            
+                                               "MOTOR_STATE_SHUTTING_DOWN"};
+
 void ledIndicator ( float w, float h );
-float gLenOrig[NUM_MOTOR], gLenScale[NUM_MOTOR], gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
-bool gResetSim=false,gIsRecording=false, gResetGlobal=false;
-LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
-FILE *gDataFile, *gConfigFile;
-int gCurrMotorState = MOTOR_STATE_INIT;
-double gEncoderTick[NUM_MOTOR];
-float dEncoderTicksFilteredQueue0[ORDER_LOWPASS + 1];
-float dEncoderTicksFilteredQueue1[ORDER_LOWPASS + 1];
-float dEncoderTicksQueue0[ORDER_LOWPASS + 1];
-float dEncoderTicksQueue1[ORDER_LOWPASS + 1];
 
 
-float64 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
-okCFrontPanel *gFpgaHandle0, *gFpgaHandle1;
-float32 gCtrlFromFPGA[NUM_FPGA];
-int gMuscleEMG[NUM_FPGA];
 
-OGLGraph* gMyGraph;
-char gLceLabel1[60];
-char gLceLabel2[60];
-char gTimeStamp[20];
-char gStateLabel[5][30] = { "MOTOR_STATE_INIT",
-                            "MOTOR_STATE_WINDING_UP",
-                            "MOTOR_STATE_OPEN_LOOP",
-                            "MOTOR_STATE_CLOSED_LOOP",
-                            "MOTOR_STATE_SHUTTING_DOWN"};
+
 
 
 void init ( GLvoid )     // Create Some Everyday Functions
@@ -313,8 +309,8 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     //    break;
     case 'z':       //Rezero
     case 'Z':
-        gLenOrig[0]=gAuxvar[2] + gEncoderTick[0];
-        gLenOrig[1]=gAuxvar[2+NUM_AUXVAR] + gEncoderTick[1];
+        gLenOrig[0]=gAuxvar[2] + gEncoderCount[0];
+        gLenOrig[1]=gAuxvar[2+NUM_AUXVAR] + gEncoderCount[1];
         break;
     case 'E':         
     case 'e':     
@@ -436,19 +432,13 @@ void* ControlLoop(void*)
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
 
-    
-        
-    // for DEBUG:
     int32 ieee_1;
     ReInterpret((float32)(1.02), &ieee_1);
-
     
     int32 IEEE_30;
     ReInterpret((float32)(30.0), &IEEE_30);
     WriteFPGA(gFpgaHandle0, IEEE_30, 1);
     WriteFPGA(gFpgaHandle1, IEEE_30, 1);
-    //WriteFPGA(gFpgaHandle0, 0xFFFFFFFF, 7);
-    //WriteFPGA(gFpgaHandle1, 0xFFFFFFFF, 7);
 
     while (1)
     {
@@ -500,19 +490,19 @@ void* ControlLoop(void*)
         //if (0 == ReInterpret((float32)(1.0 - 0.5* gAuxvar[0]), &temp)) 
         if (0 == ReInterpret((float32)(gMuscleLce[0]), &temp)) 
         {
-            WriteFPGA(gFpgaHandle0, temp, 8);
+            WriteFPGA(gFpgaHandle0, temp, DATA_EVT_LCE);
         }
         if (0 == ReInterpret((float32)(gMuscleLce[1]), &temp)) 
         {
-            WriteFPGA(gFpgaHandle1, temp, 8);
+            WriteFPGA(gFpgaHandle1, temp, DATA_EVT_LCE);
         }
         if (0 == ReInterpret((float32)(3.0 * gMuscleVel[0]), &temp)) 
         {
-            WriteFPGA(gFpgaHandle0, temp, 9);
+            WriteFPGA(gFpgaHandle0, temp, DATA_EVT_VEL);
         }
         if (0 == ReInterpret((float32)(3.0 * gMuscleVel[1]), &temp)) 
         {
-            WriteFPGA(gFpgaHandle1, temp, 9);
+            WriteFPGA(gFpgaHandle1, temp, DATA_EVT_VEL);
         }
         //printf("Input = %0.4f :: Out = %0.4f \n", (float32) 1.0 - 0.5* gAuxvar[0], gCtrlFromFPGA); 
 
@@ -536,16 +526,9 @@ void exitProgram()
     StopSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
     StopPositionRead(&gEncoderHandle[0],&gEncoderHandle[1]);
     TwTerminate();
-    //if (gFpgaHandle0 != gFpgaHandle1) 
-    //{
-    //        delete gFpgaHandle0;
-    //        delete gFpgaHandle1;
-    //} 
-    //else
-    //    delete gFpgaHandle0;
 }
 
-int initFPGA(okCFrontPanel *xem0)
+int InitFpga(okCFrontPanel *xem0)
 {   
 	if (okCFrontPanel::NoError != xem0->OpenBySerial()) {
 		delete xem0;
@@ -605,7 +588,7 @@ int initFPGA(okCFrontPanel *xem0)
 }
 
 //int recording;
-void initProgram()
+void InitProgram()
 {
     time_t rawtime;
     struct tm *timeinfo;
@@ -653,20 +636,6 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     gLenOrig[1]=0.0;
     //gLenScale=0.0001;
     
-    dEncoderTicksFilteredQueue0[0] = 0.0;
-    dEncoderTicksFilteredQueue0[1] = 0.0;
-    dEncoderTicksFilteredQueue0[2] = 0.0;
-    dEncoderTicksFilteredQueue1[0] = 0.0;
-    dEncoderTicksFilteredQueue1[1] = 0.0;
-    dEncoderTicksFilteredQueue1[2] = 0.0;
-
-    dEncoderTicksQueue0[0] = 0.0;
-    dEncoderTicksQueue0[1] = 0.0;
-    dEncoderTicksQueue0[2] = 0.0;
-    dEncoderTicksQueue1[0] = 0.0;
-    dEncoderTicksQueue1[1] = 0.0;
-    dEncoderTicksQueue1[2] = 0.0;
-
     FILE *ConfigFile;
     ConfigFile= fopen("ConfigPXI.txt","r");
 
@@ -718,16 +687,16 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     //gFpgaHandle1 = gFpgaHandle0;
 
     
-    if (0 != initFPGA(gFpgaHandle0)) {
+    if (0 != InitFpga(gFpgaHandle0)) {
 		printf("FPGA could not be initialized.\n");
 		return(-1);
 	}
     
-    initFPGA(gFpgaHandle1); // a pointer to the FPGA device
+    InitFpga(gFpgaHandle1); // a pointer to the FPGA device
 
     // *** load fpga dll
   
-    initProgram();
+    InitProgram();
     atexit( exitProgram );
 
 

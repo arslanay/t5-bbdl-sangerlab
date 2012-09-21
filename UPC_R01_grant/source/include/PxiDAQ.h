@@ -32,14 +32,11 @@ extern int gCurrMotorState;
 
 extern bool gIsRecording;
 extern float gLenOrig[], gLenScale[], gMuscleLce[], gMuscleVel[];
-extern double gEncoderTick[];
-extern float dEncoderTicksFilteredQueue0[];
-extern float dEncoderTicksFilteredQueue1[];
-extern float dEncoderTicksQueue0[];
-extern float dEncoderTicksQueue1[];
+extern double gEncoderCount[];
+
 int32 CVICALLBACK EveryNCallback(TaskHandle taskHandleDAQmx, int32 everyNsamplesEventType, uInt32 nSamples, void *callbackData);
 int32 CVICALLBACK DoneCallback(TaskHandle taskHandleDAQmx, int32 status, void *callbackData);
-int32 CVICALLBACK update_data(TaskHandle taskHandleDAQmx, int32 signalID, void *callbackData);
+int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void *callbackData);
 //int32 CVICALLBACK update_dataEnableMotors(TaskHandle taskHandleDAQmxEnableMotors, int32 signalID, void *callbackData);
 
 

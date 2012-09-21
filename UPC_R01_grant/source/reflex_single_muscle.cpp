@@ -93,6 +93,7 @@ float dEncoderTicksQueue1[ORDER_LOWPASS + 1];
 float64 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
 okCFrontPanel *gFpgaHandle0, *gFpgaHandle1;
 float32 gCtrlFromFPGA[NUM_FPGA];
+int gMuscleEMG[NUM_FPGA];
 
 OGLGraph* gMyGraph;
 char gLceLabel1[60];
@@ -162,10 +163,10 @@ void display ( void )   // Create The Display Function
     TwDraw();
     //sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
     //sprintf_s(gLceLabel1,"%.4f    %.2f   %f",gMuscleVel[0], gMuscleLce[0], gCtrlFromFPGA[0]);
-    sprintf_s(gLceLabel1,"%f    %.2f   %f",-gAuxvar[2], gMuscleLce[0], gCtrlFromFPGA[0]);
+    sprintf_s(gLceLabel1,"%f    %.2f   %d",-gAuxvar[2], gMuscleLce[0], gMuscleEMG[0]);
     outputText(10,95,gLceLabel1);
     //sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gMuscleVel[NUM_MOTOR - 1], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
-    sprintf_s(gLceLabel2,"%f    %.2f   %f",-gAuxvar[2+NUM_AUXVAR], gMuscleLce[1],gCtrlFromFPGA[NUM_FPGA - 1]);
+    sprintf_s(gLceLabel2,"%f    %.2f   %d",-gAuxvar[2+NUM_AUXVAR], gMuscleLce[1],gMuscleEMG[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     //printf("\n\t%f\t%f", gMuscleVel[0], gMuscleVel[1]);
     
@@ -355,9 +356,31 @@ int ReadFPGA(okCFrontPanel *xem, BYTE getAddr, char *type, float32 *outVal)
         //outVal = ConvertType(outVal, 'I', 'f')
         //#print outVal
     }
+
+    return 0;
+}
+
+
+int ReadFPGA(okCFrontPanel *xem, BYTE getAddr, char *type, int *outVal)
+{
+    xem -> UpdateWireOuts();
+    // Read 18-bit integer from FPGA
+    if (0 == strcmp(type, "int18"))
+    {
+        //intValLo = self.xem.GetWireOutValue(getAddr) & 0xffff # length = 16-bit
+        //intValHi = self.xem.GetWireOutValue(getAddr + 0x01) & 0x0003 # length = 2-bit
+        //intVal = ((intValHi << 16) + intValLo) & 0xFFFFFFFF
+        //if intVal > 0x1FFFF:
+        //    intVal = -(0x3FFFF - intVal + 0x1)
+        //outVal = float(intVal) # in mV De-Scaling factor = 0xFFFF
+    }
     // Read 32-bit signed integer from FPGA
     else if (0 == strcmp(type, "int32"))
     {
+        int outValLo = xem -> GetWireOutValue(getAddr) & 0xffff;
+        int outValHi = xem -> GetWireOutValue(getAddr + 0x01) & 0xffff;
+        int outValInt = ((outValHi << 16) + outValLo) & 0xFFFFFFFF;
+        *outVal = outValInt;
     //elif type == "int32" :
     //    intValLo = self.xem.GetWireOutValue(getAddr) & 0xffff # length = 16-bit
     //    intValHi = self.xem.GetWireOutValue(getAddr + 0x01) & 0xffff # length = 16-bit
@@ -443,8 +466,11 @@ void* ControlLoop(void*)
 
         // Read FPGA0
         float32 rawCtrl;
+        int muscleEMG;
         ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
-        
+        ReadFPGA(gFpgaHandle0, 0x32, "int32", &muscleEMG);
+        gMuscleEMG[0] = muscleEMG;
+
         float32 tGain = 0.141; // working = 0.141
         float32 ppsBias = 120.0f;
         float   coef_damp = 0.3; // working = 0.3
@@ -456,6 +482,9 @@ void* ControlLoop(void*)
 
         // Read FPGA1
         ReadFPGA(gFpgaHandle1, 0x30, "float32", &rawCtrl);
+        ReadFPGA(gFpgaHandle1, 0x32, "int32", &muscleEMG);
+        gMuscleEMG[NUM_FPGA-1] = muscleEMG;
+
         //PthreadMutexLock(&gMutex);
         float muscleFoo1 = max(0.0, min(65535.0, (rawCtrl - ppsBias) * tGain)) + coef_damp * gMuscleVel[1];
 
@@ -477,11 +506,11 @@ void* ControlLoop(void*)
         {
             WriteFPGA(gFpgaHandle1, temp, 8);
         }
-        if (0 == ReInterpret((float32)(2.0 * gMuscleVel[0]), &temp)) 
+        if (0 == ReInterpret((float32)(3.0 * gMuscleVel[0]), &temp)) 
         {
             WriteFPGA(gFpgaHandle0, temp, 9);
         }
-        if (0 == ReInterpret((float32)(2.0 * gMuscleVel[1]), &temp)) 
+        if (0 == ReInterpret((float32)(3.0 * gMuscleVel[1]), &temp)) 
         {
             WriteFPGA(gFpgaHandle1, temp, 9);
         }
@@ -602,8 +631,8 @@ inline void LogData( void)
     if (gIsRecording)
     {   
         fprintf(gDataFile,"%.3lf\t",actualTime );																			//1
-        fprintf(gDataFile,"%f\t%f\t%f\t", gAuxvar[2],gMuscleVel[0],gCtrlFromFPGA[0]);								//2,3
-        fprintf(gDataFile,"%f\t%f\t%f\t", gAuxvar[2+NUM_AUXVAR],gMuscleVel[1],gCtrlFromFPGA[1]);								//2,3
+        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMuscleEMG[0]);								//2,3
+        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMuscleEMG[1]);								//2,3
         fprintf(gDataFile,"\n");
     }
 }

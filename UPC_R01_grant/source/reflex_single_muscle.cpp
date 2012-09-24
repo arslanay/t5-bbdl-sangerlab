@@ -68,6 +68,7 @@ using namespace std;
 #include	"glut.h"   // The GL Utility Toolkit (Glut) Header
 #include	"OGLGraph.h"
 
+#pragma comment(lib, "ipps.lib")
 
 // *** Global variables
 float                   gAuxvar [NUM_AUXVAR*NUM_MOTOR];
@@ -94,6 +95,12 @@ char                    gStateLabel[5][30] = { "MOTOR_STATE_INIT",
                                                "MOTOR_STATE_OPEN_LOOP",
                                                "MOTOR_STATE_CLOSED_LOOP",                            
                                                "MOTOR_STATE_SHUTTING_DOWN"};
+//IPP
+Ipp32f taps0[3];
+Ipp32f taps1[3];
+Ipp32f dly0[3];
+Ipp32f dly1[3];
+IppsFIRState_32f *pFIRState0, *pFIRState1;
 
 void ledIndicator ( float w, float h );
 
@@ -145,14 +152,14 @@ void display ( void )   // Create The Display Function
         glColor3f(1.0f,0.0f,0.0f);
     else
         glColor3f(0.0f,1.0f,0.0f);
-    ledIndicator ( 10.0f,80.0f );
+    ledIndicator( 10.0f,80.0f );
 
 
     if(!gIsRecording)
         glColor3f(1.0f,0.0f,0.0f);
     else
         glColor3f(0.0f,1.0f,0.0f);
-    ledIndicator ( 50.0f,80.0f );
+    ledIndicator( 50.0f,80.0f );
     glColor3f(1.0f,1.0f,1.0f);
 
     // Draw tweak bars

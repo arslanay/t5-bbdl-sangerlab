@@ -5,7 +5,7 @@
 #include	"pthread.h"
 #include    "Utilities.h"
 #include    <windows.h>
-
+#include    <ipp.h>
 
 class TimeData
 {
@@ -23,6 +23,13 @@ public:
 
     //
 };
+
+
+extern Ipp32f taps0[];
+extern Ipp32f taps1[];
+extern Ipp32f dly0[];
+extern Ipp32f dly1[];
+extern IppsFIRState_32f *pFIRState0, *pFIRState1;
 
 extern float gAuxvar[];
 extern TaskHandle gAOTaskHandle;

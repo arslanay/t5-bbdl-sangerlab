@@ -3,13 +3,19 @@
 #include	"Utilities.h"
 #include    "PxiDAQ.h"
 #include    <math.h>
+
+
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
-
-
+//#define     USING_SMOOTH
 
 int const ORDER_LOWPASS = 2;
         
-                
+void myMakeSrc_32f(Ipp32f** pSig, int len)
+{
+	*pSig = ippsMalloc_32f(len);
+
+	ippsVectorJaehne_32f( *pSig, len, 1 );
+}       
 
 TimeData::TimeData() :
     lce00(1.0), lce01(1.0), lce02(1.0), h1(1.0), h2(1.0),
@@ -28,6 +34,25 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
     TaskHandle ForceReadTaskHandle = *rawForceHandle;
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
+
+    //IPP
+    taps0[0] = 0.25f;
+    taps0[1] = 0.5f;
+    taps0[2] = 0.25f;
+    taps1[0] = 0.25f;
+    taps1[1] = 0.5f;
+    taps1[2] = 0.25f;
+
+    dly0[0] = 0.25f;
+    dly0[1] = 0.5f;
+    dly0[2] = 0.25f;
+    dly1[0] = 0.25f;
+    dly1[1] = 0.5f;
+    dly1[2] = 0.25f;
+
+    ippsFIRInitAlloc_32f( &pFIRState0, taps0, 3, dly0 );
+    ippsFIRInitAlloc_32f( &pFIRState1, taps1, 3, dly1 );
+
 
 
     gDataFile = fopen(gTimeStamp,"a");
@@ -96,6 +121,11 @@ int StopSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
     
     fclose(gDataFile);
 
+    //IPP
+    ippsFIRFree_32f(pFIRState0);
+    ippsFIRFree_32f(pFIRState1);
+
+
     DAQmxErrChk (DAQmxWriteAnalogF64(AOHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, ZERO_VOLTS, NULL, NULL));
     
 	//printf( "\nStopping EMG ...\n" );
@@ -125,11 +155,11 @@ Error:
 	return 0;
 }
 
-        
+#ifdef USING_SMOOTH
 const int FILT_DIF = 30;
 double difSmooth[NUM_MOTOR][FILT_DIF];
 double difMean[NUM_MOTOR];
-
+#endif
 
 
 int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void *callbackData)
@@ -263,48 +293,45 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
 
 
         // Convert encoderTicks/sec to L0/sec
-        auto muscleVel0 = dEncoderCounts0;
-        auto muscleVel1 = dEncoderCounts1;
-         
-        
-        //printf("\n\t%f\t%f", filteredVel0, filteredVel1);
+        float muscleVel0;
+        float muscleVel1;
 
-        
+        ippsFIROne_32f(dEncoderCounts0, &muscleVel0, pFIRState0);
+        ippsFIROne_32f(dEncoderCounts1, &muscleVel1, pFIRState1);
+                
         // ensure muscleVel > 0
         //gMuscleVel[0] = (rawVel0 > 0.0) ? rawVel0 : 0.0;
         //gMuscleVel[1] = (rawVel1 > 0.0) ? rawVel1 : 0.0;
         // ensure muscleVel > 0
 
+#ifdef USING_SMOOTH
+        difMean[0]=0.0;
+        difMean[NUM_MOTOR-1]=0.0;
 
+        //Shift this and add to the end of it
+        for(i=0;i<FILT_DIF-1;i++)
+        {
+	        difSmooth[0][i]=difSmooth[0][i+1];
+	        difSmooth[NUM_MOTOR-1][i]=difSmooth[NUM_MOTOR-1][i+1];
+        }
 
-        //C
-	difMean[0]=0.0;
-	difMean[NUM_MOTOR-1]=0.0;
+        difSmooth[0][FILT_DIF-1]=muscleVel0;
+        difSmooth[NUM_MOTOR-1][FILT_DIF-1]=muscleVel1;
 
-	//Shift this and add to the end of it
-	for(i=0;i<FILT_DIF-1;i++)
-	{
-		difSmooth[0][i]=difSmooth[0][i+1];
-		difSmooth[NUM_MOTOR-1][i]=difSmooth[NUM_MOTOR-1][i+1];
-	}
+        for(i=0;i<FILT_DIF;i++)
+        {
+	        difMean[0]+=difSmooth[0][i];
+	        difMean[NUM_MOTOR-1]+=difSmooth[NUM_MOTOR-1][i];
+        }
 
-	difSmooth[0][FILT_DIF-1]=muscleVel0;
-	difSmooth[NUM_MOTOR-1][FILT_DIF-1]=muscleVel1;
-
-	for(i=0;i<FILT_DIF;i++)
-	{
-		difMean[0]+=difSmooth[0][i];
-		difMean[NUM_MOTOR-1]+=difSmooth[NUM_MOTOR-1][i];
-	}
-
-	difMean[0]/=(double)FILT_DIF;
-	difMean[NUM_MOTOR-1]/=(double)FILT_DIF;
-    muscleVel0 = -gLenScale[0]*difMean[0];
-    muscleVel1 = -gLenScale[1]*difMean[1];
-
+        difMean[0]/=(double)FILT_DIF;
+        difMean[NUM_MOTOR-1]/=(double)FILT_DIF;
+        muscleVel0 = -gLenScale[0]*difMean[0];
+        muscleVel1 = -gLenScale[1]*difMean[1];
+#endif
     
-    gMuscleVel[0] = (muscleVel0 > 0.0) ? muscleVel0: 0.0;
-    gMuscleVel[1] = (muscleVel1 > 0.0) ? muscleVel1: 0.0;
+        gMuscleVel[0] = (muscleVel0 > 0.0) ? muscleVel0: 0.0;
+        gMuscleVel[1] = (muscleVel1 > 0.0) ? muscleVel1: 0.0;
 
 
 

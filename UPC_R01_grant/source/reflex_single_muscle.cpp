@@ -166,10 +166,10 @@ void display ( void )   // Create The Display Function
     TwDraw();
     //sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
     //sprintf_s(gLceLabel1,"%.4f    %.2f   %f",gMuscleVel[0], gMuscleLce[0], gCtrlFromFPGA[0]);
-    sprintf_s(gLceLabel1,"%f    %.2f   %d",-gAuxvar[2], gMuscleLce[0], gMuscleEMG[0]);
+    sprintf_s(gLceLabel1,"%f    %.2f   %d",-gAuxvar[2], gMuscleVel[0], gMuscleEMG[0]);
     outputText(10,95,gLceLabel1);
     //sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gMuscleVel[NUM_MOTOR - 1], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
-    sprintf_s(gLceLabel2,"%f    %.2f   %d",-gAuxvar[2+NUM_AUXVAR], gMuscleLce[1],gMuscleEMG[NUM_FPGA - 1]);
+    sprintf_s(gLceLabel2,"%f    %.2f   %d",-gAuxvar[2+NUM_AUXVAR], gMuscleVel[1],gMuscleEMG[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     //printf("\n\t%f\t%f", gMuscleVel[0], gMuscleVel[1]);
     

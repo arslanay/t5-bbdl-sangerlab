@@ -6,8 +6,8 @@
 
 
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
-#define     USING_SMOOTH
-//#define     USING_IPP
+//#define     USING_SMOOTH
+#define     USING_IPP
 
 int const ORDER_LOWPASS = 2;
         
@@ -46,10 +46,10 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
     ippsSet_32f(1.0f, taps1, lenFilter);*/
 
     taps0[0] = 0.25f;
-    taps0[1] = 0.25f;
+    taps0[1] = 0.50f;
     taps0[2] = 0.25f;
     taps1[0] = 0.25f;
-    taps1[1] = 0.5f;
+    taps1[1] = 0.50f;
     taps1[2] = 0.25f;
 
     ippsZero_32f(dly0,lenFilter);
@@ -306,9 +306,11 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
 #ifdef  USING_IPP
         ippsFIROne_32f(dEncoderCounts0, &muscleVel0, pFIRState0);
         ippsFIROne_32f(dEncoderCounts1, &muscleVel1, pFIRState1);
+        muscleVel0*=(-gLenScale[0]);
+        muscleVel1*=(-gLenScale[1]);
 #else
-        muscleVel0 = dEncoderCounts0;
-        muscleVel1 = dEncoderCounts1;
+        muscleVel0 = dEncoderCounts0*(-gLenScale[0]);
+        muscleVel1 = dEncoderCounts1*(-gLenScale[1]);
 #endif
         // ensure muscleVel > 0
         //gMuscleVel[0] = (rawVel0 > 0.0) ? rawVel0 : 0.0;

@@ -24,11 +24,11 @@ public:
     //
 };
 
-
-extern Ipp32f taps0[];
-extern Ipp32f taps1[];
-extern Ipp32f dly0[];
-extern Ipp32f dly1[];
+const int lenFilter = 3;
+extern Ipp32f* taps0;
+extern Ipp32f* taps1;
+extern Ipp32f* dly0;
+extern Ipp32f* dly1;
 extern IppsFIRState_32f *pFIRState0, *pFIRState1;
 
 extern float gAuxvar[];

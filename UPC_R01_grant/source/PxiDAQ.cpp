@@ -6,7 +6,8 @@
 
 
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
-//#define     USING_SMOOTH
+#define     USING_SMOOTH
+//#define     USING_IPP
 
 int const ORDER_LOWPASS = 2;
         
@@ -36,24 +37,26 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
 	char        errBuff[2048]={'\0'};
 
     //IPP
+    taps0 = ippsMalloc_32f(lenFilter);
+    taps1 = ippsMalloc_32f(lenFilter);
+    dly0  = ippsMalloc_32f(lenFilter);
+    dly1  = ippsMalloc_32f(lenFilter);
+
+    /*ippsSet_32f(1.0f, taps0, lenFilter);
+    ippsSet_32f(1.0f, taps1, lenFilter);*/
+
     taps0[0] = 0.25f;
-    taps0[1] = 0.5f;
+    taps0[1] = 0.25f;
     taps0[2] = 0.25f;
     taps1[0] = 0.25f;
     taps1[1] = 0.5f;
     taps1[2] = 0.25f;
 
-    dly0[0] = 0.25f;
-    dly0[1] = 0.5f;
-    dly0[2] = 0.25f;
-    dly1[0] = 0.25f;
-    dly1[1] = 0.5f;
-    dly1[2] = 0.25f;
-
-    ippsFIRInitAlloc_32f( &pFIRState0, taps0, 3, dly0 );
-    ippsFIRInitAlloc_32f( &pFIRState1, taps1, 3, dly1 );
-
-
+    ippsZero_32f(dly0,lenFilter);
+    ippsZero_32f(dly1,lenFilter);
+        
+    ippsFIRInitAlloc_32f( &pFIRState0, taps0, lenFilter, dly0 );
+    ippsFIRInitAlloc_32f( &pFIRState1, taps1, lenFilter, dly1 );
 
     gDataFile = fopen(gTimeStamp,"a");
 
@@ -124,7 +127,11 @@ int StopSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
     //IPP
     ippsFIRFree_32f(pFIRState0);
     ippsFIRFree_32f(pFIRState1);
-
+    
+    ippsFree(taps0);
+    ippsFree(taps1);
+    ippsFree(dly0);
+    ippsFree(dly1);
 
     DAQmxErrChk (DAQmxWriteAnalogF64(AOHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, ZERO_VOLTS, NULL, NULL));
     
@@ -296,9 +303,13 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         float muscleVel0;
         float muscleVel1;
 
+#ifdef  USING_IPP
         ippsFIROne_32f(dEncoderCounts0, &muscleVel0, pFIRState0);
         ippsFIROne_32f(dEncoderCounts1, &muscleVel1, pFIRState1);
-                
+#else
+        muscleVel0 = dEncoderCounts0;
+        muscleVel1 = dEncoderCounts1;
+#endif
         // ensure muscleVel > 0
         //gMuscleVel[0] = (rawVel0 > 0.0) ? rawVel0 : 0.0;
         //gMuscleVel[1] = (rawVel1 > 0.0) ? rawVel1 : 0.0;

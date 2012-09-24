@@ -96,10 +96,10 @@ char                    gStateLabel[5][30] = { "MOTOR_STATE_INIT",
                                                "MOTOR_STATE_CLOSED_LOOP",                            
                                                "MOTOR_STATE_SHUTTING_DOWN"};
 //IPP
-Ipp32f taps0[3];
-Ipp32f taps1[3];
-Ipp32f dly0[3];
-Ipp32f dly1[3];
+Ipp32f* taps0;
+Ipp32f* taps1;
+Ipp32f* dly0;
+Ipp32f* dly1;
 IppsFIRState_32f *pFIRState0, *pFIRState1;
 
 void ledIndicator ( float w, float h );

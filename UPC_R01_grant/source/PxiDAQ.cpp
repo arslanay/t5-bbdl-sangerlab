@@ -45,12 +45,20 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
     /*ippsSet_32f(1.0f, taps0, lenFilter);
     ippsSet_32f(1.0f, taps1, lenFilter);*/
 
-    taps0[0] = 0.25f;
-    taps0[1] = 0.50f;
-    taps0[2] = 0.25f;
-    taps1[0] = 0.25f;
-    taps1[1] = 0.50f;
-    taps1[2] = 0.25f;
+    taps0[0] = 0.0284f;
+    taps0[1] = 0.1427f;
+    taps0[2] = 0.3289f;
+    taps0[3] = 0.3289f;
+    taps0[4] = 0.1427f;
+    taps0[5] = 0.0284f;
+
+    taps1[0] = 0.0284f;
+    taps1[1] = 0.1427f;
+    taps1[2] = 0.3289f;
+    taps1[3] = 0.3289f;
+    taps1[4] = 0.1427f;
+    taps1[5] = 0.0284f;
+
 
     ippsZero_32f(dly0,lenFilter);
     ippsZero_32f(dly1,lenFilter);

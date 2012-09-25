@@ -460,7 +460,7 @@ void* ControlLoop(void*)
         
         //printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
-
+          
         // Read FPGA0
         float32 rawCtrl;
         int muscleEMG;
@@ -470,7 +470,7 @@ void* ControlLoop(void*)
 
         float32 tGain = 0.141; // working = 0.141
         float32 ppsBias = 120.0f;
-        float   coef_damp = 0.3; // working = 0.3
+        float   coef_damp = 0.8; // working = 0.3
 
         //PthreadMutexLock(&gMutex);
          

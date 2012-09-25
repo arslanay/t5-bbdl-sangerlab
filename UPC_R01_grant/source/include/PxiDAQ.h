@@ -24,7 +24,7 @@ public:
     //
 };
 
-const int lenFilter = 3;
+const int lenFilter = 6;
 extern Ipp32f* taps0;
 extern Ipp32f* taps1;
 extern Ipp32f* dly0;

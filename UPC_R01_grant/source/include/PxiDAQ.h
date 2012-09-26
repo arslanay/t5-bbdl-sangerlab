@@ -24,12 +24,13 @@ public:
     //
 };
 
-const int lenFilter = 6;
+const int lenFilter = 2;
 extern Ipp32f* taps0;
 extern Ipp32f* taps1;
 extern Ipp32f* dly0;
 extern Ipp32f* dly1;
 extern IppsFIRState_32f *pFIRState0, *pFIRState1;
+extern IppsIIRState_32f *pIIRState0, *pIIRState1;
 
 extern float gAuxvar[];
 extern TaskHandle gAOTaskHandle;

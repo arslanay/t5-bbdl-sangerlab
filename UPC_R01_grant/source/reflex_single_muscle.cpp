@@ -101,6 +101,7 @@ Ipp32f* taps1;
 Ipp32f* dly0;
 Ipp32f* dly1;
 IppsFIRState_32f *pFIRState0, *pFIRState1;
+IppsIIRState_32f *pIIRState0, *pIIRState1;
 
 void ledIndicator ( float w, float h );
 
@@ -470,7 +471,7 @@ void* ControlLoop(void*)
 
         float32 tGain = 0.141; // working = 0.141
         float32 ppsBias = 120.0f;
-        float   coef_damp = 0.8; // working = 0.3
+        float   coef_damp = 0.6; // working = 0.3
 
         //PthreadMutexLock(&gMutex);
          

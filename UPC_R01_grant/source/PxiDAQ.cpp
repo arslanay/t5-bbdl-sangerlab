@@ -36,6 +36,8 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
 
+
+
     //IPP
     taps0 = ippsMalloc_32f(lenFilter);
     taps1 = ippsMalloc_32f(lenFilter);
@@ -45,26 +47,42 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
     /*ippsSet_32f(1.0f, taps0, lenFilter);
     ippsSet_32f(1.0f, taps1, lenFilter);*/
 
-    taps0[0] = 0.0284f;
-    taps0[1] = 0.1427f;
-    taps0[2] = 0.3289f;
-    taps0[3] = 0.3289f;
-    taps0[4] = 0.1427f;
-    taps0[5] = 0.0284f;
+    //taps0[0] = 0.0284f;
+    //taps0[1] = 0.1427f;
+    //taps0[2] = 0.3289f;
+    //taps0[3] = 0.3289f;
+    //taps0[4] = 0.1427f;
+    //taps0[5] = 0.0284f;
 
-    taps1[0] = 0.0284f;
-    taps1[1] = 0.1427f;
-    taps1[2] = 0.3289f;
-    taps1[3] = 0.3289f;
-    taps1[4] = 0.1427f;
-    taps1[5] = 0.0284f;
+    //taps1[0] = 0.0284f;
+    //taps1[1] = 0.1427f;
+    //taps1[2] = 0.3289f;
+    //taps1[3] = 0.3289f;
+    //taps1[4] = 0.1427f;
+    //taps1[5] = 0.0284f;
+
+    taps0[0] =  0.0078;
+    taps0[1] =  0.0156;
+    taps0[2] =  0.0078;
+    taps0[3] =  1.0000;
+    taps0[4] = -1.7347;
+    taps0[5] =  0.7660;
+
+    taps1[0] =  0.0078;
+    taps1[1] =  0.0156;
+    taps1[2] =  0.0078;
+    taps1[3] =  1.0000;
+    taps1[4] = -1.7347;
+    taps1[5] =  0.7660;
 
 
     ippsZero_32f(dly0,lenFilter);
     ippsZero_32f(dly1,lenFilter);
         
-    ippsFIRInitAlloc_32f( &pFIRState0, taps0, lenFilter, dly0 );
-    ippsFIRInitAlloc_32f( &pFIRState1, taps1, lenFilter, dly1 );
+    //ippsFIRInitAlloc_32f( &pFIRState0, taps0, lenFilter, dly0 );
+    //ippsFIRInitAlloc_32f( &pFIRState1, taps1, lenFilter, dly1 );
+    ippsIIRInitAlloc_32f( &pIIRState0, taps0, lenFilter, dly0 );
+    ippsIIRInitAlloc_32f( &pIIRState1, taps1, lenFilter, dly1 );
 
     gDataFile = fopen(gTimeStamp,"a");
 
@@ -133,8 +151,11 @@ int StopSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
     fclose(gDataFile);
 
     //IPP
-    ippsFIRFree_32f(pFIRState0);
-    ippsFIRFree_32f(pFIRState1);
+    //ippsFIRFree_32f(pFIRState0);
+    //ippsFIRFree_32f(pFIRState1);
+    
+    ippsIIRFree_32f(pIIRState0);
+    ippsIIRFree_32f(pIIRState1);
     
     ippsFree(taps0);
     ippsFree(taps1);
@@ -303,8 +324,10 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
 
 
         // Calculate how many encoderCounts per second
-        float dEncoderCounts0 =   (td->lce00 * 3.0 - td->lce01 * 4.0 + td->lce02) / (td->h1 + td->h2);
-        float dEncoderCounts1 =   (td->lce10 * 3.0 - td->lce11 * 4.0 + td->lce12) / (td->h1 + td->h2);
+        //float dEncoderCounts0 =   (td->lce00 * 3.0 - td->lce01 * 4.0 + td->lce02) / (td->h1 + td->h2);
+        //float dEncoderCounts1 =   (td->lce10 * 3.0 - td->lce11 * 4.0 + td->lce12) / (td->h1 + td->h2);
+        float dEncoderCounts0 =   (td->lce00 - td->lce01 );
+        float dEncoderCounts1 =   (td->lce10 - td->lce11 );
 
 
         // Convert encoderTicks/sec to L0/sec
@@ -312,10 +335,12 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         float muscleVel1;
 
 #ifdef  USING_IPP
-        ippsFIROne_32f(dEncoderCounts0, &muscleVel0, pFIRState0);
-        ippsFIROne_32f(dEncoderCounts1, &muscleVel1, pFIRState1);
-        muscleVel0*=(-gLenScale[0]);
-        muscleVel1*=(-gLenScale[1]);
+        //ippsFIROne_32f(dEncoderCounts0, &muscleVel0, pFIRState0);
+        //ippsFIROne_32f(dEncoderCounts1, &muscleVel1, pFIRState1);
+        ippsIIROne_32f(dEncoderCounts0, &muscleVel0, pIIRState0);
+        ippsIIROne_32f(dEncoderCounts1, &muscleVel1, pIIRState1);
+        muscleVel0*=(-gLenScale[0]) * 1000.0f;
+        muscleVel1*=(-gLenScale[1]) * 1000.0f;
 #else
         muscleVel0 = dEncoderCounts0*(-gLenScale[0]);
         muscleVel1 = dEncoderCounts1*(-gLenScale[1]);

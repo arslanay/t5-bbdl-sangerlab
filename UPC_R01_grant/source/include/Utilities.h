@@ -1,3 +1,5 @@
+#include <windows.h>
+
 #ifndef CMN_UtilityHeader
 #define CMN_UtilityHeader
 
@@ -39,11 +41,23 @@ const int    DATA_EVT_VEL = 9;
 #define		CHANNEL_NUM 2
 
 #define		MAX_SAMPLE_NUM 10 * EMG_SAMPLING_RATE // 10 sec = ? Samples
-#include <string>
 
-extern std::string paraName;
 
-char* 
-ToChar(std::string srcStr);
+
+class FileContainer 
+{
+    public:
+        FileContainer();
+
+        ~FileContainer();
+    
+    private:
+        HANDLE tempRobotToFpga;
+        HANDLE hFileRobotToFpga;
+        HANDLE tempFpgaToRobot;
+        HANDLE hFileFpgaToRobot;
+        char* mmapFpgaToRobot;
+        char* mmapRobotToFpga;    
+}; // Semi-colon is REQUIRED!
 
 #endif // CMN_UtilityHeader

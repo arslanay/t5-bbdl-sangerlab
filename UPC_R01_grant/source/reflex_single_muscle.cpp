@@ -1,59 +1,18 @@
 using namespace std;
 
-//------------------------------------------------------------------------
-// DESTester.CPP
-//
-// This is the C++ source file for the FPGA-based DES encryptor/decryptor.
-// This source calls the Opal Kelly FrontPanel C++ API to perform all
-// communication with the device including:
-//  - PLL Configuration
-//  - Spartan-3 configuration file download
-//  - Data transfer for the DES block.
-//
-// The general operation is as follows:
-// 1. The device PLL is configured to generate appropriate clocks for
-//    the hardware we have implemented.
-// 2. A Xilinx configuration file is downloaded to the FPGA to configure
-//    it with our hardware.  This file was generated using the Xilinx
-//    tools.
-// 3. Hardware setup is performed:
-//    a. A reset signal is sent using a WireIn.
-//    b. The DES key (64-bits) is set using 8 separate WireIns.
-//    c. Another WireIn is set to control the DES 'decrypt' input.
-//    d. The input and output files are opened.
-//    e. The transfer block RAM address pointer is reset using a TriggerIn.
-// 4. The DES algorithm is continually run on data from the input file
-//    until the input is exhausted.  Results are stored in the output file:
-//    a. A block of 2048 bytes is read from the input.
-//    b. This block is sent to the FPGA using okCFrontPanel::WriteToPipeIn(...)
-//    c. A TriggerIn is activated to start the DES state machine.
-//    d. A block of 2048 bytes is read from the FPGA using the method
-//       okCXEM::ReadFromPipeOut(...)
-//    e. The block is written to the output file.
-//    f. This sequence is repeated until the input file is exhausted.
-//
-//
-// Copyright (c) 2004-2009
-// Opal Kelly Incorporated
-// $Rev: 1010 $ $Date: 2011-10-08 17:49:29 -0700 (Sat, 08 Oct 2011) $
-//------------------------------------------------------------------------
-
 #include <iostream>
 #include <conio.h>
 #include <fstream>
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
+#include <process.h>
 #include <AntTweakBar.h>
-
 #include "okFrontPanelDLL.h"
 /*
-*	Name:			reflex_single_muscle
-
-*	Author:			C. Minos Niu
-
-*	Email:			minos.niu AT sangerlab.net
-
+    Name:			reflex_single_muscle    
+    Author:			C. Minos Niu    
+    Email:			minos.niu AT sangerlab.net
 */
 
 #include	<math.h>
@@ -82,7 +41,7 @@ FILE                    *gDataFile, *gConfigFile;
 int                     gCurrMotorState = MOTOR_STATE_INIT;
 double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
-okCFrontPanel           *gFpgaHandle0, *gFpgaHandle1;
+okCFrontPanel           *gFpgaBiceps, *gFpgaTriceps;
 float                   gCtrlFromFPGA[NUM_FPGA];
 int                     gMuscleEMG[NUM_FPGA];
 
@@ -103,12 +62,8 @@ Ipp32f* dly1;
 IppsFIRState_32f *pFIRState0, *pFIRState1;
 IppsIIRState_32f *pIIRState0, *pIIRState1;
 
+
 void ledIndicator ( float w, float h );
-
-
-
-
-
 
 void init ( GLvoid )     // Create Some Everyday Functions
 {
@@ -253,6 +208,7 @@ int ProceedFSM(int *state)
     }
     return 0;
 }
+
 int InitMotor(int *state)
 {
     DisableMotors(&gEnableHandle);
@@ -297,24 +253,17 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
             gResetSim=true;
         else
             gResetSim=false;
-        SendButton(gFpgaHandle0, (int) gResetSim, "BUTTON_RESET_SIM");
-        SendButton(gFpgaHandle1, (int) gResetSim, "BUTTON_RESET_SIM");
+        SendButton(gFpgaBiceps, (int) gResetSim, "BUTTON_RESET_SIM");
+        SendButton(gFpgaTriceps, (int) gResetSim, "BUTTON_RESET_SIM");
         break;
     case '9':       //Reset GLOBAL
         if(!gResetGlobal)
             gResetGlobal=true;
         else
             gResetGlobal=false;
-        SendButton(gFpgaHandle0, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
-        SendButton(gFpgaHandle1, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+        SendButton(gFpgaBiceps, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+        SendButton(gFpgaTriceps, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
         break;
-    //case 'W':       //Winding up
-    //case 'w':
-    //    if(!gIsWindingUp)
-    //        gIsWindingUp=true;
-    //    else
-    //        gIsWindingUp=false;
-    //    break;
     case 'z':       //Rezero
     case 'Z':
         gLenOrig[0]=gAuxvar[2] + gEncoderCount[0];
@@ -445,8 +394,8 @@ void* ControlLoop(void*)
     
     int32 IEEE_30;
     ReInterpret((float32)(30.0), &IEEE_30);
-    WriteFPGA(gFpgaHandle0, IEEE_30, 1);
-    WriteFPGA(gFpgaHandle1, IEEE_30, 1);
+    WriteFPGA(gFpgaBiceps, IEEE_30, 1);
+    WriteFPGA(gFpgaTriceps, IEEE_30, 1);
 
     while (1)
     {
@@ -465,8 +414,8 @@ void* ControlLoop(void*)
         // Read FPGA0
         float32 rawCtrl;
         int muscleEMG;
-        ReadFPGA(gFpgaHandle0, 0x30, "float32", &rawCtrl);
-        ReadFPGA(gFpgaHandle0, 0x32, "int32", &muscleEMG);
+        ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrl);
+        ReadFPGA(gFpgaBiceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[0] = muscleEMG;
 
         float32 tGain = 0.141; // working = 0.141
@@ -479,8 +428,8 @@ void* ControlLoop(void*)
         //PthreadMutexUnlock(&gMutex);
 
         // Read FPGA1
-        ReadFPGA(gFpgaHandle1, 0x30, "float32", &rawCtrl);
-        ReadFPGA(gFpgaHandle1, 0x32, "int32", &muscleEMG);
+        ReadFPGA(gFpgaTriceps, 0x30, "float32", &rawCtrl);
+        ReadFPGA(gFpgaTriceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[NUM_FPGA-1] = muscleEMG;
 
         //PthreadMutexLock(&gMutex);
@@ -498,19 +447,19 @@ void* ControlLoop(void*)
         //if (0 == ReInterpret((float32)(1.0 - 0.5* gAuxvar[0]), &temp)) 
         if (0 == ReInterpret((float32)(gMuscleLce[0]), &temp)) 
         {
-            WriteFPGA(gFpgaHandle0, temp, DATA_EVT_LCE);
+            WriteFPGA(gFpgaBiceps, temp, DATA_EVT_LCE);
         }
         if (0 == ReInterpret((float32)(gMuscleLce[1]), &temp)) 
         {
-            WriteFPGA(gFpgaHandle1, temp, DATA_EVT_LCE);
+            WriteFPGA(gFpgaTriceps, temp, DATA_EVT_LCE);
         }
         if (0 == ReInterpret((float32)(3.0 * gMuscleVel[0]), &temp)) 
         {
-            WriteFPGA(gFpgaHandle0, temp, DATA_EVT_VEL);
+            WriteFPGA(gFpgaBiceps, temp, DATA_EVT_VEL);
         }
         if (0 == ReInterpret((float32)(3.0 * gMuscleVel[1]), &temp)) 
         {
-            WriteFPGA(gFpgaHandle1, temp, DATA_EVT_VEL);
+            WriteFPGA(gFpgaTriceps, temp, DATA_EVT_VEL);
         }
         //printf("Input = %0.4f :: Out = %0.4f \n", (float32) 1.0 - 0.5* gAuxvar[0], gCtrlFromFPGA); 
 
@@ -519,21 +468,12 @@ void* ControlLoop(void*)
 	return 0;
 }
 
-void saveConfigCache()
+void SaveConfigCache()
 {
     FILE *ConfigCacheFile;
     ConfigCacheFile= fopen("ConfigPXI.cache","w");
     fprintf(ConfigCacheFile,"%lf\t%lf",gLenScale[0],gLenScale[1]);
     fclose(ConfigCacheFile);
-}
-
-void exitProgram() 
-{
-    saveConfigCache();
-    DisableMotors(&gEnableHandle);    
-    StopSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
-    StopPositionRead(&gEncoderHandle[0],&gEncoderHandle[1]);
-    TwTerminate();
 }
 
 int InitFpga(okCFrontPanel *xem0)
@@ -546,7 +486,7 @@ int InitFpga(okCFrontPanel *xem0)
 	
 	printf("Found a device: %s\n", xem0->GetBoardModelString(xem0->GetBoardModel()).c_str());
 
-    // Configure the PLL appropriately
+    // Configure the PLL using default config
 	xem0->LoadDefaultPLLConfiguration();
 
 	// Get some general information about the XEM.
@@ -595,7 +535,8 @@ int InitFpga(okCFrontPanel *xem0)
 	return 0;
 }
 
-//int recording;
+FileContainer *gSwapFiles;
+
 void InitProgram()
 {
     time_t rawtime;
@@ -605,12 +546,53 @@ void InitProgram()
     sprintf_s(gTimeStamp,"%4d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min);
 
 
+
+    // Load Fpga DLLs
+    char dll_date[32], dll_time[32];
+
+	printf("---- Opal Kelly ---- FPGA-DES Application v1.0 ----\n");
+	if (FALSE == okFrontPanelDLL_LoadLib(NULL)) {
+		printf("FrontPanel DLL could not be loaded.\n");
+		return;
+	}
+	okFrontPanelDLL_GetVersion(dll_date, dll_time);
+	printf("FrontPanel DLL loaded.  Built: %s  %s\n", dll_date, dll_time);
+
+    // Two muscles, each with one Fpga handle
+    gFpgaBiceps = new okCFrontPanel;
+    gFpgaTriceps = new okCFrontPanel;
+        
+    if (0 != InitFpga(gFpgaBiceps)) {
+		printf("FPGA could not be initialized.\n");
+		return;
+	};
+
+    if (0 != InitFpga(gFpgaTriceps)) {
+		printf("FPGA could not be initialized.\n");
+		return;
+	};   
+
+    gSwapFiles = new FileContainer;
+
     //WARNING: DON'T CHANGE THE SEQUENCE BELOW
-    StartReadPos(&gEncoderHandle[0],&gEncoderHandle[1]);
+    StartReadPos(&gEncoderHandle[0], &gEncoderHandle[1]);
     StartSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle); 
     InitMotor(&gCurrMotorState);
 }
 
+
+void ExitProgram() 
+{
+    SaveConfigCache();
+    DisableMotors(&gEnableHandle);    
+    StopSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
+    StopPositionRead(&gEncoderHandle[0],&gEncoderHandle[1]);
+    TwTerminate();    
+    delete gSwapFiles;
+
+    delete gFpgaBiceps;
+    delete gFpgaTriceps;
+}
 
 inline void LogData( void)
 {   
@@ -621,9 +603,9 @@ inline void LogData( void)
     actualTime /= gClkFrequency.QuadPart;
     if (gIsRecording)
     {   
-        fprintf(gDataFile,"%.3lf\t",actualTime );																			//1
-        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMuscleEMG[0]);								//2,3
-        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMuscleEMG[1]);								//2,3
+        fprintf(gDataFile,"%.3lf\t",actualTime );																	
+        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMuscleEMG[0]);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMuscleEMG[1]);			
         fprintf(gDataFile,"\n");
     }
 }
@@ -678,34 +660,12 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     glutIdleFunc(idle);
 
 
-    // *** load fpga dll. TODO: move it elsewhere
-    char dll_date[32], dll_time[32];
 
-	printf("---- Opal Kelly ---- FPGA-DES Application v1.0 ----\n");
-	if (FALSE == okFrontPanelDLL_LoadLib(NULL)) {
-		printf("FrontPanel DLL could not be loaded.\n");
-		return(-1);
-	}
-	okFrontPanelDLL_GetVersion(dll_date, dll_time);
-	printf("FrontPanel DLL loaded.  Built: %s  %s\n", dll_date, dll_time);
 
-	// Open the first XEM - try all board types.
-    gFpgaHandle0 = new okCFrontPanel;
-    gFpgaHandle1 = new okCFrontPanel;
-    //gFpgaHandle1 = gFpgaHandle0;
-
-    
-    if (0 != InitFpga(gFpgaHandle0)) {
-		printf("FPGA could not be initialized.\n");
-		return(-1);
-	}
-    
-    InitFpga(gFpgaHandle1); // a pointer to the FPGA device
-
-    // *** load fpga dll
-  
+    // Make sure to pair InitProgram() with ExitProgram()
+    // Resources need to be released  
     InitProgram();
-    atexit( exitProgram );
+    atexit( ExitProgram );
 
 
     // gAuxvar = {current force 0, current force 1, current pos 0, current pos 1};
@@ -720,9 +680,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     // Add 'g_Zoom' to 'bar': this is a modifable (RW) variable of type TW_TYPE_FLOAT. Its key shortcuts are [z] and [Z].
     TwAddVarRW(bar, "Gain", TW_TYPE_DOUBLE, &gLenScale, 
                " min=0.0000 max=0.0002 step=0.000001 keyIncr=l keyDecr=L help='Scale the object (1=original size).' ");
-    /*TwAddVarRO(bar, "LoadCell", TW_TYPE_DOUBLE,&gAuxvar[0],"");
-    TwAddVarRO(bar, "lce", TW_TYPE_DOUBLE,&gMuscleLce,"");
-    TwAddVarRO(bar, "MotorCmd", TW_TYPE_DOUBLE,&gMotorCmd[0],"");*/
+
     glutMainLoop( );          // Initialize The Main Loop  
 
     return 0;

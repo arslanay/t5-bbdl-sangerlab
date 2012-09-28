@@ -545,8 +545,6 @@ void InitProgram()
     timeinfo = localtime(&rawtime);
     sprintf_s(gTimeStamp,"%4d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min);
 
-
-
     // Load Fpga DLLs
     char dll_date[32], dll_time[32];
 
@@ -579,7 +577,6 @@ void InitProgram()
     StartSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle); 
     InitMotor(&gCurrMotorState);
 }
-
 
 void ExitProgram() 
 {
@@ -665,7 +662,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     // Make sure to pair InitProgram() with ExitProgram()
     // Resources need to be released  
     InitProgram();
-    atexit( ExitProgram );
+    ON_SCOPE_EXIT(ExitProgram);
 
 
     // gAuxvar = {current force 0, current force 1, current pos 0, current pos 1};

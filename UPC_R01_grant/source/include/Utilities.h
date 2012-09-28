@@ -1,11 +1,10 @@
 #include <windows.h>
+#include <functional>
 
 #ifndef CMN_UtilityHeader
 #define CMN_UtilityHeader
 
 #define     FPGA_BIT_FILENAME         "C:/nerf_sangerlab/projects/one_joint_robot/one_joint_robot_xem6010.bit"
-
-
 
 #define		PI 3.14159265
 #define		EPS 0.0000001
@@ -21,11 +20,11 @@
 #define     MOTOR_STATE_SHUTTING_DOWN 4
 
 /* Safety Configurations */
-#define		MAX_VOLT 8.0
-#define		SAFE_MOTOR_VOLTAGE 0.9
-#define		ZERO_MOTOR_VOLTAGE 0.0
-#define     NUM_MOTOR 2
-#define     NUM_FPGA 2
+const float		MAX_VOLT = 8.0;
+const float		SAFE_MOTOR_VOLTAGE = 0.9;
+const float		ZERO_MOTOR_VOLTAGE = 0.0;
+const int    NUM_MOTOR = 2;
+const int    NUM_FPGA = 2;
 
 /* FPGA Trigger events */
 const int    DATA_EVT_CLKRATE = 0;
@@ -39,8 +38,6 @@ const int    DATA_EVT_VEL = 9;
 #define		PthreadMutexUnlock pthread_mutex_unlock 
 
 #define		CHANNEL_NUM 2
-
-#define		MAX_SAMPLE_NUM 10 * EMG_SAMPLING_RATE // 10 sec = ? Samples
 
 
 
@@ -60,4 +57,42 @@ class FileContainer
         char* mmapRobotToFpga;    
 }; // Semi-colon is REQUIRED!
 
+
+/*  MINOS added: ScopeGuard class for memory-leak prevention
+Usage: ON_SCOPE_EXIT(steps_to_take) */
+class ScopeGuard
+{
+public:
+    explicit ScopeGuard(std::function<void()> onExitScope)
+        : onExitScope_(onExitScope), dismissed_(false)
+    { }
+
+    ~ScopeGuard()
+    {
+        if(!dismissed_)
+        {
+            onExitScope_();
+        }
+    }
+
+    void Dismiss()
+    {
+        dismissed_ = true;
+    }
+
+private:
+    std::function<void()> onExitScope_;
+    bool dismissed_;
+
+private: // noncopyable
+    ScopeGuard(ScopeGuard const&);
+    ScopeGuard& operator=(ScopeGuard const&);
+};
+
+#define SCOPEGUARD_LINENAME_CAT(name, line) name##line
+#define SCOPEGUARD_LINENAME(name, line) SCOPEGUARD_LINENAME_CAT(name, line)
+#define ON_SCOPE_EXIT(callback) ScopeGuard SCOPEGUARD_LINENAME(EXIT, __LINE__)(callback)
+
+
 #endif // CMN_UtilityHeader
+

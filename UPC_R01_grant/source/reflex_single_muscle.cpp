@@ -58,7 +58,7 @@ Ipp32f* taps0;
 Ipp32f* taps1;
 Ipp32f* dly0;
 Ipp32f* dly1;
-IppsFIRState_32f *pFIRState0, *pFIRState1;
+//IppsFIRState_32f *pFIRState0, *pFIRState1;
 IppsIIRState_32f *pIIRState0, *pIIRState1;
 
 
@@ -571,6 +571,37 @@ void InitProgram()
 
     gSwapFiles = new FileContainer;
 
+
+    
+    //IPP
+    taps0 = ippsMalloc_32f(lenFilter);
+    taps1 = ippsMalloc_32f(lenFilter);
+    dly0  = ippsMalloc_32f(lenFilter);
+    dly1  = ippsMalloc_32f(lenFilter);
+
+    taps0[0] =  0.0078;
+    taps0[1] =  0.0156;
+    taps0[2] =  0.0078;
+    taps0[3] =  1.0000;
+    taps0[4] = -1.7347;
+    taps0[5] =  0.7660;
+
+    taps1[0] =  0.0078;
+    taps1[1] =  0.0156;
+    taps1[2] =  0.0078;
+    taps1[3] =  1.0000;
+    taps1[4] = -1.7347;
+    taps1[5] =  0.7660;
+
+
+    ippsZero_32f(dly0,lenFilter);
+    ippsZero_32f(dly1,lenFilter);
+        
+    //ippsFIRInitAlloc_32f( &pFIRState0, taps0, lenFilter, dly0 );
+    //ippsFIRInitAlloc_32f( &pFIRState1, taps1, lenFilter, dly1 );
+    ippsIIRInitAlloc_32f( &pIIRState0, taps0, lenFilter, dly0 );
+    ippsIIRInitAlloc_32f( &pIIRState1, taps1, lenFilter, dly1 );
+
     //WARNING: DON'T CHANGE THE SEQUENCE BELOW
     StartReadPos(&gEncoderHandle[0], &gEncoderHandle[1]);
     StartSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle); 
@@ -579,10 +610,26 @@ void InitProgram()
 
 void ExitProgram() 
 {
+    //pthread_join(gThreads[0], NULL);
     SaveConfigCache();
     DisableMotors(&gEnableHandle);    
     StopSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
     StopPositionRead(&gEncoderHandle[0],&gEncoderHandle[1]);
+
+
+    //IPP
+    //ippsFIRFree_32f(pFIRState0);
+    //ippsFIRFree_32f(pFIRState1);
+    
+    ippsFree(taps0);
+    ippsFree(taps1);
+    ippsFree(dly0);
+    ippsFree(dly1);
+
+
+    ippsIIRFree_32f(pIIRState0);
+    ippsIIRFree_32f(pIIRState1);
+    
     TwTerminate();    
     delete gSwapFiles;
 
@@ -661,7 +708,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     // Make sure to pair InitProgram() with ExitProgram()
     // Resources need to be released  
     InitProgram();
-    //ON_SCOPE_EXIT(ExitProgram);
+   
     atexit(ExitProgram);
 
 

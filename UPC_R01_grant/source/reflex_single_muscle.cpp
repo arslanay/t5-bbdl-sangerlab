@@ -27,7 +27,6 @@ using namespace std;
 #include	"glut.h"   // The GL Utility Toolkit (Glut) Header
 #include	"OGLGraph.h"
 
-#pragma comment(lib, "ipps.lib")
 
 // *** Global variables
 float                   gAuxvar [NUM_AUXVAR*NUM_MOTOR];
@@ -662,7 +661,8 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     // Make sure to pair InitProgram() with ExitProgram()
     // Resources need to be released  
     InitProgram();
-    ON_SCOPE_EXIT(ExitProgram);
+    //ON_SCOPE_EXIT(ExitProgram);
+    atexit(ExitProgram);
 
 
     // gAuxvar = {current force 0, current force 1, current pos 0, current pos 1};

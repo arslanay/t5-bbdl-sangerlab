@@ -37,53 +37,6 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
 	char        errBuff[2048]={'\0'};
 
 
-
-    //IPP
-    taps0 = ippsMalloc_32f(lenFilter);
-    taps1 = ippsMalloc_32f(lenFilter);
-    dly0  = ippsMalloc_32f(lenFilter);
-    dly1  = ippsMalloc_32f(lenFilter);
-
-    /*ippsSet_32f(1.0f, taps0, lenFilter);
-    ippsSet_32f(1.0f, taps1, lenFilter);*/
-
-    //taps0[0] = 0.0284f;
-    //taps0[1] = 0.1427f;
-    //taps0[2] = 0.3289f;
-    //taps0[3] = 0.3289f;
-    //taps0[4] = 0.1427f;
-    //taps0[5] = 0.0284f;
-
-    //taps1[0] = 0.0284f;
-    //taps1[1] = 0.1427f;
-    //taps1[2] = 0.3289f;
-    //taps1[3] = 0.3289f;
-    //taps1[4] = 0.1427f;
-    //taps1[5] = 0.0284f;
-
-    taps0[0] =  0.0078;
-    taps0[1] =  0.0156;
-    taps0[2] =  0.0078;
-    taps0[3] =  1.0000;
-    taps0[4] = -1.7347;
-    taps0[5] =  0.7660;
-
-    taps1[0] =  0.0078;
-    taps1[1] =  0.0156;
-    taps1[2] =  0.0078;
-    taps1[3] =  1.0000;
-    taps1[4] = -1.7347;
-    taps1[5] =  0.7660;
-
-
-    ippsZero_32f(dly0,lenFilter);
-    ippsZero_32f(dly1,lenFilter);
-        
-    //ippsFIRInitAlloc_32f( &pFIRState0, taps0, lenFilter, dly0 );
-    //ippsFIRInitAlloc_32f( &pFIRState1, taps1, lenFilter, dly1 );
-    ippsIIRInitAlloc_32f( &pIIRState0, taps0, lenFilter, dly0 );
-    ippsIIRInitAlloc_32f( &pIIRState1, taps1, lenFilter, dly1 );
-
     gDataFile = fopen(gTimeStamp,"a");
 
 	/*********************************************/
@@ -150,18 +103,6 @@ int StopSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
     
     fclose(gDataFile);
 
-    //IPP
-    //ippsFIRFree_32f(pFIRState0);
-    //ippsFIRFree_32f(pFIRState1);
-    
-    ippsIIRFree_32f(pIIRState0);
-    ippsIIRFree_32f(pIIRState1);
-    
-    ippsFree(taps0);
-    ippsFree(taps1);
-    ippsFree(dly0);
-    ippsFree(dly1);
-
     DAQmxErrChk (DAQmxWriteAnalogF64(AOHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, ZERO_VOLTS, NULL, NULL));
     
 	//printf( "\nStopping EMG ...\n" );
@@ -183,6 +124,7 @@ int StopSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
         *rawForceHandle = ForceReadTaskHandle;
         *rawAOHandle = AOHandle;
     }
+
 Error:
 	if( DAQmxFailed(error) )
 		printf("StopSignalLoop Error: %s\n",errBuff);

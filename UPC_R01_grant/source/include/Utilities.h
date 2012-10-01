@@ -21,8 +21,8 @@
 
 /* Safety Configurations */
 const float		MAX_VOLT = 8.0;
-const float		SAFE_MOTOR_VOLTAGE = 0.9;
-const float		ZERO_MOTOR_VOLTAGE = 0.0;
+const double		SAFE_MOTOR_VOLTAGE = 0.9;
+const double		ZERO_MOTOR_VOLTAGE = 0.0;
 const int    NUM_MOTOR = 2;
 const int    NUM_FPGA = 2;
 

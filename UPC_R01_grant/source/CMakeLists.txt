@@ -35,6 +35,7 @@ FIND_PACKAGE(Pthreads REQUIRED)
 FIND_PACKAGE(NIDAQMX REQUIRED)
 #FIND_PACKAGE(OpalKelly REQUIRED)
 FIND_PACKAGE(AntTweakBar REQUIRED)
+FIND_PACKAGE(IPP REQUIRED)
 
 
 # Include the following directories when compiling 
@@ -49,6 +50,7 @@ INCLUDE_DIRECTORIES(
 # 	${Boost_INCLUDE_DIR} # Library names ARE CaSE-sENsITve!!!!!!!
  	${NIDAQMX_INCLUDE_DIR}
 	${ATB_WIN32_INCLUDE_DIR}
+	${IPP_INCLUDE_DIR}
 	)
 
 
@@ -68,6 +70,7 @@ SET(SYS_LIBRARIES
 # 	${Boost_PROGRAM_OPTIONS_LIBRARY_DEBUG}
  	${NIDAQMX_LIBRARIES}
 	${ATB_WIN32_LIBRARY}
+	${IPP_LIBRARY}
 # 	ExampleLib
 	)
 # Make sure custom-written libraries get the correct dependencies

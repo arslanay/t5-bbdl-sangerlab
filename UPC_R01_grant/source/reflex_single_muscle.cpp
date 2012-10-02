@@ -659,7 +659,7 @@ void TimerCB (int iTimer)
     LogData();
 
 	// Set The Timer For This Function Again
-	glutTimerFunc (10, TimerCB, 1);
+	glutTimerFunc (3, TimerCB, 1);
 }
 
 int main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
@@ -694,7 +694,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     // TODO: Code the TimerCB() to log data
     //printf("\n\t%f",gMuscleLce); 
     //***** RELOCATE THIS -->   
-    glutTimerFunc(10, TimerCB, 1);
+    glutTimerFunc(3, TimerCB, 1);
 
     // send the ''glutGetModifers'' function pointer to AntTweakBar
     TwGLUTModifiersFunc(glutGetModifiers);

@@ -61,6 +61,11 @@ Ipp32f* dly1;
 //IppsFIRState_32f *pFIRState0, *pFIRState1;
 IppsIIRState_32f *pIIRState0, *pIIRState1;
 
+//Descending command
+float gM1Biceps;
+
+//AntTweakBar
+TwBar *gBar; // Pointer to the tweak bar
 
 void ledIndicator ( float w, float h );
 
@@ -124,7 +129,7 @@ void display ( void )   // Create The Display Function
     sprintf_s(gLceLabel1,"%f    %.2f   %d",-gAuxvar[2], gMuscleVel[0], gMuscleEMG[0]);
     outputText(10,95,gLceLabel1);
     //sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gMuscleVel[NUM_MOTOR - 1], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
-    sprintf_s(gLceLabel2,"%f    %.2f   %d",-gAuxvar[2+NUM_AUXVAR], gMuscleVel[1],gMuscleEMG[NUM_FPGA - 1]);
+    sprintf_s(gLceLabel2,"%f    %.2f   %d",-gAuxvar[2+NUM_AUXVAR], gM1Biceps /*gMuscleVel[1]*/,gMuscleEMG[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     //printf("\n\t%f\t%f", gMuscleVel[0], gMuscleVel[1]);
     
@@ -630,6 +635,8 @@ void ExitProgram()
     ippsIIRFree_32f(pIIRState0);
     ippsIIRFree_32f(pIIRState1);
     
+    TwDeleteBar(gBar);
+
     TwTerminate();    
     delete gSwapFiles;
 
@@ -662,11 +669,21 @@ void TimerCB (int iTimer)
 	glutTimerFunc (3, TimerCB, 1);
 }
 
+void* NoTimerCB (void *)
+{
+    while (1)
+    {
+        LogData();
+        Sleep(1);
+    }
+}
+
 int main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
 {
-    TwBar *bar; // Pointer to the tweak bar
     gLenOrig[0]=0.0;
     gLenOrig[1]=0.0;
+    
+    gM1Biceps = 250;
     //gLenScale=0.0001;
     
     FILE *ConfigFile;
@@ -694,7 +711,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     // TODO: Code the TimerCB() to log data
     //printf("\n\t%f",gMuscleLce); 
     //***** RELOCATE THIS -->   
-    glutTimerFunc(3, TimerCB, 1);
+    //glutTimerFunc(3, TimerCB, 1);
 
     // send the ''glutGetModifers'' function pointer to AntTweakBar
     TwGLUTModifiersFunc(glutGetModifiers);
@@ -716,14 +733,17 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
 
     pthread_mutex_init (&gMutex, NULL);
     int ctrl_handle = pthread_create(&gThreads[0], NULL, ControlLoop,	(void *)gAuxvar);
+    int logdata_handle = pthread_create(&gThreads[1], NULL, NoTimerCB,	NULL);
    
-    bar = TwNewBar("TweakBar");
+    gBar = TwNewBar("TweakBar");
     TwDefine(" GLOBAL help='This is our interface for the T5 Project BBDL-SangerLab.' "); // Message added to the help bar.
     TwDefine(" TweakBar size='400 200' color='96 216 224' "); // change default tweak bar size and color
 
     // Add 'g_Zoom' to 'bar': this is a modifable (RW) variable of type TW_TYPE_FLOAT. Its key shortcuts are [z] and [Z].
-    TwAddVarRW(bar, "Gain", TW_TYPE_DOUBLE, &gLenScale, 
+    TwAddVarRW(gBar, "Gain", TW_TYPE_FLOAT, &gLenScale, 
                " min=0.0000 max=0.0002 step=0.000001 keyIncr=l keyDecr=L help='Scale the object (1=original size).' ");
+    TwAddVarRW(gBar, "M1Biceps", TW_TYPE_FLOAT, &gM1Biceps, 
+               " min=0.00 max=500.00 step=1 ");
 
     glutMainLoop( );          // Initialize The Main Loop  
 

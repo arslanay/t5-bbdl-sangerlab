@@ -126,10 +126,10 @@ void display ( void )   // Create The Display Function
     TwDraw();
     //sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
     //sprintf_s(gLceLabel1,"%.4f    %.2f   %f",gMuscleVel[0], gMuscleLce[0], gCtrlFromFPGA[0]);
-    sprintf_s(gLceLabel1,"%f    %.2f   %d",-gAuxvar[2], gMuscleVel[0], gMuscleEMG[0]);
+    sprintf_s(gLceLabel1,"%f    %.2f   %.2f", gMuscleLce[0], gMuscleVel[0], gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
     //sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gMuscleVel[NUM_MOTOR - 1], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
-    sprintf_s(gLceLabel2,"%f    %.2f   %d",-gAuxvar[2+NUM_AUXVAR], gM1Biceps /*gMuscleVel[1]*/,gMuscleEMG[NUM_FPGA - 1]);
+    sprintf_s(gLceLabel2,"%f    %.2f   %.2f", gMuscleLce[1], gMuscleVel[1],gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     //printf("\n\t%f\t%f", gMuscleVel[0], gMuscleVel[1]);
     
@@ -386,6 +386,48 @@ int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
     return 0;
 }
 
+int WriteFpgaLceVel(okCFrontPanel *xem, int32 bitValLce, int32 bitValVel, int32 trigEvent)
+{
+    //bitVal = 0;
+
+    int32 bitValLo = bitValLce & 0xffff;
+    int32 bitValHi = (bitValLce >> 16) & 0xffff;
+
+    
+    //Send muscle lce to fpga
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x01, bitValLo, 0xffff)) {
+		printf("SetWireInLo failed.\n");
+		//delete xem;
+		return -1;
+	}
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x02, bitValHi, 0xffff)) {
+		printf("SetWireInHi failed.\n");
+		//delete xem;
+		return -1;
+	}
+
+
+    bitValLo = bitValVel & 0xffff;
+    bitValHi = (bitValVel >> 16) & 0xffff;    
+    //send muscle velocity to Fpga
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x03, bitValLo, 0xffff)) {
+		printf("SetWireInLo failed.\n");
+		//delete xem;
+		return -1;
+	}
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x04, bitValHi, 0xffff)) {
+		printf("SetWireInHi failed.\n");
+		//delete xem;
+		return -1;
+	}
+
+
+    xem -> UpdateWireIns();
+    xem -> ActivateTriggerIn(0x50, trigEvent)   ;
+    
+    return 0;
+}
+
 
 void* ControlLoop(void*)
 {
@@ -416,56 +458,64 @@ void* ControlLoop(void*)
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
           
         // Read FPGA0
-        float32 rawCtrl;
+        float32 rawCtrlBic, rawCtrlTri;
         int muscleEMG;
-        ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrl);
+        ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrlBic);
         ReadFPGA(gFpgaBiceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[0] = muscleEMG;
 
-        float32 tGain = 0.141; // working = 0.141
-        float32 ppsBias = 120.0f;
-        float   coef_damp = 0.6; // working = 0.3
+        float32 tGain = 0.201; // working = 0.141
+        float32 ppsBias = 87.0f;
+        float   coef_damp = 0.1; // working = 0.3
 
         //PthreadMutexLock(&gMutex);
          
-        float muscleFoo0 = max(0.0, min(65535.0, (rawCtrl - ppsBias) * tGain)) + coef_damp * gMuscleVel[0];
+        float adjustedForceBic = max(0.0, min(65535.0, (rawCtrlBic - ppsBias) * tGain)) + coef_damp * gMuscleVel[0];
         //PthreadMutexUnlock(&gMutex);
 
         // Read FPGA1
-        ReadFPGA(gFpgaTriceps, 0x30, "float32", &rawCtrl);
+        ReadFPGA(gFpgaTriceps, 0x30, "float32", &rawCtrlTri);
         ReadFPGA(gFpgaTriceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[NUM_FPGA-1] = muscleEMG;
 
         //PthreadMutexLock(&gMutex);
-        float muscleFoo1 = max(0.0, min(65535.0, (rawCtrl - ppsBias) * tGain)) + coef_damp * gMuscleVel[1];
+        float adjustedForceTri = max(0.0, min(65535.0, (rawCtrlTri - ppsBias) * tGain)) + coef_damp * gMuscleVel[1];
 
         
-        gCtrlFromFPGA[0] = muscleFoo0;
-        gCtrlFromFPGA[1] = muscleFoo1;
+        gCtrlFromFPGA[0] = adjustedForceBic;
+        gCtrlFromFPGA[1] = adjustedForceTri;
         //PthreadMutexUnlock(&gMutex);
 
         //printf("%.4f\t", gCtrlFromFPGA[0]);
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
 
-        int32 temp;
-        //if (0 == ReInterpret((float32)(1.0 - 0.5* gAuxvar[0]), &temp)) 
-        if (0 == ReInterpret((float32)(gMuscleLce[0]), &temp)) 
-        {
-            WriteFPGA(gFpgaBiceps, temp, DATA_EVT_LCE);
-        }
-        if (0 == ReInterpret((float32)(gMuscleLce[1]), &temp)) 
-        {
-            WriteFPGA(gFpgaTriceps, temp, DATA_EVT_LCE);
-        }
-        if (0 == ReInterpret((float32)(3.0 * gMuscleVel[0]), &temp)) 
-        {
-            WriteFPGA(gFpgaBiceps, temp, DATA_EVT_VEL);
-        }
-        if (0 == ReInterpret((float32)(3.0 * gMuscleVel[1]), &temp)) 
-        {
-            WriteFPGA(gFpgaTriceps, temp, DATA_EVT_VEL);
-        }
-        //printf("Input = %0.4f :: Out = %0.4f \n", (float32) 1.0 - 0.5* gAuxvar[0], gCtrlFromFPGA); 
+        int32 bitValLce, bitValVel;
+        ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
+        ReInterpret((float32)(0.0 * gMuscleVel[0]), &bitValVel);
+        WriteFpgaLceVel(gFpgaBiceps, bitValLce, bitValVel, DATA_EVT_LCEVEL);
+
+        ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
+        ReInterpret((float32)(0.0 * gMuscleVel[1]), &bitValVel);
+        WriteFpgaLceVel(gFpgaTriceps, bitValLce, bitValVel, DATA_EVT_LCEVEL);
+
+
+        //if (0 == ReInterpret((float32)(gMuscleLce[0]), &temp)) 
+        //{
+        //    WriteFPGA(gFpgaBiceps, temp, DATA_EVT_LCE);
+        //}
+        //if (0 == ReInterpret((float32)(gMuscleLce[1]), &temp)) 
+        //{
+        //    WriteFPGA(gFpgaTriceps, temp, DATA_EVT_LCE);
+        //}
+        //if (0 == ReInterpret((float32)(3.0 * gMuscleVel[0]), &temp)) 
+        //{
+        //    WriteFPGA(gFpgaBiceps, temp, DATA_EVT_VEL);
+        //}
+        //if (0 == ReInterpret((float32)(3.0 * gMuscleVel[1]), &temp)) 
+        //{
+        //    WriteFPGA(gFpgaTriceps, temp, DATA_EVT_VEL);
+        //}
+        //printf("Input = %0.4f :: Out = %0.4f \n", gMuscleLce[0], rawCtrlBic); 
 
         if(_kbhit()) break;
     } 
@@ -502,10 +552,10 @@ int InitFpga(okCFrontPanel *xem0)
     okCPLL22393 *pll;
     pll = new okCPLL22393;
     pll -> SetReference(48);        //base clock frequency
-    int baseRate = 200; //in MHz
+    int baseRate = 100; //in MHz
     pll -> SetPLLParameters(0, baseRate, 48,  true);
     pll -> SetOutputSource(0, okCPLL22393::ClkSrc_PLL0_0);
-    int clkRate = 200; //mhz; 200 is fastest
+    int clkRate = 100; //mhz; 200 is fastest
     //pll -> SetOutputDivider(0, 1) ;
     pll -> SetOutputEnable(0, true);
     xem0 -> SetPLL22393Configuration(*pll);
@@ -519,9 +569,10 @@ int InitFpga(okCFrontPanel *xem0)
 
 
     //int newHalfCnt = 1 * 200 * (10 **6) / SAMPLING_RATE / NUM_NEURON / (value*4) / 2 / 2;
-    int32 newHalfCnt = 1 * 200 * (int32)(1e6) / 1024 / 128 / (5) / 2 / 2;
+    int32 newHalfCnt = 1 * 100 * (int32)(1e6) / 1024 / 128 / 1 / 2 / 2;
+    printf("newHalfCnt = %d \n", newHalfCnt);
 //    WriteFPGA(xem0, 197, DATA_EVT_CLKRATE);
-    WriteFPGA(xem0, 197, DATA_EVT_CLKRATE);
+    WriteFPGA(xem0, newHalfCnt, DATA_EVT_CLKRATE);
 
 
 	// Check for FrontPanel support in the FPGA configuration.
@@ -743,7 +794,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     TwAddVarRW(gBar, "Gain", TW_TYPE_FLOAT, &gLenScale, 
                " min=0.0000 max=0.0002 step=0.000001 keyIncr=l keyDecr=L help='Scale the object (1=original size).' ");
     TwAddVarRW(gBar, "M1Biceps", TW_TYPE_FLOAT, &gM1Biceps, 
-               " min=0.00 max=500.00 step=1 ");
+               " min=0.00 max=500000.00 step=1000 ");
 
     glutMainLoop( );          // Initialize The Main Loop  
 

@@ -4,7 +4,7 @@
 #ifndef CMN_UtilityHeader
 #define CMN_UtilityHeader
 
-#define     FPGA_BIT_FILENAME         "C:/nerf_sangerlab/projects/one_joint_robot/one_joint_robot_xem6010.bit"
+#define     FPGA_BIT_FILENAME         "C:/nerf_sangerlab/projects/one_joint_robot_all_in1/one_joint_robot_all_in1_xem6010.bit"
 
 #define		PI 3.14159265
 #define		EPS 0.0000001
@@ -30,6 +30,7 @@ const int    NUM_FPGA = 2;
 const int    DATA_EVT_CLKRATE = 0;
 const int    DATA_EVT_LCE = 8;
 const int    DATA_EVT_VEL = 9;
+const int    DATA_EVT_LCEVEL = 10;
 
 /* PRACTICE FLAGS */
 

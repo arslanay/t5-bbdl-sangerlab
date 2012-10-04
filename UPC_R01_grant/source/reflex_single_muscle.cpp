@@ -410,12 +410,12 @@ int WriteFpgaLceVel(okCFrontPanel *xem, int32 bitValLce, int32 bitValVel, int32 
     bitValLo = bitValVel & 0xffff;
     bitValHi = (bitValVel >> 16) & 0xffff;    
     //send muscle velocity to Fpga
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x03, bitValLo, 0xffff)) {
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x04, bitValLo, 0xffff)) {
 		printf("SetWireInLo failed.\n");
 		//delete xem;
 		return -1;
 	}
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x04, bitValHi, 0xffff)) {
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x03, bitValHi, 0xffff)) {
 		printf("SetWireInHi failed.\n");
 		//delete xem;
 		return -1;
@@ -434,14 +434,15 @@ void* ControlLoop(void*)
     
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
-
-    int32 ieee_1;
-    ReInterpret((float32)(1.02), &ieee_1);
-    
+        
     int32 IEEE_30;
     ReInterpret((float32)(30.0), &IEEE_30);
     WriteFPGA(gFpgaBiceps, IEEE_30, 1);
     WriteFPGA(gFpgaTriceps, IEEE_30, 1);
+
+    //Set i_gain_syn_SN_to_CN
+    WriteFPGA(gFpgaBiceps, 1, 12);
+    WriteFPGA(gFpgaTriceps, 1, 12);
 
     while (1)
     {
@@ -464,9 +465,9 @@ void* ControlLoop(void*)
         ReadFPGA(gFpgaBiceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[0] = muscleEMG;
 
-        float32 tGain = 0.201; // working = 0.141
-        float32 ppsBias = 87.0f;
-        float   coef_damp = 0.1; // working = 0.3
+        float32 tGain = 0.06; // working = 0.141
+        float32 ppsBias = 20.0f;
+        float   coef_damp = 0.3; // working = 0.3
 
         //PthreadMutexLock(&gMutex);
          
@@ -491,12 +492,17 @@ void* ControlLoop(void*)
 
         int32 bitValLce, bitValVel;
         ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
-        ReInterpret((float32)(0.0 * gMuscleVel[0]), &bitValVel);
+        ReInterpret((float32)(1.1 * gMuscleVel[0]), &bitValVel);
         WriteFpgaLceVel(gFpgaBiceps, bitValLce, bitValVel, DATA_EVT_LCEVEL);
-
+        
         ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
-        ReInterpret((float32)(0.0 * gMuscleVel[1]), &bitValVel);
+        ReInterpret((float32)(1.1 * gMuscleVel[1]), &bitValVel);
         WriteFpgaLceVel(gFpgaTriceps, bitValLce, bitValVel, DATA_EVT_LCEVEL);
+
+        // M1 drive        
+        int32 bitValM1Bic;
+        ReInterpret((float32)(gM1Biceps), &bitValM1Bic);
+        WriteFPGA(gFpgaBiceps, bitValM1Bic, DATA_EVT_M1);
 
 
         //if (0 == ReInterpret((float32)(gMuscleLce[0]), &temp)) 

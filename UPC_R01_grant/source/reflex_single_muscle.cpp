@@ -54,15 +54,20 @@ char                    gStateLabel[5][30] = { "MOTOR_STATE_INIT",
                                                "MOTOR_STATE_CLOSED_LOOP",                            
                                                "MOTOR_STATE_SHUTTING_DOWN"};
 //IPP
-Ipp32f* taps0;
-Ipp32f* taps1;
-Ipp32f* dly0;
-Ipp32f* dly1;
-//IppsFIRState_32f *pFIRState0, *pFIRState1;
+Ipp32f *taps0FR, *taps0;
+Ipp32f *taps1FR, *taps1;
+Ipp32f *dly0FR, *dly0;
+Ipp32f *dly1FR, *dly1;
+IppsIIRState_32f *pIIRState0FR, *pIIRState1FR;
 IppsIIRState_32f *pIIRState0, *pIIRState1;
 
 //Descending command
 float gM1Biceps;
+
+//FPGA Firing Rate
+int gFiringRateBic;
+int gFiringRateTri;
+
 
 //AntTweakBar
 TwBar *gBar; // Pointer to the tweak bar
@@ -447,12 +452,12 @@ void* ControlLoop(void*)
     WriteFPGA(gFpgaTriceps, IEEE_40, 4);
     
     //Set i_gain_syn_SN_to_CN
-    WriteFPGA(gFpgaBiceps, 0, 12);
-    WriteFPGA(gFpgaTriceps, 0, 12);
+    WriteFPGA(gFpgaBiceps, 1, 12);
+    WriteFPGA(gFpgaTriceps, 1, 12);
 
     //Set i_gain_syn_SN_to_MN
-    WriteFPGA(gFpgaBiceps, 2, 6);
-    WriteFPGA(gFpgaTriceps, 2, 6);
+    WriteFPGA(gFpgaBiceps, 1, 6);
+    WriteFPGA(gFpgaTriceps, 1, 6);
 
     while (1)
     {
@@ -471,33 +476,37 @@ void* ControlLoop(void*)
         // Read FPGA0
         float32 rawCtrlBic, rawCtrlTri;
         int muscleEMG;
-        ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrlBic);
+        //ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrlBic); // 0x30 = force;
+        ReadFPGA(gFpgaBiceps, 0x26, "int32", &gFiringRateBic); //0x26 = i_MN_spkcnt, NOT muscle. For testing ONLY
         ReadFPGA(gFpgaBiceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[0] = muscleEMG;
         
-        float32 tGainBic = 0.11; // working = 0.141
-        float32 tGainTri = 0.11; // working = 0.141
-        float32 forceBiasBic = 10.0f;
-        float32 forceBiasTri = 10.0f;
+        float32 tGainBic = 0.0;// working = 0.141
+        float32 tGainTri = 0.0;// working = 0.141
+        float32 forceBiasBic = 0.0f;
+        float32 forceBiasTri = 0.0f;
         float   coef_damp = 0.04; // working = 0.3
-        float   muslceDamp = 0.04;
+        float   muslceDamp = 0.08;
 
         //PthreadMutexLock(&gMutex);
          
-        float adjustedForceBic = max(0.0, min(65535.0, (rawCtrlBic - forceBiasBic) * tGainBic)) + coef_damp * gMuscleVel[0];
+        //float adjustedForceBic = max(0.0, min(65535.0, (rawCtrlBic - forceBiasBic) * tGainBic)) + coef_damp * gMuscleVel[0];
+        //float adjustedForceBic = max(0.0, ((rawCtrlBic) * tGainBic));
         //PthreadMutexUnlock(&gMutex);
 
         // Read FPGA1
-        ReadFPGA(gFpgaTriceps, 0x30, "float32", &rawCtrlTri);
+        //ReadFPGA(gFpgaTriceps, 0x30, "float32", &rawCtrlTri);
+        ReadFPGA(gFpgaTriceps, 0x26, "int32", &gFiringRateTri); // 0x26 = i_MN_spkcnt
         ReadFPGA(gFpgaTriceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[NUM_FPGA-1] = muscleEMG;
 
         //PthreadMutexLock(&gMutex);
-        float adjustedForceTri = max(0.0, min(65535.0, (rawCtrlTri - forceBiasTri) * tGainTri)) + coef_damp * gMuscleVel[1];
+        //float adjustedForceTri = max(0.0, min(65535.0, (rawCtrlTri - forceBiasTri) * tGainTri)) + coef_damp * gMuscleVel[1];
+        //float adjustedForceTri = max(0.0, ((rawCtrlTri) * tGainTri));
 
         
-        gCtrlFromFPGA[0] = adjustedForceBic;
-        gCtrlFromFPGA[1] = adjustedForceTri;
+        //gCtrlFromFPGA[0] = adjustedForceBic;
+        //gCtrlFromFPGA[1] = adjustedForceTri;
         //PthreadMutexUnlock(&gMutex);
 
         //printf("%.4f\t", gCtrlFromFPGA[0]);
@@ -652,13 +661,46 @@ void InitProgram()
 
     gSwapFiles = new FileContainer;
 
+    gLenOrig[0]=0.0;
+    gLenOrig[1]=0.0;
+    
+    gM1Biceps = 0.0;
+    //gLenScale=0.0001;
+    gCtrlFromFPGA[0] = 0.0f;
+    gCtrlFromFPGA[1] = 0.0f;
 
     
     //IPP
+    taps0FR = ippsMalloc_32f(lenFilterFR);
+    taps1FR = ippsMalloc_32f(lenFilterFR);
+    dly0FR  = ippsMalloc_32f(lenFilterFR);
+    dly1FR  = ippsMalloc_32f(lenFilterFR);
+
     taps0 = ippsMalloc_32f(lenFilter);
     taps1 = ippsMalloc_32f(lenFilter);
     dly0  = ippsMalloc_32f(lenFilter);
     dly1  = ippsMalloc_32f(lenFilter);
+
+    
+    //for (int i = 0; i < lenFilterFR; i++)
+    //{
+    //    taps0FR[i] = 1.0f / (float) lenFilterFR;
+    //    taps1FR[i] = 1.0f / (float) lenFilterFR;
+    //}
+  
+    taps0FR[0] =  0.0000;
+    taps0FR[1] =  2.5536;
+    taps0FR[2] =  0.0000;
+    taps0FR[3] =  2.5536;
+    taps0FR[4] = -4.7978;
+    taps0FR[5] =  2.2535;
+    
+    taps1FR[0] =  0.0000;
+    taps1FR[1] =  2.5536;
+    taps1FR[2] =  0.0000;
+    taps1FR[3] =  2.5536;
+    taps1FR[4] = -4.7978;
+    taps1FR[5] =  2.2535;
 
     taps0[0] =  0.0078;
     taps0[1] =  0.0156;
@@ -675,11 +717,16 @@ void InitProgram()
     taps1[5] =  0.7660;
 
 
+    ippsZero_32f(dly0FR,lenFilterFR);
+    ippsZero_32f(dly1FR,lenFilterFR);
+
     ippsZero_32f(dly0,lenFilter);
     ippsZero_32f(dly1,lenFilter);
         
-    //ippsFIRInitAlloc_32f( &pFIRState0, taps0, lenFilter, dly0 );
-    //ippsFIRInitAlloc_32f( &pFIRState1, taps1, lenFilter, dly1 );
+    //ippsFIRInitAlloc_32f( &pFIRState0FR, taps0FR, lenFilterFR, dly0FR );
+    //ippsFIRInitAlloc_32f( &pFIRState1FR, taps1FR, lenFilterFR, dly1FR );
+    ippsIIRInitAlloc_32f( &pIIRState0FR, taps0FR, lenFilterFR, dly0FR );
+    ippsIIRInitAlloc_32f( &pIIRState1FR, taps1FR, lenFilterFR, dly1FR );
     ippsIIRInitAlloc_32f( &pIIRState0, taps0, lenFilter, dly0 );
     ippsIIRInitAlloc_32f( &pIIRState1, taps1, lenFilter, dly1 );
 
@@ -699,15 +746,17 @@ void ExitProgram()
 
 
     //IPP
-    //ippsFIRFree_32f(pFIRState0);
-    //ippsFIRFree_32f(pFIRState1);
+    ippsFree(taps0FR);
+    ippsFree(taps1FR);
+    ippsFree(dly0FR);
+    ippsFree(dly1FR);
+    ippsIIRFree_32f(pIIRState0FR);
+    ippsIIRFree_32f(pIIRState1FR);
     
     ippsFree(taps0);
     ippsFree(taps1);
     ippsFree(dly0);
     ippsFree(dly1);
-
-
     ippsIIRFree_32f(pIIRState0);
     ippsIIRFree_32f(pIIRState1);
     
@@ -756,12 +805,6 @@ void* NoTimerCB (void *)
 
 int main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
 {
-    gLenOrig[0]=0.0;
-    gLenOrig[1]=0.0;
-    
-    gM1Biceps = 0.0;
-    //gLenScale=0.0001;
-    
     FILE *ConfigFile;
     ConfigFile= fopen("ConfigPXI.txt","r");
 

@@ -42,7 +42,7 @@ double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
 okCFrontPanel           *gFpgaBiceps, *gFpgaTriceps;
 float                   gCtrlFromFPGA[NUM_FPGA];
-int                     gMuscleEMG[NUM_FPGA];
+int                     gMuscleEMG[NUM_FPGA], gMNCount[NUM_FPGA];
 
 OGLGraph*               gMyGraph;
 char                    gLceLabel1[60];
@@ -465,16 +465,7 @@ void* ControlLoop(void*)
         if ((MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
 		//printf("\n\t%f",dataEncoder[0]); 
         
-        //printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
-        //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
-          
-        // Read FPGA0
-        float32 rawCtrlBic, rawCtrlTri;
-        int muscleEMG;
-        ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrlBic);
-        ReadFPGA(gFpgaBiceps, 0x32, "int32", &muscleEMG);
-        gMuscleEMG[0] = muscleEMG;
-        
+
         float32 tGainBic = 0.11; // working = 0.141
         float32 tGainTri = 0.11; // working = 0.141
         float32 forceBiasBic = 10.0f;
@@ -482,22 +473,23 @@ void* ControlLoop(void*)
         float   coef_damp = 0.04; // working = 0.3
         float   muslceDamp = 0.04;
 
-        //PthreadMutexLock(&gMutex);
-         
-        float adjustedForceBic = max(0.0, min(65535.0, (rawCtrlBic - forceBiasBic) * tGainBic)) + coef_damp * gMuscleVel[0];
-        //PthreadMutexUnlock(&gMutex);
+        float rawCtrlBic, rawCtrlTri;
+        int muscleEMG;
+        ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrlBic);
+        ReadFPGA(gFpgaBiceps, 0x26, "int32", &gMNCount[0]);
+        ReadFPGA(gFpgaBiceps, 0x32, "int32", &muscleEMG);
+        gMuscleEMG[0] = muscleEMG;
+        
 
         // Read FPGA1
         ReadFPGA(gFpgaTriceps, 0x30, "float32", &rawCtrlTri);
+        ReadFPGA(gFpgaTriceps, 0x26, "int32", &gMNCount[1]);
         ReadFPGA(gFpgaTriceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[NUM_FPGA-1] = muscleEMG;
 
-        //PthreadMutexLock(&gMutex);
-        float adjustedForceTri = max(0.0, min(65535.0, (rawCtrlTri - forceBiasTri) * tGainTri)) + coef_damp * gMuscleVel[1];
-
-        
+        /*
         gCtrlFromFPGA[0] = adjustedForceBic;
-        gCtrlFromFPGA[1] = adjustedForceTri;
+        gCtrlFromFPGA[1] = adjustedForceTri;*/
         //PthreadMutexUnlock(&gMutex);
 
         //printf("%.4f\t", gCtrlFromFPGA[0]);
@@ -660,19 +652,34 @@ void InitProgram()
     dly0  = ippsMalloc_32f(lenFilter);
     dly1  = ippsMalloc_32f(lenFilter);
 
-    taps0[0] =  0.0078;
-    taps0[1] =  0.0156;
-    taps0[2] =  0.0078;
-    taps0[3] =  1.0000;
-    taps0[4] = -1.7347;
-    taps0[5] =  0.7660;
+    //taps0[0] =  0.0078;
+    //taps0[1] =  0.0156;
+    //taps0[2] =  0.0078;
+    //taps0[3] =  1.0000;
+    //taps0[4] = -1.7347;
+    //taps0[5] =  0.7660;
 
-    taps1[0] =  0.0078;
-    taps1[1] =  0.0156;
-    taps1[2] =  0.0078;
-    taps1[3] =  1.0000;
-    taps1[4] = -1.7347;
-    taps1[5] =  0.7660;
+    //taps1[0] =  0.0078;
+    //taps1[1] =  0.0156;
+    //taps1[2] =  0.0078;
+    //taps1[3] =  1.0000;
+    //taps1[4] = -1.7347;
+    //taps1[5] =  0.7660;
+    float tGain = 1.0;
+
+    taps0[0] =   0.0000000 * tGain;
+    taps0[1] =   0.0025536 * tGain;
+    taps0[2] =   0.0000000 * tGain;
+    taps0[3] =   0.0025536 * tGain;
+    taps0[4] =  -0.0047978 * tGain;
+    taps0[5] =   0.0022535 * tGain;
+                           
+    taps1[0] =   0.0000000 * tGain;
+    taps1[1] =   0.0025536 * tGain;
+    taps1[2] =   0.0000000 * tGain;
+    taps1[3] =   0.0025536 * tGain;
+    taps1[4] =  -0.0047978 * tGain;
+    taps1[5] =   0.0022535 * tGain;
 
 
     ippsZero_32f(dly0,lenFilter);

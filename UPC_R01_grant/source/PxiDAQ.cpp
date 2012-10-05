@@ -294,16 +294,6 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         //gMuscleVel[1] = (rawVel1 > 0.0) ? rawVel1 : 0.0;
         // ensure muscleVel > 0
 
-#ifdef  USING_IPP_FR
-        float foo, bar;
-        ippsIIROne_32f(gMNCount[0], &foo, pIIRState0);
-        ippsIIROne_32f(gMNCount[1], &bar, pIIRState1);
-        float tGain = 0.001;
-        gCtrlFromFPGA[0] = max(0.0, foo) * tGain;
-        gCtrlFromFPGA[1] = max(0.0, bar) * tGain;
-#else
-#endif
-
 #ifdef USING_SMOOTH
         difMean[0]=0.0;
         difMean[NUM_MOTOR-1]=0.0;
@@ -336,6 +326,16 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         gMuscleVel[1] = (muscleVel1 > 0.0) ? muscleVel1 : 0.0;
 
 
+#ifdef  USING_IPP_FR
+        float foo, bar;
+        ippsIIROne_32f(gMNCount[0], &foo, pIIRState0);
+        ippsIIROne_32f(gMNCount[1], &bar, pIIRState1);
+        float tGain = 0.0001;
+        float tDamp = 0.8;
+        gCtrlFromFPGA[0] = max(0.0, foo) * tGain + tDamp * gMuscleVel[0];
+        gCtrlFromFPGA[1] = max(0.0, bar) * tGain + tDamp * gMuscleVel[1];
+#else
+#endif
 
         
         td->lce02 = td->lce01;

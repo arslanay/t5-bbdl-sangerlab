@@ -447,8 +447,8 @@ void* ControlLoop(void*)
     WriteFPGA(gFpgaTriceps, IEEE_40, 4);
     
     //Set i_gain_syn_SN_to_CN
-    WriteFPGA(gFpgaBiceps, 0, 12);
-    WriteFPGA(gFpgaTriceps, 0, 12);
+    WriteFPGA(gFpgaBiceps, 1, 12);
+    WriteFPGA(gFpgaTriceps, 1, 12);
 
     //Set i_gain_syn_SN_to_MN
     WriteFPGA(gFpgaBiceps, 2, 6);
@@ -665,21 +665,20 @@ void InitProgram()
     //taps1[3] =  1.0000;
     //taps1[4] = -1.7347;
     //taps1[5] =  0.7660;
-    float tGain = 1.0;
 
-    taps0[0] =   0.0000000 * tGain;
-    taps0[1] =   0.0025536 * tGain;
-    taps0[2] =   0.0000000 * tGain;
-    taps0[3] =   0.0025536 * tGain;
-    taps0[4] =  -0.0047978 * tGain;
-    taps0[5] =   0.0022535 * tGain;
-                           
-    taps1[0] =   0.0000000 * tGain;
-    taps1[1] =   0.0025536 * tGain;
-    taps1[2] =   0.0000000 * tGain;
-    taps1[3] =   0.0025536 * tGain;
-    taps1[4] =  -0.0047978 * tGain;
-    taps1[5] =   0.0022535 * tGain;
+    taps0[0] =   0.0000000;
+    taps0[1] =   0.0026881;
+    taps0[2] =   0.0000000;
+    taps0[3] =   0.0026882;
+    taps0[4] =  -0.0053171;
+    taps0[5] =   0.0026292;
+                          
+    taps1[0] =   0.0000000;
+    taps1[1] =   0.0026881;
+    taps1[2] =   0.0000000;
+    taps1[3] =   0.0026882;
+    taps1[4] =  -0.0053171;
+    taps1[5] =   0.0026292;
 
 
     ippsZero_32f(dly0,lenFilter);

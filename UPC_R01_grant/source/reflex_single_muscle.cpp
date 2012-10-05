@@ -438,11 +438,21 @@ void* ControlLoop(void*)
     int32 IEEE_30;
     ReInterpret((float32)(30.0), &IEEE_30);
     WriteFPGA(gFpgaBiceps, IEEE_30, 1);
-    WriteFPGA(gFpgaTriceps, IEEE_30, 1);
+    WriteFPGA(gFpgaTriceps, IEEE_30, 1);    
 
+    //Gamma_dyn = 40 (low)
+    int32 IEEE_40;
+    ReInterpret((float32)(40.0), &IEEE_40);
+    WriteFPGA(gFpgaBiceps, IEEE_40, 4);
+    WriteFPGA(gFpgaTriceps, IEEE_40, 4);
+    
     //Set i_gain_syn_SN_to_CN
-    WriteFPGA(gFpgaBiceps, 1, 12);
-    WriteFPGA(gFpgaTriceps, 1, 12);
+    WriteFPGA(gFpgaBiceps, 0, 12);
+    WriteFPGA(gFpgaTriceps, 0, 12);
+
+    //Set i_gain_syn_SN_to_MN
+    WriteFPGA(gFpgaBiceps, 2, 6);
+    WriteFPGA(gFpgaTriceps, 2, 6);
 
     while (1)
     {
@@ -464,14 +474,17 @@ void* ControlLoop(void*)
         ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrlBic);
         ReadFPGA(gFpgaBiceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[0] = muscleEMG;
-
-        float32 tGain = 0.06; // working = 0.141
-        float32 ppsBias = 20.0f;
-        float   coef_damp = 0.3; // working = 0.3
+        
+        float32 tGainBic = 0.11; // working = 0.141
+        float32 tGainTri = 0.11; // working = 0.141
+        float32 forceBiasBic = 10.0f;
+        float32 forceBiasTri = 10.0f;
+        float   coef_damp = 0.04; // working = 0.3
+        float   muslceDamp = 0.04;
 
         //PthreadMutexLock(&gMutex);
          
-        float adjustedForceBic = max(0.0, min(65535.0, (rawCtrlBic - ppsBias) * tGain)) + coef_damp * gMuscleVel[0];
+        float adjustedForceBic = max(0.0, min(65535.0, (rawCtrlBic - forceBiasBic) * tGainBic)) + coef_damp * gMuscleVel[0];
         //PthreadMutexUnlock(&gMutex);
 
         // Read FPGA1
@@ -480,7 +493,7 @@ void* ControlLoop(void*)
         gMuscleEMG[NUM_FPGA-1] = muscleEMG;
 
         //PthreadMutexLock(&gMutex);
-        float adjustedForceTri = max(0.0, min(65535.0, (rawCtrlTri - ppsBias) * tGain)) + coef_damp * gMuscleVel[1];
+        float adjustedForceTri = max(0.0, min(65535.0, (rawCtrlTri - forceBiasTri) * tGainTri)) + coef_damp * gMuscleVel[1];
 
         
         gCtrlFromFPGA[0] = adjustedForceBic;
@@ -492,11 +505,11 @@ void* ControlLoop(void*)
 
         int32 bitValLce, bitValVel;
         ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
-        ReInterpret((float32)(1.1 * gMuscleVel[0]), &bitValVel);
+        ReInterpret((float32)(muslceDamp * gMuscleVel[0]), &bitValVel);
         WriteFpgaLceVel(gFpgaBiceps, bitValLce, bitValVel, DATA_EVT_LCEVEL);
         
         ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
-        ReInterpret((float32)(1.1 * gMuscleVel[1]), &bitValVel);
+        ReInterpret((float32)(muslceDamp * gMuscleVel[1]), &bitValVel);
         WriteFpgaLceVel(gFpgaTriceps, bitValLce, bitValVel, DATA_EVT_LCEVEL);
 
         // M1 drive        
@@ -558,10 +571,11 @@ int InitFpga(okCFrontPanel *xem0)
     okCPLL22393 *pll;
     pll = new okCPLL22393;
     pll -> SetReference(48);        //base clock frequency
-    int baseRate = 100; //in MHz
+    const int HIGHEST_CLK_FREQ = 48 * 4; // in MHz
+    int baseRate = HIGHEST_CLK_FREQ; //in MHz
     pll -> SetPLLParameters(0, baseRate, 48,  true);
     pll -> SetOutputSource(0, okCPLL22393::ClkSrc_PLL0_0);
-    int clkRate = 100; //mhz; 200 is fastest
+    int clkRate = HIGHEST_CLK_FREQ; //mhz; 200 is fastest
     //pll -> SetOutputDivider(0, 1) ;
     pll -> SetOutputEnable(0, true);
     xem0 -> SetPLL22393Configuration(*pll);
@@ -575,7 +589,12 @@ int InitFpga(okCFrontPanel *xem0)
 
 
     //int newHalfCnt = 1 * 200 * (10 **6) / SAMPLING_RATE / NUM_NEURON / (value*4) / 2 / 2;
-    int32 newHalfCnt = 1 * 100 * (int32)(1e6) / 1024 / 128 / 1 / 2 / 2;
+    //const int32 X_REAL_TIME = 1;
+    const int32 X_REAL_TENTH_TIME = 10;
+
+    //int32 newHalfCnt = HIGHEST_CLK_FREQ * (int32)(1e6) / 1024 / 128 / X_REAL_TIME / 2 / 2;
+    
+    int32 newHalfCnt = HIGHEST_CLK_FREQ * (int32)(1e6) * 10 / 1024 / 128 / X_REAL_TENTH_TIME / 2 / 2;
     printf("newHalfCnt = %d \n", newHalfCnt);
 //    WriteFPGA(xem0, 197, DATA_EVT_CLKRATE);
     WriteFPGA(xem0, newHalfCnt, DATA_EVT_CLKRATE);
@@ -740,7 +759,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     gLenOrig[0]=0.0;
     gLenOrig[1]=0.0;
     
-    gM1Biceps = 250;
+    gM1Biceps = 0.0;
     //gLenScale=0.0001;
     
     FILE *ConfigFile;

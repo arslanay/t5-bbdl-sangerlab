@@ -7,9 +7,11 @@
 
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 //#define     USING_SMOOTH
-#define     USING_IPP
+//#define     USING_IPP
 
 int const ORDER_LOWPASS = 2;
+
+const int FILT_DIF = 20;
         
 void myMakeSrc_32f(Ipp32f** pSig, int len)
 {
@@ -134,7 +136,6 @@ Error:
 }
 
 #ifdef USING_SMOOTH
-const int FILT_DIF = 30;
 double difSmooth[NUM_MOTOR][FILT_DIF];
 double difMean[NUM_MOTOR];
 #endif
@@ -240,8 +241,8 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         gEncoderCount[0] = 0.0; 
         gEncoderCount[1] = 0.0;
         
-        gMuscleLce[0] = -gLenScale[0] * (-gAuxvar[2] - gEncoderCount[0] + gLenOrig[0]) + 1.0;
-        gMuscleLce[1] = -gLenScale[1] * (-gAuxvar[2+NUM_AUXVAR] - gEncoderCount[1] + gLenOrig[1]) + 1.0;
+        gMuscleLce[0] = min(max(-gLenScale[0] * (-gAuxvar[2] - gEncoderCount[0] + gLenOrig[0]) + 1.0, 0.2), 2.0);
+        gMuscleLce[1] = min(max(-gLenScale[1] * (-gAuxvar[2+NUM_AUXVAR] - gEncoderCount[1] + gLenOrig[1]) + 1.0, 0.2), 2.0);
         //float32 residuleMuscleLce = (2.02 - gMuscleLce[0] - gMuscleLce[1]) / 2.0;
         //gMuscleLce[0] += residuleMuscleLce;
         //gMuscleLce[1] += residuleMuscleLce;
@@ -281,11 +282,11 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         //ippsFIROne_32f(dEncoderCounts1, &muscleVel1, pFIRState1);
         ippsIIROne_32f(dEncoderCounts0, &muscleVel0, pIIRState0);
         ippsIIROne_32f(dEncoderCounts1, &muscleVel1, pIIRState1);
-        muscleVel0*=(-gLenScale[0]) * 1000.0f;
-        muscleVel1*=(-gLenScale[1]) * 1000.0f;
+        //muscleVel0*=(-gLenScale[0]) * 1000.0f;
+        //muscleVel1*=(-gLenScale[1]) * 1000.0f;
 #else
-        muscleVel0 = dEncoderCounts0*(-gLenScale[0]);
-        muscleVel1 = dEncoderCounts1*(-gLenScale[1]);
+        muscleVel0 = dEncoderCounts0;
+        muscleVel1 = dEncoderCounts1;
 #endif
         // ensure muscleVel > 0
         //gMuscleVel[0] = (rawVel0 > 0.0) ? rawVel0 : 0.0;
@@ -314,12 +315,14 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
 
         difMean[0]/=(double)FILT_DIF;
         difMean[NUM_MOTOR-1]/=(double)FILT_DIF;
-        muscleVel0 = -gLenScale[0]*difMean[0];
-        muscleVel1 = -gLenScale[1]*difMean[1];
+        muscleVel0 = difMean[0];
+        muscleVel1 = difMean[1];
 #endif
-    
-        gMuscleVel[0] = (muscleVel0 > 0.0) ? muscleVel0: 0.0;
-        gMuscleVel[1] = (muscleVel1 > 0.0) ? muscleVel1: 0.0;
+        muscleVel0 *= (-gLenScale[0])* 1000.0f;
+        muscleVel1 *= (-gLenScale[1])* 1000.0f;
+
+        gMuscleVel[0] = (muscleVel0 > 0.0) ? muscleVel0 : 0.0;
+        gMuscleVel[1] = (muscleVel1 > 0.0) ? muscleVel1 : 0.0;
 
 
 

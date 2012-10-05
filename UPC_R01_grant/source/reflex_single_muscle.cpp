@@ -652,7 +652,7 @@ void InitProgram()
     dly0  = ippsMalloc_32f(lenFilter);
     dly1  = ippsMalloc_32f(lenFilter);
 
-    //taps0[0] =  0.0078;
+    //taps0[0] =  0.0078; // for Lowpass filter velocity
     //taps0[1] =  0.0156;
     //taps0[2] =  0.0078;
     //taps0[3] =  1.0000;
@@ -665,20 +665,27 @@ void InitProgram()
     //taps1[3] =  1.0000;
     //taps1[4] = -1.7347;
     //taps1[5] =  0.7660;
+    float   P   =   1.0;
+    float   e   =   2.7183;
+    float   T   =   0.001;
+    float   tau   =   0.090; // rising time of muscle twitch in seconds
+    float   a   =   exp(-T / tau);
+    float   pefat = P * e * T * a / tau;
+    
 
-    taps0[0] =   0.0000000;
-    taps0[1] =   0.0026881;
-    taps0[2] =   0.0000000;
-    taps0[3] =   0.0026882;
-    taps0[4] =  -0.0053171;
-    taps0[5] =   0.0026292;
+    taps0[0] =   0.0000000 * pefat;
+    taps0[1] =   1.00 * pefat;
+    taps0[2] =   0.0000000 * pefat;
+    taps0[3] =   1.00 * pefat;
+    taps0[4] =  -2 * a * pefat;
+    taps0[5] =   a * a * pefat;
                           
-    taps1[0] =   0.0000000;
-    taps1[1] =   0.0026881;
-    taps1[2] =   0.0000000;
-    taps1[3] =   0.0026882;
-    taps1[4] =  -0.0053171;
-    taps1[5] =   0.0026292;
+    taps1[0] =   0.0000000 * pefat;
+    taps1[1] =   1.00 * pefat;
+    taps1[2] =   0.0000000 * pefat;
+    taps1[3] =   1.00 * pefat;
+    taps1[4] =  -2 * a * pefat;
+    taps1[5] =   a * a * pefat;
 
 
     ippsZero_32f(dly0,lenFilter);

@@ -51,8 +51,8 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
 	DAQmxErrChk (DAQmxCfgSampClkTiming(ForceReadTaskHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
     
     DAQmxErrChk (DAQmxCreateTask("",&AOHandle));
-    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao10","motor0", 0.0,MAX_VOLT,DAQmx_Val_Volts,NULL));
-    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao11","motor1", 0.0,MAX_VOLT,DAQmx_Val_Volts,NULL));
+    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao10","motor0", 0.0, MAX_VOLT, DAQmx_Val_Volts,NULL));
+    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao11","motor1", 0.0, MAX_VOLT, DAQmx_Val_Volts,NULL));
 	DAQmxErrChk (DAQmxCfgSampClkTiming(AOHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
 	
     
@@ -330,8 +330,8 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         float foo, bar;
         ippsIIROne_32f(gMNCount[0], &foo, pIIRState0);
         ippsIIROne_32f(gMNCount[1], &bar, pIIRState1);
-        float tGain = 0.0001;
-        float tDamp = 0.8;
+        float tGain = 0.00015;
+        float tDamp = 1.6;
         gCtrlFromFPGA[0] = max(0.0, foo) * tGain + tDamp * gMuscleVel[0];
         gCtrlFromFPGA[1] = max(0.0, bar) * tGain + tDamp * gMuscleVel[1];
 #else

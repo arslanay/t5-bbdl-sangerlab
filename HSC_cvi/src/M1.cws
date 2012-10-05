@@ -1,0 +1,166 @@
+[Workspace Header]
+Version = 901
+Pathname = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/M1.cws"
+CVI Dir = "/c/program files (x86)/national instruments/cvi90"
+CVI Shared Dir = "/C/Program Files (x86)/National Instruments/Shared/CVI"
+CVI Pub Local Dir = "/C/ProgramData/National Instruments/CVI90"
+CVI Pub Global Dir = "/C/ProgramData/National Instruments/CVI"
+IVI Standard Root Dir = "/C/Program Files (x86)/IVI Foundation/IVI"
+VXIplug&play Framework Dir = "/C/Program Files (x86)/IVI Foundation/VISA/winnt"
+Number of Projects = 2
+Active Project = 1
+Project 0001 = "TestSriJohn.prj"
+Project 0002 = "GetStateMatrixFromSignals.prj"
+Drag Bar Left = 357
+Window Top = 28
+Window Left = 2713
+Window Bottom = 1157
+Window Right = 3665
+Maximized = True
+Maximized Children = True
+Max Number Of Errors = 20
+Track Include File Dependencies = True
+Prompt For Missing Includes = True
+Stop On First Error File = False
+Bring Up Err Win For Warnings = True
+Show Build Dialog = False
+Save Changes Before Running = "Always"
+Hide Windows = False
+Break At First Statement = False
+Sort Type = "File Name"
+Number of Opened Files = 2
+Window Confinement Region Enabled = True
+MainColumnWidth = 338
+FileDateColumnWidth = 70
+FileSizeColumnWidth = 70
+StatusColumnWidth = 70
+
+[Project Header 0001]
+Version = 901
+Don't Update DistKit = False
+Platform Code = 4
+Build Configuration = "Release"
+Warn User If Debugging Release = 1
+Batch Build Release = False
+Batch Build Debug = False
+Force Rebuild = False
+
+[Project Header 0002]
+Version = 901
+Don't Update DistKit = False
+Platform Code = 4
+Build Configuration = "Debug"
+Warn User If Debugging Release = 1
+Batch Build Release = False
+Batch Build Debug = False
+Force Rebuild = False
+
+[File 0001]
+Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/TestSriJohn"
+Path Line0002 = ".c"
+File Type = "CSource"
+Disk Date = 3412266859
+In Projects = "1,"
+Window Top = 25
+Window Left = 6
+Window Z-Order = 1
+Source Window State = "1,204,205,205,34,34,34,0,0,190,0,0,0,0,0,83,150,0,172,67,349,695,1,0,"
+
+[File 0002]
+Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/GetStateMat"
+Path Line0002 = "rixFromSignals.h"
+File Type = "Include"
+Disk Date = 3398025705
+In Projects = "2,"
+Window Top = 25
+Window Left = 6
+Window Z-Order = 2
+Source Window State = "1,0,0,0,0,0,0,0,0,81,0,0,0,0,0,25,0,0,0,0,349,695,1,0,"
+
+[File 0003]
+Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/TestSriJohn"
+Path Line0002 = ".h"
+File Type = "Include"
+Disk Date = 3409933746
+In Projects = "1,"
+Window Top = 25
+Window Left = 6
+Source Window State = "1,0,1,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,12,349,695,1,0,"
+
+[File 0004]
+Path Line0001 = "/c/Users/cadaverExperiment/Documents/LabVIEW Data/M1/M1_R01_beta/CVI/GetStateMat"
+Path Line0002 = "rixFromSignals.c"
+File Type = "CSource"
+Disk Date = 3410461348
+In Projects = "2,"
+Window Top = 23
+Window Left = 964
+Window Released = True
+Source Window State = "1,242,246,246,0,21,21,0,0,0,0,0,0,0,0,0,184,0,236,33,1129,952,0,0,"
+
+[Build Options 0001]
+Generate Browse Info = True
+Enable Uninitialized Locals Runtime Warning = True
+Execution Trace = "Disabled"
+Debugging Level = "Standard"
+Break On Library Errors = True
+Break On First Chance Exceptions = False
+Execution Target Address = "Local desktop computer"
+Execution Target Port = 0
+Execution Target Type = 0
+
+[SCC Options 0001]
+Use global settings = True
+SCC Provider = ""
+SCC Project = ""
+Local Path = ""
+Auxiliary Path = ""
+Perform Same Action For .h File As For .uir File = "Ask"
+Perform Same Action For .cds File As For .prj File = "Ask"
+Username = ""
+Comment = ""
+Use Default Username = False
+Use Default Comment = False
+Suppress CVI Error Messages = False
+Always show confirmation dialog = True
+
+[DLL Debugging Support 0001]
+External Process Path = ""
+
+[Command Line Args 0001]
+Command Line Args = ""
+Working Directory = ""
+
+[Build Options 0002]
+Generate Browse Info = True
+Enable Uninitialized Locals Runtime Warning = True
+Execution Trace = "Disabled"
+Debugging Level = "Standard"
+Break On Library Errors = True
+Break On First Chance Exceptions = False
+Execution Target Address = "Local desktop computer"
+Execution Target Port = 0
+Execution Target Type = 0
+
+[SCC Options 0002]
+Use global settings = True
+SCC Provider = ""
+SCC Project = ""
+Local Path = ""
+Auxiliary Path = ""
+Perform Same Action For .h File As For .uir File = "Ask"
+Perform Same Action For .cds File As For .prj File = "Ask"
+Username = ""
+Comment = ""
+Use Default Username = False
+Use Default Comment = False
+Suppress CVI Error Messages = False
+Always show confirmation dialog = True
+
+[DLL Debugging Support 0002]
+External Process Path = ""
+
+[Command Line Args 0002]
+Command Line Args = ""
+Working Directory = ""
+

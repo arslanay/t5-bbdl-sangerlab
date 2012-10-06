@@ -456,10 +456,11 @@ void* ControlLoop(void*)
 
 
     int32 bitValM1Dystonia;
-    ReInterpret((int32)(0000), &bitValM1Dystonia);
+    ReInterpret((int32)(00), &bitValM1Dystonia);
     WriteFPGA(gFpgaBiceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
     WriteFPGA(gFpgaTriceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
 
+    long iLoop = 0;
     while (1)
     {
         if(GetAsyncKeyState(VK_SPACE))
@@ -470,7 +471,15 @@ void* ControlLoop(void*)
 
         if ((MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
 		//printf("\n\t%f",dataEncoder[0]); 
-        
+        iLoop++;
+        if (1000 == iLoop)
+        {
+
+            ReInterpret((int32)(20000), &bitValM1Dystonia);
+            WriteFPGA(gFpgaBiceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
+            WriteFPGA(gFpgaTriceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
+            printf("Dystonia ! \n");
+        }        
 
         float32 tGainBic = 0.11; // working = 0.141
         float32 tGainTri = 0.11; // working = 0.141

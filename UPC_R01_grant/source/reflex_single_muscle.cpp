@@ -62,7 +62,7 @@ Ipp32f* dly1;
 IppsIIRState_32f *pIIRState0, *pIIRState1;
 
 //Descending command
-float gM1Biceps;
+int gM1Voluntary, gM1Dystonia;
 
 //AntTweakBar
 TwBar *gBar; // Pointer to the tweak bar
@@ -410,12 +410,12 @@ int WriteFpgaLceVel(okCFrontPanel *xem, int32 bitValLce, int32 bitValVel, int32 
     bitValLo = bitValVel & 0xffff;
     bitValHi = (bitValVel >> 16) & 0xffff;    
     //send muscle velocity to Fpga
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x04, bitValLo, 0xffff)) {
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x03, bitValLo, 0xffff)) {
 		printf("SetWireInLo failed.\n");
 		//delete xem;
 		return -1;
 	}
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x03, bitValHi, 0xffff)) {
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x04, bitValHi, 0xffff)) {
 		printf("SetWireInHi failed.\n");
 		//delete xem;
 		return -1;
@@ -447,12 +447,12 @@ void* ControlLoop(void*)
     WriteFPGA(gFpgaTriceps, IEEE_40, 4);
     
     //Set i_gain_syn_SN_to_CN
-    WriteFPGA(gFpgaBiceps, 1, 12);
+    WriteFPGA(gFpgaBiceps, 1, 12); //working 1
     WriteFPGA(gFpgaTriceps, 1, 12);
 
     //Set i_gain_syn_SN_to_MN
-    WriteFPGA(gFpgaBiceps, 2, 6);
-    WriteFPGA(gFpgaTriceps, 2, 6);
+    WriteFPGA(gFpgaBiceps, 1, 6); // working with 2
+    WriteFPGA(gFpgaTriceps, 1, 6);
 
     while (1)
     {
@@ -505,9 +505,16 @@ void* ControlLoop(void*)
         WriteFpgaLceVel(gFpgaTriceps, bitValLce, bitValVel, DATA_EVT_LCEVEL);
 
         // M1 drive        
-        int32 bitValM1Bic;
-        ReInterpret((float32)(gM1Biceps), &bitValM1Bic);
-        WriteFPGA(gFpgaBiceps, bitValM1Bic, DATA_EVT_M1);
+        int32 bitValM1Voluntary;
+        ReInterpret((int32)(gM1Voluntary), &bitValM1Voluntary);
+        WriteFPGA(gFpgaBiceps, bitValM1Voluntary, DATA_EVT_M1_VOL);
+
+        
+        int32 bitValM1Dystonia;
+        ReInterpret((int32)(gM1Dystonia), &bitValM1Dystonia);
+        WriteFPGA(gFpgaBiceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
+        WriteFPGA(gFpgaTriceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
+        //WriteFPGA(gFpgaTriceps, bitValM1Bic, DATA_EVT_M1);
 
 
         //if (0 == ReInterpret((float32)(gMuscleLce[0]), &temp)) 
@@ -743,8 +750,10 @@ inline void LogData( void)
     if (gIsRecording)
     {   
         fprintf(gDataFile,"%.3lf\t",actualTime );																	
-        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMuscleEMG[0]);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMuscleEMG[1]);			
+        //fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMuscleEMG[0]);			
+        //fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMuscleEMG[1]);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMNCount[0]);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMNCount[1]);			
         fprintf(gDataFile,"\n");
     }
 }
@@ -772,7 +781,8 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     gLenOrig[0]=0.0;
     gLenOrig[1]=0.0;
     
-    gM1Biceps = 0.0;
+    gM1Voluntary= 0.0;
+    gM1Dystonia= 0.0;
     //gLenScale=0.0001;
     
     FILE *ConfigFile;
@@ -831,8 +841,10 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     // Add 'g_Zoom' to 'bar': this is a modifable (RW) variable of type TW_TYPE_FLOAT. Its key shortcuts are [z] and [Z].
     TwAddVarRW(gBar, "Gain", TW_TYPE_FLOAT, &gLenScale, 
                " min=0.0000 max=0.0002 step=0.000001 keyIncr=l keyDecr=L help='Scale the object (1=original size).' ");
-    TwAddVarRW(gBar, "M1Biceps", TW_TYPE_FLOAT, &gM1Biceps, 
-               " min=0.00 max=500000.00 step=1000 ");
+    TwAddVarRW(gBar, "M1Voluntary", TW_TYPE_INT32, &gM1Voluntary, 
+               " min=0.00 max=500000.00 step=40000 ");
+    TwAddVarRW(gBar, "M1Dystonia", TW_TYPE_INT32, &gM1Dystonia, 
+               " min=0.00 max=500000.00 step=10000 ");
 
     glutMainLoop( );          // Initialize The Main Loop  
 

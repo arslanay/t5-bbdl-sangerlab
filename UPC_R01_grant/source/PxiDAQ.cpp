@@ -330,10 +330,19 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         float foo, bar;
         ippsIIROne_32f(gMNCount[0], &foo, pIIRState0);
         ippsIIROne_32f(gMNCount[1], &bar, pIIRState1);
-        float tGain = 0.00015;
-        float tDamp = 1.6;
-        gCtrlFromFPGA[0] = max(0.0, foo) * tGain + tDamp * gMuscleVel[0];
-        gCtrlFromFPGA[1] = max(0.0, bar) * tGain + tDamp * gMuscleVel[1];
+        //Below a WORKING version
+        //const float tGain = 0.00015;
+        //const float tBias = 15000;
+        //const float tDamp = 2.2 / tGain;
+
+        //Below a WORKING version
+        const float tGain = 0.00008;
+        const float tBias = 000;
+        const float tDampBic = 0.7 / tGain + 0.28 * foo;
+        const float tDampTri = 0.7 / tGain + 0.28 * bar;
+
+        gCtrlFromFPGA[0] = max(0.0, (foo - tBias + tDampBic * gMuscleVel[0]) * tGain) ;
+        gCtrlFromFPGA[1] = max(0.0, (bar - tBias + tDampTri * gMuscleVel[1]) * tGain) ;
 #else
 #endif
 

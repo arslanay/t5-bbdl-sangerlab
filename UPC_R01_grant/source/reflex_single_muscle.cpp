@@ -42,7 +42,7 @@ double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
 okCFrontPanel           *gFpgaBiceps, *gFpgaTriceps;
 float                   gCtrlFromFPGA[NUM_FPGA];
-int                     gMuscleEMG[NUM_FPGA];
+int                     gMuscleEMG[NUM_FPGA], gMNCount[NUM_FPGA];
 
 OGLGraph*               gMyGraph;
 char                    gLceLabel1[60];
@@ -54,20 +54,15 @@ char                    gStateLabel[5][30] = { "MOTOR_STATE_INIT",
                                                "MOTOR_STATE_CLOSED_LOOP",                            
                                                "MOTOR_STATE_SHUTTING_DOWN"};
 //IPP
-Ipp32f *taps0FR, *taps0;
-Ipp32f *taps1FR, *taps1;
-Ipp32f *dly0FR, *dly0;
-Ipp32f *dly1FR, *dly1;
-IppsIIRState_32f *pIIRState0FR, *pIIRState1FR;
+Ipp32f* taps0;
+Ipp32f* taps1;
+Ipp32f* dly0;
+Ipp32f* dly1;
+//IppsFIRState_32f *pFIRState0, *pFIRState1;
 IppsIIRState_32f *pIIRState0, *pIIRState1;
 
 //Descending command
-float gM1Biceps;
-
-//FPGA Firing Rate
-int gFiringRateBic;
-int gFiringRateTri;
-
+int gM1Voluntary, gM1Dystonia;
 
 //AntTweakBar
 TwBar *gBar; // Pointer to the tweak bar
@@ -415,12 +410,12 @@ int WriteFpgaLceVel(okCFrontPanel *xem, int32 bitValLce, int32 bitValVel, int32 
     bitValLo = bitValVel & 0xffff;
     bitValHi = (bitValVel >> 16) & 0xffff;    
     //send muscle velocity to Fpga
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x04, bitValLo, 0xffff)) {
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x03, bitValLo, 0xffff)) {
 		printf("SetWireInLo failed.\n");
 		//delete xem;
 		return -1;
 	}
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x03, bitValHi, 0xffff)) {
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x04, bitValHi, 0xffff)) {
 		printf("SetWireInHi failed.\n");
 		//delete xem;
 		return -1;
@@ -452,12 +447,18 @@ void* ControlLoop(void*)
     WriteFPGA(gFpgaTriceps, IEEE_40, 4);
     
     //Set i_gain_syn_SN_to_CN
-    WriteFPGA(gFpgaBiceps, 1, 12);
+    WriteFPGA(gFpgaBiceps, 1, 12); //working 1
     WriteFPGA(gFpgaTriceps, 1, 12);
 
     //Set i_gain_syn_SN_to_MN
-    WriteFPGA(gFpgaBiceps, 1, 6);
+    WriteFPGA(gFpgaBiceps, 1, 6); // working with 2
     WriteFPGA(gFpgaTriceps, 1, 6);
+
+
+    int32 bitValM1Dystonia;
+    ReInterpret((int32)(0000), &bitValM1Dystonia);
+    WriteFPGA(gFpgaBiceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
+    WriteFPGA(gFpgaTriceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
 
     while (1)
     {
@@ -470,43 +471,31 @@ void* ControlLoop(void*)
         if ((MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
 		//printf("\n\t%f",dataEncoder[0]); 
         
-        //printf("f1 %0.4lf :: f2 %0.4lf :::: p1 %0.4lf :: p2 %0.4lf \n", 
-        //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
-          
-        // Read FPGA0
-        float32 rawCtrlBic, rawCtrlTri;
+
+        float32 tGainBic = 0.11; // working = 0.141
+        float32 tGainTri = 0.11; // working = 0.141
+        float32 forceBiasBic = 10.0f;
+        float32 forceBiasTri = 10.0f;
+        float   coef_damp = 0.04; // working = 0.3
+        float   muslceDamp = 0.04;
+
+        float rawCtrlBic, rawCtrlTri;
         int muscleEMG;
-        //ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrlBic); // 0x30 = force;
-        ReadFPGA(gFpgaBiceps, 0x26, "int32", &gFiringRateBic); //0x26 = i_MN_spkcnt, NOT muscle. For testing ONLY
+        ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrlBic);
+        ReadFPGA(gFpgaBiceps, 0x26, "int32", &gMNCount[0]);
         ReadFPGA(gFpgaBiceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[0] = muscleEMG;
         
-        float32 tGainBic = 0.0;// working = 0.141
-        float32 tGainTri = 0.0;// working = 0.141
-        float32 forceBiasBic = 0.0f;
-        float32 forceBiasTri = 0.0f;
-        float   coef_damp = 0.04; // working = 0.3
-        float   muslceDamp = 0.08;
-
-        //PthreadMutexLock(&gMutex);
-         
-        //float adjustedForceBic = max(0.0, min(65535.0, (rawCtrlBic - forceBiasBic) * tGainBic)) + coef_damp * gMuscleVel[0];
-        //float adjustedForceBic = max(0.0, ((rawCtrlBic) * tGainBic));
-        //PthreadMutexUnlock(&gMutex);
 
         // Read FPGA1
-        //ReadFPGA(gFpgaTriceps, 0x30, "float32", &rawCtrlTri);
-        ReadFPGA(gFpgaTriceps, 0x26, "int32", &gFiringRateTri); // 0x26 = i_MN_spkcnt
+        ReadFPGA(gFpgaTriceps, 0x30, "float32", &rawCtrlTri);
+        ReadFPGA(gFpgaTriceps, 0x26, "int32", &gMNCount[1]);
         ReadFPGA(gFpgaTriceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[NUM_FPGA-1] = muscleEMG;
 
-        //PthreadMutexLock(&gMutex);
-        //float adjustedForceTri = max(0.0, min(65535.0, (rawCtrlTri - forceBiasTri) * tGainTri)) + coef_damp * gMuscleVel[1];
-        //float adjustedForceTri = max(0.0, ((rawCtrlTri) * tGainTri));
-
-        
-        //gCtrlFromFPGA[0] = adjustedForceBic;
-        //gCtrlFromFPGA[1] = adjustedForceTri;
+        /*
+        gCtrlFromFPGA[0] = adjustedForceBic;
+        gCtrlFromFPGA[1] = adjustedForceTri;*/
         //PthreadMutexUnlock(&gMutex);
 
         //printf("%.4f\t", gCtrlFromFPGA[0]);
@@ -522,9 +511,12 @@ void* ControlLoop(void*)
         WriteFpgaLceVel(gFpgaTriceps, bitValLce, bitValVel, DATA_EVT_LCEVEL);
 
         // M1 drive        
-        int32 bitValM1Bic;
-        ReInterpret((float32)(gM1Biceps), &bitValM1Bic);
-        WriteFPGA(gFpgaBiceps, bitValM1Bic, DATA_EVT_M1);
+        int32 bitValM1Voluntary;
+        ReInterpret((int32)(gM1Voluntary), &bitValM1Voluntary);
+        WriteFPGA(gFpgaBiceps, bitValM1Voluntary, DATA_EVT_M1_VOL);
+
+        
+        //WriteFPGA(gFpgaTriceps, bitValM1Bic, DATA_EVT_M1);
 
 
         //if (0 == ReInterpret((float32)(gMuscleLce[0]), &temp)) 
@@ -661,72 +653,55 @@ void InitProgram()
 
     gSwapFiles = new FileContainer;
 
-    gLenOrig[0]=0.0;
-    gLenOrig[1]=0.0;
-    
-    gM1Biceps = 0.0;
-    //gLenScale=0.0001;
-    gCtrlFromFPGA[0] = 0.0f;
-    gCtrlFromFPGA[1] = 0.0f;
 
     
     //IPP
-    taps0FR = ippsMalloc_32f(lenFilterFR);
-    taps1FR = ippsMalloc_32f(lenFilterFR);
-    dly0FR  = ippsMalloc_32f(lenFilterFR);
-    dly1FR  = ippsMalloc_32f(lenFilterFR);
-
     taps0 = ippsMalloc_32f(lenFilter);
     taps1 = ippsMalloc_32f(lenFilter);
     dly0  = ippsMalloc_32f(lenFilter);
     dly1  = ippsMalloc_32f(lenFilter);
 
+    //taps0[0] =  0.0078; // for Lowpass filter velocity
+    //taps0[1] =  0.0156;
+    //taps0[2] =  0.0078;
+    //taps0[3] =  1.0000;
+    //taps0[4] = -1.7347;
+    //taps0[5] =  0.7660;
+
+    //taps1[0] =  0.0078;
+    //taps1[1] =  0.0156;
+    //taps1[2] =  0.0078;
+    //taps1[3] =  1.0000;
+    //taps1[4] = -1.7347;
+    //taps1[5] =  0.7660;
+    float   P   =   1.0;
+    float   e   =   2.7183;
+    float   T   =   0.001;
+    float   tau   =   0.090; // rising time of muscle twitch in seconds
+    float   a   =   exp(-T / tau);
+    float   pefat = P * e * T * a / tau;
     
-    //for (int i = 0; i < lenFilterFR; i++)
-    //{
-    //    taps0FR[i] = 1.0f / (float) lenFilterFR;
-    //    taps1FR[i] = 1.0f / (float) lenFilterFR;
-    //}
-  
-    taps0FR[0] =  0.0000;
-    taps0FR[1] =  2.5536;
-    taps0FR[2] =  0.0000;
-    taps0FR[3] =  2.5536;
-    taps0FR[4] = -4.7978;
-    taps0FR[5] =  2.2535;
-    
-    taps1FR[0] =  0.0000;
-    taps1FR[1] =  2.5536;
-    taps1FR[2] =  0.0000;
-    taps1FR[3] =  2.5536;
-    taps1FR[4] = -4.7978;
-    taps1FR[5] =  2.2535;
 
-    taps0[0] =  0.0078;
-    taps0[1] =  0.0156;
-    taps0[2] =  0.0078;
-    taps0[3] =  1.0000;
-    taps0[4] = -1.7347;
-    taps0[5] =  0.7660;
+    taps0[0] =   0.0000000 * pefat;
+    taps0[1] =   1.00 * pefat;
+    taps0[2] =   0.0000000 * pefat;
+    taps0[3] =   1.00 * pefat;
+    taps0[4] =  -2 * a * pefat;
+    taps0[5] =   a * a * pefat;
+                          
+    taps1[0] =   0.0000000 * pefat;
+    taps1[1] =   1.00 * pefat;
+    taps1[2] =   0.0000000 * pefat;
+    taps1[3] =   1.00 * pefat;
+    taps1[4] =  -2 * a * pefat;
+    taps1[5] =   a * a * pefat;
 
-    taps1[0] =  0.0078;
-    taps1[1] =  0.0156;
-    taps1[2] =  0.0078;
-    taps1[3] =  1.0000;
-    taps1[4] = -1.7347;
-    taps1[5] =  0.7660;
-
-
-    ippsZero_32f(dly0FR,lenFilterFR);
-    ippsZero_32f(dly1FR,lenFilterFR);
 
     ippsZero_32f(dly0,lenFilter);
     ippsZero_32f(dly1,lenFilter);
         
-    //ippsFIRInitAlloc_32f( &pFIRState0FR, taps0FR, lenFilterFR, dly0FR );
-    //ippsFIRInitAlloc_32f( &pFIRState1FR, taps1FR, lenFilterFR, dly1FR );
-    ippsIIRInitAlloc_32f( &pIIRState0FR, taps0FR, lenFilterFR, dly0FR );
-    ippsIIRInitAlloc_32f( &pIIRState1FR, taps1FR, lenFilterFR, dly1FR );
+    //ippsFIRInitAlloc_32f( &pFIRState0, taps0, lenFilter, dly0 );
+    //ippsFIRInitAlloc_32f( &pFIRState1, taps1, lenFilter, dly1 );
     ippsIIRInitAlloc_32f( &pIIRState0, taps0, lenFilter, dly0 );
     ippsIIRInitAlloc_32f( &pIIRState1, taps1, lenFilter, dly1 );
 
@@ -746,17 +721,15 @@ void ExitProgram()
 
 
     //IPP
-    ippsFree(taps0FR);
-    ippsFree(taps1FR);
-    ippsFree(dly0FR);
-    ippsFree(dly1FR);
-    ippsIIRFree_32f(pIIRState0FR);
-    ippsIIRFree_32f(pIIRState1FR);
+    //ippsFIRFree_32f(pFIRState0);
+    //ippsFIRFree_32f(pFIRState1);
     
     ippsFree(taps0);
     ippsFree(taps1);
     ippsFree(dly0);
     ippsFree(dly1);
+
+
     ippsIIRFree_32f(pIIRState0);
     ippsIIRFree_32f(pIIRState1);
     
@@ -779,8 +752,10 @@ inline void LogData( void)
     if (gIsRecording)
     {   
         fprintf(gDataFile,"%.3lf\t",actualTime );																	
-        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMuscleEMG[0]);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMuscleEMG[1]);			
+        //fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMuscleEMG[0]);			
+        //fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMuscleEMG[1]);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMNCount[0]);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMNCount[1]);			
         fprintf(gDataFile,"\n");
     }
 }
@@ -805,6 +780,13 @@ void* NoTimerCB (void *)
 
 int main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
 {
+    gLenOrig[0]=0.0;
+    gLenOrig[1]=0.0;
+    
+    gM1Voluntary= 0.0;
+    gM1Dystonia= 0.0;
+    //gLenScale=0.0001;
+    
     FILE *ConfigFile;
     ConfigFile= fopen("ConfigPXI.txt","r");
 
@@ -861,8 +843,10 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     // Add 'g_Zoom' to 'bar': this is a modifable (RW) variable of type TW_TYPE_FLOAT. Its key shortcuts are [z] and [Z].
     TwAddVarRW(gBar, "Gain", TW_TYPE_FLOAT, &gLenScale, 
                " min=0.0000 max=0.0002 step=0.000001 keyIncr=l keyDecr=L help='Scale the object (1=original size).' ");
-    TwAddVarRW(gBar, "M1Biceps", TW_TYPE_FLOAT, &gM1Biceps, 
-               " min=0.00 max=500000.00 step=1000 ");
+    TwAddVarRW(gBar, "M1Voluntary", TW_TYPE_INT32, &gM1Voluntary, 
+               " min=0.00 max=500000.00 step=40000 ");
+    TwAddVarRW(gBar, "M1Dystonia", TW_TYPE_INT32, &gM1Dystonia, 
+               " min=0.00 max=500000.00 step=10000 ");
 
     glutMainLoop( );          // Initialize The Main Loop  
 

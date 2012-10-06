@@ -20,7 +20,7 @@
 #define     MOTOR_STATE_SHUTTING_DOWN 4
 
 /* Safety Configurations */
-const float		MAX_VOLT = 9.0;
+const float		MAX_VOLT = 10.0;
 const double		SAFE_MOTOR_VOLTAGE = 0.9;
 const double		ZERO_MOTOR_VOLTAGE = 0.0;
 const int    NUM_MOTOR = 2;
@@ -31,7 +31,8 @@ const int    DATA_EVT_CLKRATE = 0;
 const int    DATA_EVT_LCE = 8;
 const int    DATA_EVT_VEL = 9;
 const int    DATA_EVT_LCEVEL = 10;
-const int    DATA_EVT_M1 = 11;
+const int    DATA_EVT_M1_VOL = 11;
+const int    DATA_EVT_M1_DYS = 8;
 
 /* PRACTICE FLAGS */
 

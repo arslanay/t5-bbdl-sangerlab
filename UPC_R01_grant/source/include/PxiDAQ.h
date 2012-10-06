@@ -24,20 +24,13 @@ public:
     //
 };
 
-int const ORDER_VEL_LOWPASS = 2;
-int const ORDER_FR_LOWPASS = 2;
-const int lenFilter = 2 * (1 + ORDER_VEL_LOWPASS); // IIR, len = 2 * (1 + ORDER)
-const int lenFilterFR = 2 * (1 + ORDER_FR_LOWPASS); // FIR, len = 1 + ORDER
-extern Ipp32f *taps0FR, *taps0;
-extern Ipp32f *taps1FR, *taps1;
-extern Ipp32f *dly0FR, *dly0;
-extern Ipp32f *dly1FR, *dly1;
-extern IppsIIRState_32f *pIIRState0FR, *pIIRState1FR;
+const int lenFilter = 2;
+extern Ipp32f* taps0;
+extern Ipp32f* taps1;
+extern Ipp32f* dly0;
+extern Ipp32f* dly1;
+extern IppsFIRState_32f *pFIRState0, *pFIRState1;
 extern IppsIIRState_32f *pIIRState0, *pIIRState1;
-
-extern int gFiringRateBic;
-extern int gFiringRateTri;
-
 
 extern float gAuxvar[];
 extern TaskHandle gAOTaskHandle;
@@ -67,6 +60,7 @@ int DisableMotors(TaskHandle *rawHandle);
 extern FILE *gDataFile;
 extern float64 gMotorCmd[];
 extern float gCtrlFromFPGA[];
+extern int gMNCount[];
 
 extern char gTimeStamp[20];
 

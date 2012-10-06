@@ -7,13 +7,20 @@
 
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 //#define     USING_SMOOTH
-#define     USING_IPP
-//#define     USING_IPP_FR_FPGA
+//#define     USING_IPP
+#define     USING_IPP_FR
 
-
+int const ORDER_LOWPASS = 2;
 
 const int FILT_DIF = 20;
         
+void myMakeSrc_32f(Ipp32f** pSig, int len)
+{
+	*pSig = ippsMalloc_32f(len);
+
+	ippsVectorJaehne_32f( *pSig, len, 1 );
+}       
+
 TimeData::TimeData() :
     lce00(1.0), lce01(1.0), lce02(1.0), h1(1.0), h2(1.0),
     lce10(1.0), lce11(1.0), lce12(1.0)
@@ -44,8 +51,8 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
 	DAQmxErrChk (DAQmxCfgSampClkTiming(ForceReadTaskHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
     
     DAQmxErrChk (DAQmxCreateTask("",&AOHandle));
-    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao10","motor0", 0.0,MAX_VOLT,DAQmx_Val_Volts,NULL));
-    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao11","motor1", 0.0,MAX_VOLT,DAQmx_Val_Volts,NULL));
+    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao10","motor0", 0.0, MAX_VOLT, DAQmx_Val_Volts,NULL));
+    DAQmxErrChk (DAQmxCreateAOVoltageChan(AOHandle,"PXI1Slot2/ao11","motor1", 0.0, MAX_VOLT, DAQmx_Val_Volts,NULL));
 	DAQmxErrChk (DAQmxCfgSampClkTiming(AOHandle,"",1000.0,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1));
 	
     
@@ -282,29 +289,6 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         muscleVel0 = dEncoderCounts0;
         muscleVel1 = dEncoderCounts1;
 #endif
-
-
-        
-#ifdef  USING_IPP_FR_FPGA
-        //ippsFIROne_32f(dEncoderCounts0, &muscleVel0, pFIRState0);
-        //ippsFIROne_32f(dEncoderCounts1, &muscleVel1, pFIRState1);
-        //float ctrlFromFPGA0;
-        //float ctrlFromFPGA1;
-        
-        ippsIIROne_32f(dEncoderCounts0, &gCtrlFromFPGA[0], pIIRState0FR);
-        ippsIIROne_32f(dEncoderCounts1, &gCtrlFromFPGA[1], pIIRState1FR);
-
-        //gCtrlFromFPGA[0] = ctrlFromFPGA0;
-        //gCtrlFromFPGA[1] = ctrlFromFPGA1;
-
-
-#else
-        gCtrlFromFPGA[0] = gFiringRateBic; // Filter using 2nd order FIR
-        gCtrlFromFPGA[1] = gFiringRateTri; // Filter using 2nd order FIR
-#endif
-        // FILTER for FiringRateToFPGA
-
-
         // ensure muscleVel > 0
         //gMuscleVel[0] = (rawVel0 > 0.0) ? rawVel0 : 0.0;
         //gMuscleVel[1] = (rawVel1 > 0.0) ? rawVel1 : 0.0;
@@ -341,7 +325,27 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         gMuscleVel[0] = (muscleVel0 > 0.0) ? muscleVel0 : 0.0;
         gMuscleVel[1] = (muscleVel1 > 0.0) ? muscleVel1 : 0.0;
 
-        
+
+#ifdef  USING_IPP_FR
+        float foo, bar;
+        ippsIIROne_32f(gMNCount[0], &foo, pIIRState0);
+        ippsIIROne_32f(gMNCount[1], &bar, pIIRState1);
+        //Below a WORKING version
+        //const float tGain = 0.00015;
+        //const float tBias = 15000;
+        //const float tDamp = 2.2 / tGain;
+
+        //Below a WORKING version
+        const float tGain = 0.00008;
+        const float tBias = 000;
+        const float tDampBic = 0.7 / tGain + 0.28 * foo;
+        const float tDampTri = 0.7 / tGain + 0.28 * bar;
+
+        gCtrlFromFPGA[0] = max(0.0, (foo - tBias + tDampBic * gMuscleVel[0]) * tGain) ;
+        gCtrlFromFPGA[1] = max(0.0, (bar - tBias + tDampTri * gMuscleVel[1]) * tGain) ;
+#else
+#endif
+
         
         td->lce02 = td->lce01;
         td->lce01 = td->lce00;

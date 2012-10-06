@@ -454,6 +454,12 @@ void* ControlLoop(void*)
     WriteFPGA(gFpgaBiceps, 1, 6); // working with 2
     WriteFPGA(gFpgaTriceps, 1, 6);
 
+
+    int32 bitValM1Dystonia;
+    ReInterpret((int32)(0000), &bitValM1Dystonia);
+    WriteFPGA(gFpgaBiceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
+    WriteFPGA(gFpgaTriceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
+
     while (1)
     {
         if(GetAsyncKeyState(VK_SPACE))
@@ -510,10 +516,6 @@ void* ControlLoop(void*)
         WriteFPGA(gFpgaBiceps, bitValM1Voluntary, DATA_EVT_M1_VOL);
 
         
-        int32 bitValM1Dystonia;
-        ReInterpret((int32)(gM1Dystonia), &bitValM1Dystonia);
-        WriteFPGA(gFpgaBiceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
-        WriteFPGA(gFpgaTriceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
         //WriteFPGA(gFpgaTriceps, bitValM1Bic, DATA_EVT_M1);
 
 

@@ -336,7 +336,7 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         //const float tDamp = 2.2 / tGain;
 
         //Below a WORKING version
-        const float tGain = 0.00008;
+        const float tGain = 0.000085;
         const float tBias = 000;
         const float tDampBic = 0.7 / tGain + 0.28 * foo;
         const float tDampTri = 0.7 / tGain + 0.28 * bar;

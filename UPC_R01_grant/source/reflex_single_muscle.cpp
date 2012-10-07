@@ -456,7 +456,7 @@ void* ControlLoop(void*)
 
 
     int32 bitValM1Dystonia;
-    ReInterpret((int32)(00), &bitValM1Dystonia);
+    ReInterpret((int32)(5000), &bitValM1Dystonia);
     WriteFPGA(gFpgaBiceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
     WriteFPGA(gFpgaTriceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
 
@@ -475,7 +475,7 @@ void* ControlLoop(void*)
         if (1000 == iLoop)
         {
 
-            ReInterpret((int32)(20000), &bitValM1Dystonia);
+            ReInterpret((int32)(00), &bitValM1Dystonia);//20000 for dystonia
             WriteFPGA(gFpgaBiceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
             WriteFPGA(gFpgaTriceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
             printf("Dystonia ! \n");
@@ -522,11 +522,8 @@ void* ControlLoop(void*)
         // M1 drive        
         int32 bitValM1Voluntary;
         ReInterpret((int32)(gM1Voluntary), &bitValM1Voluntary);
-        WriteFPGA(gFpgaBiceps, bitValM1Voluntary, DATA_EVT_M1_VOL);
-
-        
-        //WriteFPGA(gFpgaTriceps, bitValM1Bic, DATA_EVT_M1);
-
+        //WriteFPGA(gFpgaBiceps, bitValM1Voluntary, DATA_EVT_M1_VOL);
+        WriteFPGA(gFpgaTriceps, bitValM1Voluntary, DATA_EVT_M1_VOL);
 
         //if (0 == ReInterpret((float32)(gMuscleLce[0]), &temp)) 
         //{
@@ -545,7 +542,7 @@ void* ControlLoop(void*)
         //    WriteFPGA(gFpgaTriceps, temp, DATA_EVT_VEL);
         //}
         //printf("Input = %0.4f :: Out = %0.4f \n", gMuscleLce[0], rawCtrlBic); 
-
+        Sleep(1);
         if(_kbhit()) break;
     } 
 	return 0;

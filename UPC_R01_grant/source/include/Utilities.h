@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <functional>
+#include <vector>
 
 #ifndef CMN_UtilityHeader
 #define CMN_UtilityHeader
@@ -96,6 +97,7 @@ private: // noncopyable
 #define SCOPEGUARD_LINENAME(name, line) SCOPEGUARD_LINENAME_CAT(name, line)
 #define ON_SCOPE_EXIT(callback) ScopeGuard SCOPEGUARD_LINENAME(EXIT, __LINE__)(callback)
 
+int SineGen(int (&data)[1024]);
 
 #endif // CMN_UtilityHeader
 

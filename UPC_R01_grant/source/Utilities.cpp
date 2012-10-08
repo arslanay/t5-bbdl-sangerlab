@@ -2,6 +2,7 @@
 #include <windows.h>
 #include "Utilities.h"
 #include <fstream>
+#include <vector>
 
 FileContainer::FileContainer()
 {
@@ -63,3 +64,23 @@ FileContainer::~FileContainer()
     CloseHandle(hFileRobotToFpga);  
 };
 
+int SineGen(int (&data)[1024])
+{
+    float F = 12.0f; // in Hz
+    float BIAS = 00000.0f;
+    float AMP = 60000.0f;
+    float PHASE = 0.0f;
+    float SAMPLING_RATE = 1024.0f;
+    float dt = 1.0f / SAMPLING_RATE; // Sampling interval in seconds
+    float periods = 1.0;
+
+    auto w = F * 2 * PI * dt;
+    int max_n = 1024; //floor(periods * SAMPLING_RATE / F);
+    printf("max_n = %d\n", max_n);
+    for (int i = 0; i < max_n; i++)
+    {
+        data[i] = (int) (AMP * sin(w * i + PHASE) + BIAS);
+    }
+
+    return (0);
+}

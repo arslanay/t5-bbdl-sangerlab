@@ -3,6 +3,7 @@ using namespace std;
 #include <iostream>
 #include <conio.h>
 #include <fstream>
+#include <vector>
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
@@ -61,8 +62,12 @@ Ipp32f* dly1;
 //IppsFIRState_32f *pFIRState0, *pFIRState1;
 IppsIIRState_32f *pIIRState0, *pIIRState1;
 
+// Sinewave
+int gWave[1024];
+
 //Descending command
-int gM1Voluntary, gM1Dystonia;
+int gM1Voluntary = 0;
+int gM1Dystonia = 0;
 
 //AntTweakBar
 TwBar *gBar; // Pointer to the tweak bar
@@ -124,12 +129,11 @@ void display ( void )   // Create The Display Function
 
     // Draw tweak bars
     TwDraw();
-    //sprintf_s(gLceLabel1,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce[0], gCtrlFromFPGA[0]);
-    //sprintf_s(gLceLabel1,"%.4f    %.2f   %f",gMuscleVel[0], gMuscleLce[0], gCtrlFromFPGA[0]);
-    sprintf_s(gLceLabel1,"%f    %.2f   %.2f", gMuscleLce[0], gMuscleVel[0], gCtrlFromFPGA[0]);
+//    sprintf_s(gLceLabel1,"%f    %.2f   %.2f", gMuscleLce[0], gMuscleVel[0], gCtrlFromFPGA[0]);
+    sprintf_s(gLceLabel1,"%f    %d   %.2f", gMuscleLce[0], gM1Voluntary, gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
-    //sprintf_s(gLceLabel2,"%.2f    %.2f   %f",gMuscleVel[NUM_MOTOR - 1], gMuscleLce[1], gCtrlFromFPGA[NUM_FPGA - 1]);
-    sprintf_s(gLceLabel2,"%f    %.2f   %.2f", gMuscleLce[1], gMuscleVel[1],gCtrlFromFPGA[NUM_FPGA - 1]);
+//    sprintf_s(gLceLabel2,"%f    %.2f   %.2f", gMuscleLce[1], gMuscleVel[1],gCtrlFromFPGA[NUM_FPGA - 1]);
+    sprintf_s(gLceLabel2,"%f    %d   %.2f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     //printf("\n\t%f\t%f", gMuscleVel[0], gMuscleVel[1]);
     
@@ -386,7 +390,7 @@ int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
     return 0;
 }
 
-int WriteFpgaLceVel(okCFrontPanel *xem, int32 bitValLce, int32 bitValVel, int32 trigEvent)
+int WriteFpgaLceVel(okCFrontPanel *xem, int32 bitValLce, int32 bitValVel, int32 bitValM1Voluntary, int32 bitValM1Dystonia, int32 trigEvent)
 {
     //bitVal = 0;
 
@@ -421,6 +425,35 @@ int WriteFpgaLceVel(okCFrontPanel *xem, int32 bitValLce, int32 bitValVel, int32 
 		return -1;
 	}
 
+    
+
+    bitValLo = bitValM1Voluntary & 0xffff;
+    bitValHi = (bitValM1Voluntary >> 16) & 0xffff;    
+    //send muscle velocity to Fpga
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x05, bitValLo, 0xffff)) {
+		printf("SetWireInLo failed.\n");
+		//delete xem;
+		return -1;
+	}
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x06, bitValHi, 0xffff)) {
+		printf("SetWireInHi failed.\n");
+		//delete xem;
+		return -1;
+    }  
+
+    bitValLo = bitValM1Dystonia & 0xffff;
+    bitValHi = (bitValM1Dystonia >> 16) & 0xffff;    
+    //send muscle velocity to Fpga
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x07, bitValLo, 0xffff)) {
+		printf("SetWireInLo failed.\n");
+		//delete xem;
+		return -1;
+	}
+    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x08, bitValHi, 0xffff)) {
+		printf("SetWireInHi failed.\n");
+		//delete xem;
+		return -1;
+	}
 
     xem -> UpdateWireIns();
     xem -> ActivateTriggerIn(0x50, trigEvent)   ;
@@ -455,10 +488,10 @@ void* ControlLoop(void*)
     WriteFPGA(gFpgaTriceps, 1, 6);
 
 
-    int32 bitValM1Dystonia;
-    ReInterpret((int32)(5000), &bitValM1Dystonia);
-    WriteFPGA(gFpgaBiceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
-    WriteFPGA(gFpgaTriceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
+    //int32 bitValM1Dystonia;
+    //ReInterpret((int32)(5000), &bitValM1Dystonia);
+    //WriteFPGA(gFpgaBiceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
+    //WriteFPGA(gFpgaTriceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
 
     long iLoop = 0;
     while (1)
@@ -472,14 +505,11 @@ void* ControlLoop(void*)
         if ((MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
 		//printf("\n\t%f",dataEncoder[0]); 
         iLoop++;
-        if (1000 == iLoop)
+/*        if (10000 <= iLoop)
         {
-
-            ReInterpret((int32)(00), &bitValM1Dystonia);//20000 for dystonia
-            WriteFPGA(gFpgaBiceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
-            WriteFPGA(gFpgaTriceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
-            printf("Dystonia ! \n");
-        }        
+            gM1Dystonia = 5000;
+            gM1Voluntary = gWave[iLoop % 1024];
+        }    */    
 
         float32 tGainBic = 0.11; // working = 0.141
         float32 tGainTri = 0.11; // working = 0.141
@@ -489,17 +519,17 @@ void* ControlLoop(void*)
         float   muslceDamp = 0.04;
 
         float rawCtrlBic, rawCtrlTri;
-        int muscleEMG;
-        ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrlBic);
+        int muscleEMG = 0;
+        //ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrlBic);
         ReadFPGA(gFpgaBiceps, 0x26, "int32", &gMNCount[0]);
-        ReadFPGA(gFpgaBiceps, 0x32, "int32", &muscleEMG);
+        //ReadFPGA(gFpgaBiceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[0] = muscleEMG;
         
 
         // Read FPGA1
-        ReadFPGA(gFpgaTriceps, 0x30, "float32", &rawCtrlTri);
+        //ReadFPGA(gFpgaTriceps, 0x30, "float32", &rawCtrlTri);
         ReadFPGA(gFpgaTriceps, 0x26, "int32", &gMNCount[1]);
-        ReadFPGA(gFpgaTriceps, 0x32, "int32", &muscleEMG);
+        //ReadFPGA(gFpgaTriceps, 0x32, "int32", &muscleEMG);
         gMuscleEMG[NUM_FPGA-1] = muscleEMG;
 
         /*
@@ -511,37 +541,27 @@ void* ControlLoop(void*)
         //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
 
         int32 bitValLce, bitValVel;
+        int32   bitM1VoluntaryBic = 0, 
+                bitM1VoluntaryTri = 0, 
+                bitM1DystoniaBic = 000, 
+                bitM1DystoniaTri = 000;
+
         ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
         ReInterpret((float32)(muslceDamp * gMuscleVel[0]), &bitValVel);
-        WriteFpgaLceVel(gFpgaBiceps, bitValLce, bitValVel, DATA_EVT_LCEVEL);
+        // M1 drive        
+        //ReInterpret((int32)(max(0, gM1Voluntary)), &bitM1VoluntaryBic);
+        //ReInterpret((int32)(gM1Dystonia), &bitM1DystoniaBic);
+        WriteFpgaLceVel(gFpgaBiceps, bitValLce, bitValVel, bitM1VoluntaryBic, bitM1DystoniaBic, DATA_EVT_LCEVEL);
         
         ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
         ReInterpret((float32)(muslceDamp * gMuscleVel[1]), &bitValVel);
-        WriteFpgaLceVel(gFpgaTriceps, bitValLce, bitValVel, DATA_EVT_LCEVEL);
+        //ReInterpret((int32)(max(0, -gM1Voluntary)), &bitM1VoluntaryTri);
+        //ReInterpret((int32)(gM1Dystonia), &bitM1DystoniaTri);
+        WriteFpgaLceVel(gFpgaTriceps, bitValLce, bitValVel, bitM1VoluntaryTri, bitM1DystoniaTri, DATA_EVT_LCEVEL);
 
-        // M1 drive        
-        int32 bitValM1Voluntary;
-        ReInterpret((int32)(gM1Voluntary), &bitValM1Voluntary);
-        //WriteFPGA(gFpgaBiceps, bitValM1Voluntary, DATA_EVT_M1_VOL);
-        WriteFPGA(gFpgaTriceps, bitValM1Voluntary, DATA_EVT_M1_VOL);
 
-        //if (0 == ReInterpret((float32)(gMuscleLce[0]), &temp)) 
-        //{
-        //    WriteFPGA(gFpgaBiceps, temp, DATA_EVT_LCE);
-        //}
-        //if (0 == ReInterpret((float32)(gMuscleLce[1]), &temp)) 
-        //{
-        //    WriteFPGA(gFpgaTriceps, temp, DATA_EVT_LCE);
-        //}
-        //if (0 == ReInterpret((float32)(3.0 * gMuscleVel[0]), &temp)) 
-        //{
-        //    WriteFPGA(gFpgaBiceps, temp, DATA_EVT_VEL);
-        //}
-        //if (0 == ReInterpret((float32)(3.0 * gMuscleVel[1]), &temp)) 
-        //{
-        //    WriteFPGA(gFpgaTriceps, temp, DATA_EVT_VEL);
-        //}
-        //printf("Input = %0.4f :: Out = %0.4f \n", gMuscleLce[0], rawCtrlBic); 
+        //printf("%.2f\t", gWave[1020]);
+
         Sleep(1);
         if(_kbhit()) break;
     } 
@@ -711,6 +731,26 @@ void InitProgram()
     ippsIIRInitAlloc_32f( &pIIRState0, taps0, lenFilter, dly0 );
     ippsIIRInitAlloc_32f( &pIIRState1, taps1, lenFilter, dly1 );
 
+    // *** Get a sine wave
+    SineGen(gWave);
+    //{
+    //    float F = 1.0f; // in Hz
+    //    float BIAS = 20000.0f;
+    //    float AMP = 10000.0f;
+    //    float PHASE = 0.0f;
+    //    float SAMPLING_RATE = 1024.0f;
+    //    float dt = 1.0f / SAMPLING_RATE; // Sampling interval in seconds
+    //    float periods = 1.0;
+
+    //    auto w = F * 2 * PI * dt;
+    //    int max_n = floor(periods * SAMPLING_RATE / F);
+    //    printf("max_n = %d\n", max_n);
+    //    for (int i = 0; i < max_n; i++)
+    //    {
+    //        gWave[i] = (int) (AMP * sin(w * i + PHASE) + BIAS);
+    //    }
+    //}
+ 
     //WARNING: DON'T CHANGE THE SEQUENCE BELOW
     StartReadPos(&gEncoderHandle[0], &gEncoderHandle[1]);
     StartSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle); 
@@ -849,8 +889,8 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     // Add 'g_Zoom' to 'bar': this is a modifable (RW) variable of type TW_TYPE_FLOAT. Its key shortcuts are [z] and [Z].
     TwAddVarRW(gBar, "Gain", TW_TYPE_FLOAT, &gLenScale, 
                " min=0.0000 max=0.0002 step=0.000001 keyIncr=l keyDecr=L help='Scale the object (1=original size).' ");
-    TwAddVarRW(gBar, "M1Voluntary", TW_TYPE_INT32, &gM1Voluntary, 
-               " min=0.00 max=500000.00 step=40000 ");
+    //TwAddVarRW(gBar, "M1Voluntary", TW_TYPE_INT32, &gM1Voluntary, 
+    //           " min=0.00 max=500000.00 step=40000 ");
     TwAddVarRW(gBar, "M1Dystonia", TW_TYPE_INT32, &gM1Dystonia, 
                " min=0.00 max=500000.00 step=10000 ");
 

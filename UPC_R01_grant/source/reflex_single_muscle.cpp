@@ -55,11 +55,15 @@ char                    gStateLabel[5][30] = { "MOTOR_STATE_INIT",
                                                "MOTOR_STATE_CLOSED_LOOP",                            
                                                "MOTOR_STATE_SHUTTING_DOWN"};
 //IPP
-Ipp32f* taps0;
-Ipp32f* taps1;
-Ipp32f* dly0;
-Ipp32f* dly1;
+Ipp32f *taps0;
+Ipp32f *taps1;
+Ipp32f *dly0;
+Ipp32f *dly1;
+Ipp32f *tapsVel0IIR, *tapsVel1IIR;
+Ipp32f *dlysVel0IIR, *dlysVel1IIR;
+
 //IppsFIRState_32f *pFIRState0, *pFIRState1;
+IppsIIRState_32f *pIIRStateVel0, *pIIRStateVel1;
 IppsIIRState_32f *pIIRState0, *pIIRState1;
 
 // Sinewave
@@ -108,7 +112,8 @@ void display ( void )   // Create The Display Function
 
     
     //gMyGraph->update( 10.0 * gAuxvar[0] );
-    gMyGraph->update( gMuscleVel[0] );
+    //gMyGraph->update( gMuscleVel[0] );
+    gMyGraph->update( gCtrlFromFPGA[0] );
 
     gMyGraph->draw();
     
@@ -680,26 +685,39 @@ void InitProgram()
     gSwapFiles = new FileContainer;
 
 
+    //IPP_VEL_IIR
+    dlysVel0IIR = ippsMalloc_32f(2 * (lenFilterVel_IIR + 1));
+    dlysVel1IIR = ippsMalloc_32f(2 * (lenFilterVel_IIR + 1));
+    tapsVel0IIR  = ippsMalloc_32f(2 * (lenFilterVel_IIR + 1));
+    tapsVel1IIR  = ippsMalloc_32f(2 * (lenFilterVel_IIR + 1));
     
-    //IPP
+    ippsZero_32f(dlysVel0IIR, 2 * (lenFilterVel_IIR + 1) );
+    ippsZero_32f(dlysVel1IIR, 2 * (lenFilterVel_IIR + 1) );
+
+    tapsVel0IIR[0] =  0.0078; // for Lowpass filter velocity
+    tapsVel0IIR[1] =  0.0156;
+    tapsVel0IIR[2] =  0.0078;
+    tapsVel0IIR[3] =  1.0000;
+    tapsVel0IIR[4] = -1.7347;
+    tapsVel0IIR[5] =  0.7660;
+
+    tapsVel1IIR[0] =  0.0078;
+    tapsVel1IIR[1] =  0.0156;
+    tapsVel1IIR[2] =  0.0078;
+    tapsVel1IIR[3] =  1.0000;
+    tapsVel1IIR[4] = -1.7347;
+    tapsVel1IIR[5] =  0.7660;
+
+    ippsIIRInitAlloc_32f(&pIIRStateVel0, tapsVel0IIR, lenFilterVel_IIR, dlysVel0IIR);
+    ippsIIRInitAlloc_32f(&pIIRStateVel1, tapsVel1IIR, lenFilterVel_IIR, dlysVel1IIR);
+
+
+    //IPP_FR
     taps0 = ippsMalloc_32f(lenFilter);
     taps1 = ippsMalloc_32f(lenFilter);
     dly0  = ippsMalloc_32f(lenFilter);
     dly1  = ippsMalloc_32f(lenFilter);
-
-    //taps0[0] =  0.0078; // for Lowpass filter velocity
-    //taps0[1] =  0.0156;
-    //taps0[2] =  0.0078;
-    //taps0[3] =  1.0000;
-    //taps0[4] = -1.7347;
-    //taps0[5] =  0.7660;
-
-    //taps1[0] =  0.0078;
-    //taps1[1] =  0.0156;
-    //taps1[2] =  0.0078;
-    //taps1[3] =  1.0000;
-    //taps1[4] = -1.7347;
-    //taps1[5] =  0.7660;
+    
     float   P   =   1.0;
     float   e   =   2.7183;
     float   T   =   0.001;
@@ -779,6 +797,20 @@ void ExitProgram()
     ippsIIRFree_32f(pIIRState0);
     ippsIIRFree_32f(pIIRState1);
     
+
+    //IPP_VEL_IIR
+
+    ippsFree(tapsVel0IIR);
+    ippsFree(tapsVel1IIR);
+    ippsFree(dlysVel0IIR);
+    ippsFree(dlysVel1IIR);
+
+    ippsIIRFree_32f(pIIRStateVel0);
+    ippsIIRFree_32f(pIIRStateVel1);
+    
+
+
+
     TwDeleteBar(gBar);
 
     TwTerminate();    

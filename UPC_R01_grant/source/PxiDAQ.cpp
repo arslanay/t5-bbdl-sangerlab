@@ -7,7 +7,7 @@
 
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 //#define     USING_SMOOTH
-//#define     USING_IPP
+#define     USING_IPP_VEL_IIR
 #define     USING_IPP_FR
 
 int const ORDER_LOWPASS = 2;
@@ -278,11 +278,11 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         float muscleVel0;
         float muscleVel1;
 
-#ifdef  USING_IPP
+#ifdef  USING_IPP_VEL_IIR
         //ippsFIROne_32f(dEncoderCounts0, &muscleVel0, pFIRState0);
         //ippsFIROne_32f(dEncoderCounts1, &muscleVel1, pFIRState1);
-        ippsIIROne_32f(dEncoderCounts0, &muscleVel0, pIIRState0);
-        ippsIIROne_32f(dEncoderCounts1, &muscleVel1, pIIRState1);
+        ippsIIROne_32f(dEncoderCounts0, &muscleVel0, pIIRStateVel0);
+        ippsIIROne_32f(dEncoderCounts1, &muscleVel1, pIIRStateVel1);
         //muscleVel0*=(-gLenScale[0]) * 1000.0f;
         //muscleVel1*=(-gLenScale[1]) * 1000.0f;
 #else

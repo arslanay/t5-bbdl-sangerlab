@@ -543,8 +543,8 @@ void* ControlLoop(void*)
         int32 bitValLce, bitValVel;
         int32   bitM1VoluntaryBic = 0, 
                 bitM1VoluntaryTri = 0, 
-                bitM1DystoniaBic = 000, 
-                bitM1DystoniaTri = 000;
+                bitM1DystoniaBic = 20000, 
+                bitM1DystoniaTri = 20000;
 
         ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
         ReInterpret((float32)(muslceDamp * gMuscleVel[0]), &bitValVel);

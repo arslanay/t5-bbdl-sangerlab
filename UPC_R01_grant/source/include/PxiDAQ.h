@@ -24,6 +24,7 @@ public:
     //
 };
 
+const int lenFilterVel_IIR = 2;
 const int lenFilter = 2;
 extern Ipp32f* taps0;
 extern Ipp32f* taps1;
@@ -31,6 +32,12 @@ extern Ipp32f* dly0;
 extern Ipp32f* dly1;
 extern IppsFIRState_32f *pFIRState0, *pFIRState1;
 extern IppsIIRState_32f *pIIRState0, *pIIRState1;
+
+// IPP_VEL_IIR
+extern Ipp32f *tapsVel0IIR, *tapsVel1IIR;
+extern Ipp32f *dlysVel0IIR, *dlysVel1IIR;
+extern IppsIIRState_32f *pIIRStateVel0, *pIIRStateVel1;
+
 
 extern float gAuxvar[];
 extern TaskHandle gAOTaskHandle;

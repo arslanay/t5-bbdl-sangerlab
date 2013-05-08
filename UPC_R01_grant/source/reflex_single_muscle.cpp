@@ -516,12 +516,12 @@ void* ControlLoop(void*)
             gM1Voluntary = gWave[iLoop % 1024];
         }    */    
 
-        float32 tGainBic = 0.11; // working = 0.141
-        float32 tGainTri = 0.11; // working = 0.141
+        float32 tGainBic = 0.141; // working = 0.141
+        float32 tGainTri = 0.141; // working = 0.141
         float32 forceBiasBic = 10.0f;
         float32 forceBiasTri = 10.0f;
-        float   coef_damp = 0.04; // working = 0.3
-        float   muslceDamp = 0.04;
+        float   coef_damp = 0.004; // working = 0.04
+        float   muslceDamp = 0.02;
 
         float rawCtrlBic, rawCtrlTri;
         int muscleEMG = 0;
@@ -548,8 +548,8 @@ void* ControlLoop(void*)
         int32 bitValLce, bitValVel;
         int32   bitM1VoluntaryBic = 0, 
                 bitM1VoluntaryTri = 0, 
-                bitM1DystoniaBic = 20000, 
-                bitM1DystoniaTri = 20000;
+                bitM1DystoniaBic = 000, 
+                bitM1DystoniaTri = 000;
 
         ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
         ReInterpret((float32)(muslceDamp * gMuscleVel[0]), &bitValVel);
@@ -924,7 +924,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     //TwAddVarRW(gBar, "M1Voluntary", TW_TYPE_INT32, &gM1Voluntary, 
     //           " min=0.00 max=500000.00 step=40000 ");
     TwAddVarRW(gBar, "M1Dystonia", TW_TYPE_INT32, &gM1Dystonia, 
-               " min=0.00 max=500000.00 step=10000 ");
+               " min=0.00 max=500000.00 step=20000 ");
 
     glutMainLoop( );          // Initialize The Main Loop  
 

@@ -7,7 +7,7 @@
 
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 //#define     USING_SMOOTH
-#define     USING_IPP_VEL_IIR
+//#define     USING_IPP_VEL_IIR
 #define     USING_IPP_FR
 
 int const ORDER_LOWPASS = 2;

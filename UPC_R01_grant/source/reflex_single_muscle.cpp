@@ -502,7 +502,7 @@ void* ControlLoop(void*)
     while (1)
     {
         if(GetAsyncKeyState(VK_SPACE))
-        {
+        { 
             ShutdownMotor(&gCurrMotorState);
 
         }
@@ -516,8 +516,8 @@ void* ControlLoop(void*)
             gM1Voluntary = gWave[iLoop % 1024];
         }    */    
 
-        float32 tGainBic = 0.141; // working = 0.141
-        float32 tGainTri = 0.141; // working = 0.141
+        float32 tGainBic = 0.101; // working = 0.141
+        float32 tGainTri = 0.101; // working = 0.141
         float32 forceBiasBic = 10.0f;
         float32 forceBiasTri = 10.0f;
         float   coef_damp = 0.004; // working = 0.04

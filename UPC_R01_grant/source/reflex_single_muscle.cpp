@@ -516,12 +516,12 @@ void* ControlLoop(void*)
             gM1Voluntary = gWave[iLoop % 1024];
         }    */    
 
-        float32 tGainBic = 0.101; // working = 0.141
-        float32 tGainTri = 0.101; // working = 0.141
+        float32 tGainBic = 0.051; // working = 0.141
+        float32 tGainTri = 0.051; // working = 0.141
         float32 forceBiasBic = 10.0f;
         float32 forceBiasTri = 10.0f;
         float   coef_damp = 0.004; // working = 0.04
-        float   muslceDamp = 0.02;
+        float   muslceDamp = 0.0;
 
         float rawCtrlBic, rawCtrlTri;
         int muscleEMG = 0;

@@ -903,7 +903,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
 	luaopen_table(L);
     luaopen_string(L);
     luaopen_math(L);
-    char filename[20] = "sendUdp.lua";
+    char filename[40] = "..\\source\\sendUdp.lua";
 	std::cerr << "-- Loading file: " << filename << std::endl;
 	statusLua = luaL_loadfile(L, filename);
 

@@ -69,7 +69,8 @@ extern float64 gMotorCmd[];
 extern float gCtrlFromFPGA[];
 extern int gMNCount[];
 
-extern char gTimeStamp[20];
+extern char gTimeStamp[100];
+extern char gTimeStampDropbox[100];
 
 extern LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 #endif

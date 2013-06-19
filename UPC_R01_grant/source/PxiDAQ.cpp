@@ -40,7 +40,8 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
 	char        errBuff[2048]={'\0'};
 
 
-    gDataFile = fopen(gTimeStamp,"a");
+    gDataFile = fopen(gTimeStampDropbox,"a");
+    //gDataFileDB = fopen(gTimeStampDropbox,"a");
 
 	/*********************************************/
 	// DAQmx Configure Code
@@ -105,6 +106,7 @@ int StopSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
     const float64     ZERO_VOLTS[NUM_MOTOR]={0.0, 0.0};
     
     fclose(gDataFile);
+    //fclose(gDataFileDB);
 
     DAQmxErrChk (DAQmxWriteAnalogF64(AOHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, ZERO_VOLTS, NULL, NULL));
     

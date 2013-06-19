@@ -56,7 +56,8 @@ int                     gMuscleEMG[NUM_FPGA], gMNCount[NUM_FPGA];
 OGLGraph*               gMyGraph;
 char                    gLceLabel1[60];
 char                    gLceLabel2[60];
-char                    gTimeStamp[20];
+char                    gTimeStamp[100];
+char                    gTimeStampDropbox[100];
 char                    gStateLabel[5][30] = { "MOTOR_STATE_INIT",
                                                "MOTOR_STATE_WINDING_UP",
                                                "MOTOR_STATE_OPEN_LOOP",
@@ -87,6 +88,13 @@ TwBar *gBar; // Pointer to the tweak bar
 //Lua UDP
 lua_State *L;
 int statusLua;
+
+//Fpga Data Logging
+float32 gfireRateIaBic[2];
+float32 gfireLenBic[2];
+float32 gfireEmgBic[2];
+int gRasterPlot[2];
+
 
 void ledIndicator ( float w, float h );
 
@@ -546,6 +554,17 @@ void* ControlLoop(void*)
             gM1Voluntary = gWave[iLoop % 1024];
         }    */    
 
+        ReadFPGA(gFpgaBiceps, 0x22, "float32", &gfireRateIaBic[0]);
+        ReadFPGA(gFpgaBiceps, 0x20, "float32", &gfireLenBic[0]);
+        ReadFPGA(gFpgaBiceps, 0x2C, "float32", &gfireEmgBic[0]);
+        ReadFPGA(gFpgaBiceps, 0x2E, "int32", &gRasterPlot[0]);
+
+        ReadFPGA(gFpgaTriceps, 0x22, "float32", &gfireRateIaBic[1]);
+        ReadFPGA(gFpgaTriceps, 0x20, "float32", &gfireLenBic[1]);
+        ReadFPGA(gFpgaTriceps, 0x2C, "float32", &gfireEmgBic[1]);
+        ReadFPGA(gFpgaTriceps, 0x2E, "int32", &gRasterPlot[1]);
+
+
         float32 tGainBic = 0.051; // working = 0.141
         float32 tGainTri = 0.051; // working = 0.141
         float32 forceBiasBic = 10.0f;
@@ -686,6 +705,7 @@ void InitProgram()
     time(&rawtime);
     timeinfo = localtime(&rawtime);
     sprintf_s(gTimeStamp,"%4d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min);
+    sprintf_s(gTimeStampDropbox,"C:\\Users\\PXI_BBDL\\Dropbox\\DataPxi\\Pxi%4d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min);
 
     // Load Fpga DLLs
     char dll_date[32], dll_time[32];
@@ -863,8 +883,12 @@ inline void LogData( void)
         fprintf(gDataFile,"%.3lf\t",actualTime );																	
         //fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMuscleEMG[0]);			
         //fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMuscleEMG[1]);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMNCount[0]);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMNCount[1]);			
+        
+        fprintf(gDataFile,"%f\t%f\t%f\t%f\t", gMuscleLce[0], gMuscleLce[1], gMuscleVel[0], gMuscleVel[1]);			
+        fprintf(gDataFile,"%f\t%f\t%d\t%d\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1], gMNCount[0], gMNCount[1]);			
+
+        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t%f\t%u\t%u\t", gfireRateIaBic[0], gfireRateIaBic[1], gfireLenBic[0], gfireLenBic[1],
+                                                              gfireEmgBic[0], gfireEmgBic[1], gRasterPlot[0], gRasterPlot[1]);			
         fprintf(gDataFile,"\n");
     }
 }

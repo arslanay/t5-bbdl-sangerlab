@@ -338,10 +338,12 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         //const float tDamp = 2.2 / tGain;
 
         //Below a WORKING version
-        const float tGain = 0.000085;
-        const float tBias = 000;
-        const float tDampBic = 0.7 / tGain + 0.28 * foo;
-        const float tDampTri = 0.7 / tGain + 0.28 * bar;
+        const float tGain = 0.000085/8.0;
+        const float tBias = 300000.0;//9000000.0;
+        //const float tDampBic = 0.7 / tGain + 0.28 * foo;
+        //const float tDampTri = 0.7 / tGain + 0.28 * bar;
+        const float tDampBic = 0.0;
+        const float tDampTri = 0.0;
 
         gCtrlFromFPGA[0] = max(0.0, (foo - tBias + tDampBic * gMuscleVel[0]) * tGain) ;
         gCtrlFromFPGA[1] = max(0.0, (bar - tBias + tDampTri * gMuscleVel[1]) * tGain) ;

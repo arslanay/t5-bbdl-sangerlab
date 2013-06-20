@@ -36,6 +36,7 @@ FIND_PACKAGE(NIDAQMX REQUIRED)
 #FIND_PACKAGE(OpalKelly REQUIRED)
 FIND_PACKAGE(AntTweakBar REQUIRED)
 FIND_PACKAGE(IPP REQUIRED)
+FIND_PACKAGE(LUA REQUIRED)
 
 
 # Include the following directories when compiling 
@@ -51,6 +52,7 @@ INCLUDE_DIRECTORIES(
  	${NIDAQMX_INCLUDE_DIR}
 	${ATB_WIN32_INCLUDE_DIR}
 	${IPP_INCLUDE_DIR}
+	${LUA_INCLUDE_DIR}
 	)
 
 
@@ -71,6 +73,7 @@ SET(SYS_LIBRARIES
  	${NIDAQMX_LIBRARIES}
 	${ATB_WIN32_LIBRARY}
 	${IPP_LIBRARY}
+	${LUA_LIBRARY}
 # 	ExampleLib
 	)
 # Make sure custom-written libraries get the correct dependencies
@@ -94,6 +97,7 @@ ADD_DEPENDENCIES(PxiDAQ Utilities okFrontPanelDLL OGLGraph)
 # of CMake's loop capabilities. Just list each example's base name.
 SET(CMN_EXECUTABLE_NAMES
 	reflex_single_muscle
+	reflex_rack
 	OGLGraph_test
 	)
 

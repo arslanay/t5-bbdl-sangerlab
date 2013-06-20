@@ -565,8 +565,8 @@ void* ControlLoop(void*)
         ReadFPGA(gFpgaTriceps, 0x2E, "int32", &gRasterPlot[1]);
 
 
-        float32 tGainBic = 0.051; // working = 0.141
-        float32 tGainTri = 0.051; // working = 0.141
+        //float32 tGainBic = 0.00005;// 0.051; // working = 0.141
+        //float32 tGainTri = 0.00005;// 0.051; // working = 0.141
         float32 forceBiasBic = 10.0f;
         float32 forceBiasTri = 10.0f;
         float   coef_damp = 0.004; // working = 0.04

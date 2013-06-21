@@ -3,6 +3,29 @@
 #include "Utilities.h"
 #include <fstream>
 #include <vector>
+#include <assert.h>
+#include	"NIDAQmx.h"
+#include "okFrontPanelDLL.h"
+#include <iostream>
+
+
+int ReInterpret(float32 in, int32 *out)
+{
+    memcpy(out, &in, sizeof(int32));
+    return 0;
+}
+
+int ReInterpret(int32 in, int32 *out)
+{
+    memcpy(out, &in, sizeof(int32));
+    return 0;
+}
+
+int ReInterpret(int32 in, float32 *out)
+{
+    memcpy(out, &in, sizeof(float32));
+    return 0;
+}
 
 FileContainer::FileContainer()
 {
@@ -83,4 +106,46 @@ int SineGen(int (&data)[1024])
     }
 
     return (0);
+}
+
+SomeFpga::SomeFpga(int NUM_NEURON = 128, int SAMPLING_RATE = 1024, std::string serX = "")
+{
+    this->NUM_NEURON = NUM_NEURON;
+    this->SAMPLING_RATE = SAMPLING_RATE;
+    
+    this->xem = new okCFrontPanel;
+
+    std::cout << "Connecting to OpaKelly of serial number: " << serX << std::endl;
+
+    this->xem->OpenBySerial(serX);
+    //assert(this->xem->IsOpen());
+    this->xem->LoadDefaultPLLConfiguration();
+
+}
+
+SomeFpga::~SomeFpga()
+{
+    delete this->xem;
+}
+
+float SomeFpga::ReadFpga(int getAddr)
+{
+    int outValLo = this->xem->GetWireOutValue(getAddr) & 0xffff ;//# length = 16-bit
+    int outValHi = this->xem->GetWireOutValue(getAddr + 0x01) & 0xffff;
+    int outValBit = ((outValHi << 16) + outValLo) & 0xFFFFFFFF;
+    float32 outVal;
+    ReInterpret((int32) outValBit, &outVal);
+
+    return outVal;
+}
+
+int SomeFpga::SendPara(int bitVal, int trigEvent)
+{
+    int bitValLo = bitVal & 0xffff;
+    int bitValHi = (bitVal >> 16) & 0xffff;
+    this->xem->SetWireInValue(0x01, bitValLo, 0xffff);
+    this->xem->SetWireInValue(0x02, bitValHi, 0xffff);
+    this->xem->UpdateWireIns();            
+    this->xem->ActivateTriggerIn(0x50, trigEvent)  ;
+    return 0;
 }

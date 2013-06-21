@@ -51,10 +51,10 @@ double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
 
 
-SomeFpga   gXemSpindleBic(NUM_NEURON, SAMPLING_RATE, "113700021E"); 
-SomeFpga   gXemSpindleTri(NUM_NEURON, SAMPLING_RATE, "11160001CG"); 
-SomeFpga   gXemMuscleBic (NUM_NEURON, SAMPLING_RATE, "0000000542") ; 
-SomeFpga   gXemMuscleTri (NUM_NEURON, SAMPLING_RATE, "1137000222") ; 
+SomeFpga   *gXemSpindleBic; 
+SomeFpga   *gXemSpindleTri; 
+SomeFpga   *gXemMuscleBic ; 
+SomeFpga   *gXemMuscleTri ; 
 
 float                   gCtrlFromFPGA[NUM_MUSCLE];
 int                     gMuscleEMG[NUM_FPGA], gMNCount[NUM_FPGA];
@@ -545,8 +545,8 @@ void* ControlLoop(void*)
         float   muslceDamp = 0.0;
 
         float forceBic, forceTri;
-        forceBic = max(0.0, gXemMuscleBic.ReadFpga(0x32));
-        forceTri = max(0.0, gXemMuscleTri.ReadFpga(0x32));
+        forceBic = max(0.0, gXemMuscleBic->ReadFpga(0x32));
+        forceTri = max(0.0, gXemMuscleTri->ReadFpga(0x32));
         const float tGain = 0.000085/8.0;
         const float tBias = 0.0;//9000000.0;        
         gCtrlFromFPGA[0] = (forceBic - tBias) * tGain;
@@ -561,10 +561,10 @@ void* ControlLoop(void*)
                 bitM1DystoniaTri = 000;
 
         ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
-        gXemMuscleBic.SendPara(bitValLce, DATA_EVT_LCE);
-        gXemMuscleTri.SendPara(bitValLce, DATA_EVT_LCE);
-        gXemSpindleBic.SendPara(bitValLce, DATA_EVT_LCE);
-        gXemSpindleTri.SendPara(bitValLce, DATA_EVT_LCE);
+        gXemMuscleBic->SendPara(bitValLce, DATA_EVT_LCE);
+        gXemMuscleTri->SendPara(bitValLce, DATA_EVT_LCE);
+        gXemSpindleBic->SendPara(bitValLce, DATA_EVT_LCE);
+        gXemSpindleTri->SendPara(bitValLce, DATA_EVT_LCE);
 
 
         Sleep(1);
@@ -671,11 +671,11 @@ void InitProgram()
 
     // Two muscles, each with one Fpga handle
     
-    //gXemSpindleBic = SomeFpga(NUM_NEURON, SAMPLING_RATE, "113700021E"); 
-    //gXemSpindleTri = SomeFpga(NUM_NEURON, SAMPLING_RATE, "11160001CG"); 
-    //gXemMuscleBic = SomeFpga(NUM_NEURON, SAMPLING_RATE, "0000000542") ; 
-    //gXemMuscleTri = SomeFpga(NUM_NEURON, SAMPLING_RATE, "1137000222") ; 
-    //    
+    gXemSpindleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "113700021E"); 
+    gXemSpindleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "11160001CG"); 
+    gXemMuscleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "0000000542") ; 
+    gXemMuscleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "1137000222") ; 
+        
 
     gSwapFiles = new FileContainer;
 
@@ -766,6 +766,7 @@ void InitProgram()
  
     //WARNING: DON'T CHANGE THE SEQUENCE BELOW
     StartReadPos(&gEncoderHandle[0], &gEncoderHandle[1]);
+
     StartSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle); 
     InitMotor(&gCurrMotorState);
 }
@@ -808,6 +809,11 @@ void ExitProgram()
 
     TwTerminate();    
     delete gSwapFiles;
+
+    delete gXemSpindleBic;
+    delete gXemSpindleTri;
+    delete gXemMuscleBic ;
+    delete gXemMuscleTri ;
 
 }
 

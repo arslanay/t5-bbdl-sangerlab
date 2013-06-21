@@ -118,7 +118,7 @@ class SomeFpga
         SomeFpga(int , int , std::string);
         ~SomeFpga();
         int SendPara(int bitVal, int trigEvent);
-        float ReadFpga(int getAddr);
+        int ReadFpga(BYTE getAddr, char *type, float *outVal);
         //int ReadFpga(int getAddr);
     
     private:

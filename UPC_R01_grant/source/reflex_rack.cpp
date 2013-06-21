@@ -373,35 +373,6 @@ int ReadFpga(okCFrontPanel *xem, BYTE getAddr, char *type, float32 *outVal)
 }
 
 
-int ReadFpga(okCFrontPanel *xem, BYTE getAddr, char *type, int *outVal)
-{
-    xem -> UpdateWireOuts();
-    // Read 18-bit integer from FPGA
-    if (0 == strcmp(type, "int18"))
-    {
-        //intValLo = self.xem.GetWireOutValue(getAddr) & 0xffff # length = 16-bit
-        //intValHi = self.xem.GetWireOutValue(getAddr + 0x01) & 0x0003 # length = 2-bit
-        //intVal = ((intValHi << 16) + intValLo) & 0xFFFFFFFF
-        //if intVal > 0x1FFFF:
-        //    intVal = -(0x3FFFF - intVal + 0x1)
-        //outVal = float(intVal) # in mV De-Scaling factor = 0xFFFF
-    }
-    // Read 32-bit signed integer from FPGA
-    else if (0 == strcmp(type, "int32"))
-    {
-        int outValLo = xem -> GetWireOutValue(getAddr) & 0xffff;
-        int outValHi = xem -> GetWireOutValue(getAddr + 0x01) & 0xffff;
-        int outValInt = ((outValHi << 16) + outValLo) & 0xFFFFFFFF;
-        *outVal = outValInt;
-    //elif type == "int32" :
-    //    intValLo = self.xem.GetWireOutValue(getAddr) & 0xffff # length = 16-bit
-    //    intValHi = self.xem.GetWireOutValue(getAddr + 0x01) & 0xffff # length = 16-bit
-    //    intVal = ((intValHi << 16) + intValLo) & 0xFFFFFFFF
-    //    outVal = ConvertType(intVal, 'I',  'i')  # in mV De-Scaling factor = 128  #????
-    }
-
-    return 0;
-}
 
 
 int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
@@ -545,10 +516,10 @@ void* ControlLoop(void*)
         float   muslceDamp = 0.0;
 
         float forceBic, forceTri;
-        forceBic = max(0.0, gXemMuscleBic->ReadFpga(0x32));
-        forceTri = max(0.0, gXemMuscleTri->ReadFpga(0x32));
-        const float tGain = 0.000085/8.0;
-        const float tBias = 0.0;//9000000.0;        
+        gXemMuscleBic->ReadFpga(0x32, "float32", &forceBic);
+        gXemMuscleTri->ReadFpga(0x32, "float32", &forceTri);
+        const float tGain = 1.0 / 3000.0;
+        const float tBias = 0.0;//9000000.0;  
         gCtrlFromFPGA[0] = (forceBic - tBias) * tGain;
         gCtrlFromFPGA[1] = (forceTri - tBias) * tGain;
 
@@ -562,8 +533,10 @@ void* ControlLoop(void*)
 
         ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
         gXemMuscleBic->SendPara(bitValLce, DATA_EVT_LCE);
-        gXemMuscleTri->SendPara(bitValLce, DATA_EVT_LCE);
         gXemSpindleBic->SendPara(bitValLce, DATA_EVT_LCE);
+        
+        ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
+        gXemMuscleTri->SendPara(bitValLce, DATA_EVT_LCE);
         gXemSpindleTri->SendPara(bitValLce, DATA_EVT_LCE);
 
 

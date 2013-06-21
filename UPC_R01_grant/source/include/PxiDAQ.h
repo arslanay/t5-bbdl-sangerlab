@@ -67,6 +67,7 @@ int DisableMotors(TaskHandle *rawHandle);
 extern FILE *gDataFile;
 extern float64 gMotorCmd[];
 extern float gCtrlFromFPGA[];
+//extern float gCtrlFromFpgaBic, gCtrlFromFpgaTri;
 extern int gMNCount[];
 
 extern char gTimeStamp[100];

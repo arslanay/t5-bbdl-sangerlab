@@ -49,8 +49,14 @@ FILE                    *gDataFile, *gConfigFile;
 int                     gCurrMotorState = MOTOR_STATE_INIT;
 double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
-okCFrontPanel           *gFpgaBiceps, *gFpgaTriceps;
-float                   gCtrlFromFPGA[NUM_FPGA];
+
+
+SomeFpga   gXemSpindleBic(NUM_NEURON, SAMPLING_RATE, "113700021E"); 
+SomeFpga   gXemSpindleTri(NUM_NEURON, SAMPLING_RATE, "11160001CG"); 
+SomeFpga   gXemMuscleBic (NUM_NEURON, SAMPLING_RATE, "0000000542") ; 
+SomeFpga   gXemMuscleTri (NUM_NEURON, SAMPLING_RATE, "1137000222") ; 
+
+float                   gCtrlFromFPGA[NUM_MUSCLE];
 int                     gMuscleEMG[NUM_FPGA], gMNCount[NUM_FPGA];
 
 OGLGraph*               gMyGraph;
@@ -299,21 +305,23 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         else
             gIsRecording=false;
         break;
-    case '0':       //Reset SIM
-        if(!gResetSim)
-            gResetSim=true;
-        else
-            gResetSim=false;
-        SendButton(gFpgaBiceps, (int) gResetSim, "BUTTON_RESET_SIM");
-        SendButton(gFpgaTriceps, (int) gResetSim, "BUTTON_RESET_SIM");
-        break;
+    //case '0':       //Reset SIM
+    //    if(!gResetSim)
+    //        gResetSim=true;
+    //    else
+    //        gResetSim=false;
+    //    SendButton(gXemMuscleBic, (int) gResetSim, "BUTTON_RESET_SIM");
+    //    SendButton(gXemMuscleTri, (int) gResetSim, "BUTTON_RESET_SIM");
+    //    break;
     case '9':       //Reset GLOBAL
         if(!gResetGlobal)
             gResetGlobal=true;
         else
             gResetGlobal=false;
-        SendButton(gFpgaBiceps, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
-        SendButton(gFpgaTriceps, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+       //SendButton(gXemMuscleBic, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+       //SendButton(gXemMuscleTri, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+       //SendButton(gXemSpindleBic, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+       //SendButton(gXemSpindleTri, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
         break;
     case 'z':       //Rezero
     case 'Z':
@@ -337,7 +345,7 @@ void idle(void)
 
 
 
-int ReadFPGA(okCFrontPanel *xem, BYTE getAddr, char *type, float32 *outVal)
+int ReadFpga(okCFrontPanel *xem, BYTE getAddr, char *type, float32 *outVal)
 {
     xem -> UpdateWireOuts();
     // Read 18-bit integer from FPGA
@@ -365,7 +373,7 @@ int ReadFPGA(okCFrontPanel *xem, BYTE getAddr, char *type, float32 *outVal)
 }
 
 
-int ReadFPGA(okCFrontPanel *xem, BYTE getAddr, char *type, int *outVal)
+int ReadFpga(okCFrontPanel *xem, BYTE getAddr, char *type, int *outVal)
 {
     xem -> UpdateWireOuts();
     // Read 18-bit integer from FPGA
@@ -395,17 +403,6 @@ int ReadFPGA(okCFrontPanel *xem, BYTE getAddr, char *type, int *outVal)
     return 0;
 }
 
-int ReInterpret(float32 in, int32 *out)
-{
-    memcpy(out, &in, sizeof(int32));
-    return 0;
-}
-
-int ReInterpret(int32 in, int32 *out)
-{
-    memcpy(out, &in, sizeof(int32));
-    return 0;
-}
 
 int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
 {
@@ -511,38 +508,12 @@ void* ControlLoop(void*)
 	int32       error=0;
 	char        errBuff[2048]={'\0'};
         
-    int32 IEEE_30;
-    ReInterpret((float32)(30.0), &IEEE_30);
-    WriteFPGA(gFpgaBiceps, IEEE_30, 1);
-    WriteFPGA(gFpgaTriceps, IEEE_30, 1);    
-
-    //Gamma_dyn = 40 (low)
-    int32 IEEE_40;
-    ReInterpret((float32)(40.0), &IEEE_40);
-    WriteFPGA(gFpgaBiceps, IEEE_40, 4);
-    WriteFPGA(gFpgaTriceps, IEEE_40, 4);
-    
-    //Set i_gain_syn_SN_to_CN
-    WriteFPGA(gFpgaBiceps, 1, 12); //working 1
-    WriteFPGA(gFpgaTriceps, 1, 12);
-
-    //Set i_gain_syn_SN_to_MN
-    WriteFPGA(gFpgaBiceps, 1, 6); // working with 2
-    WriteFPGA(gFpgaTriceps, 1, 6);
-
-
-    //int32 bitValM1Dystonia;
-    //ReInterpret((int32)(5000), &bitValM1Dystonia);
-    //WriteFPGA(gFpgaBiceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
-    //WriteFPGA(gFpgaTriceps, bitValM1Dystonia, DATA_EVT_M1_DYS);
-
     long iLoop = 0;
     while (1)
     {
         if(GetAsyncKeyState(VK_SPACE))
         { 
             ShutdownMotor(&gCurrMotorState);
-
         }
 
         if ((MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
@@ -554,15 +525,16 @@ void* ControlLoop(void*)
             gM1Voluntary = gWave[iLoop % 1024];
         }    */    
 
-        ReadFPGA(gFpgaBiceps, 0x22, "float32", &gfireRateIaBic[0]);
-        ReadFPGA(gFpgaBiceps, 0x20, "float32", &gfireLenBic[0]);
-        ReadFPGA(gFpgaBiceps, 0x2C, "float32", &gfireEmgBic[0]);
-        ReadFPGA(gFpgaBiceps, 0x2E, "int32", &gRasterPlot[0]);
+        //Read FPGA values for data Logging
+        //ReadFpga(gXemMuscleBic, 0x22, "float32", &gfireRateIaBic[0]);
+        //ReadFpga(gXemMuscleBic, 0x20, "float32", &gfireLenBic[0]);
+        //ReadFpga(gXemMuscleBic, 0x2C, "float32", &gfireEmgBic[0]);
+        //ReadFpga(gXemMuscleBic, 0x2E, "int32", &gRasterPlot[0]);
 
-        ReadFPGA(gFpgaTriceps, 0x22, "float32", &gfireRateIaBic[1]);
-        ReadFPGA(gFpgaTriceps, 0x20, "float32", &gfireLenBic[1]);
-        ReadFPGA(gFpgaTriceps, 0x2C, "float32", &gfireEmgBic[1]);
-        ReadFPGA(gFpgaTriceps, 0x2E, "int32", &gRasterPlot[1]);
+        //ReadFpga(gXemMuscleTri, 0x22, "float32", &gfireRateIaBic[1]);
+        //ReadFpga(gXemMuscleTri, 0x20, "float32", &gfireLenBic[1]);
+        //ReadFpga(gXemMuscleTri, 0x2C, "float32", &gfireEmgBic[1]);
+        //ReadFpga(gXemMuscleTri, 0x2E, "int32", &gRasterPlot[1]);
 
 
         //float32 tGainBic = 0.00005;// 0.051; // working = 0.141
@@ -572,27 +544,15 @@ void* ControlLoop(void*)
         float   coef_damp = 0.004; // working = 0.04
         float   muslceDamp = 0.0;
 
-        float rawCtrlBic, rawCtrlTri;
-        int muscleEMG = 0;
-        //ReadFPGA(gFpgaBiceps, 0x30, "float32", &rawCtrlBic);
-        ReadFPGA(gFpgaBiceps, 0x26, "int32", &gMNCount[0]);
-        //ReadFPGA(gFpgaBiceps, 0x32, "int32", &muscleEMG);
-        gMuscleEMG[0] = muscleEMG;
-        
+        float forceBic, forceTri;
+        forceBic = max(0.0, gXemMuscleBic.ReadFpga(0x32));
+        forceTri = max(0.0, gXemMuscleTri.ReadFpga(0x32));
+        const float tGain = 0.000085/8.0;
+        const float tBias = 0.0;//9000000.0;        
+        gCtrlFromFPGA[0] = (forceBic - tBias) * tGain;
+        gCtrlFromFPGA[1] = (forceTri - tBias) * tGain;
 
-        // Read FPGA1
-        //ReadFPGA(gFpgaTriceps, 0x30, "float32", &rawCtrlTri);
-        ReadFPGA(gFpgaTriceps, 0x26, "int32", &gMNCount[1]);
-        //ReadFPGA(gFpgaTriceps, 0x32, "int32", &muscleEMG);
-        gMuscleEMG[NUM_FPGA-1] = muscleEMG;
 
-        /*
-        gCtrlFromFPGA[0] = adjustedForceBic;
-        gCtrlFromFPGA[1] = adjustedForceTri;*/
-        //PthreadMutexUnlock(&gMutex);
-
-        //printf("%.4f\t", gCtrlFromFPGA[0]);
-        //    gAuxvar[0], gAuxvar[1], gAuxvar[2], gAuxvar[3]);
 
         int32 bitValLce, bitValVel;
         int32   bitM1VoluntaryBic = 0, 
@@ -601,20 +561,11 @@ void* ControlLoop(void*)
                 bitM1DystoniaTri = 000;
 
         ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
-        ReInterpret((float32)(muslceDamp * gMuscleVel[0]), &bitValVel);
-        // M1 drive        
-        //ReInterpret((int32)(max(0, gM1Voluntary)), &bitM1VoluntaryBic);
-        //ReInterpret((int32)(gM1Dystonia), &bitM1DystoniaBic);
-        WriteFpgaLceVel(gFpgaBiceps, bitValLce, bitValVel, bitM1VoluntaryBic, bitM1DystoniaBic, DATA_EVT_LCEVEL);
-        
-        ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
-        ReInterpret((float32)(muslceDamp * gMuscleVel[1]), &bitValVel);
-        //ReInterpret((int32)(max(0, -gM1Voluntary)), &bitM1VoluntaryTri);
-        //ReInterpret((int32)(gM1Dystonia), &bitM1DystoniaTri);
-        WriteFpgaLceVel(gFpgaTriceps, bitValLce, bitValVel, bitM1VoluntaryTri, bitM1DystoniaTri, DATA_EVT_LCEVEL);
+        gXemMuscleBic.SendPara(bitValLce, DATA_EVT_LCE);
+        gXemMuscleTri.SendPara(bitValLce, DATA_EVT_LCE);
+        gXemSpindleBic.SendPara(bitValLce, DATA_EVT_LCE);
+        gXemSpindleTri.SendPara(bitValLce, DATA_EVT_LCE);
 
-
-        //printf("%.2f\t", gWave[1020]);
 
         Sleep(1);
         if(_kbhit()) break;
@@ -719,18 +670,12 @@ void InitProgram()
 	printf("FrontPanel DLL loaded.  Built: %s  %s\n", dll_date, dll_time);
 
     // Two muscles, each with one Fpga handle
-    gFpgaBiceps = new okCFrontPanel;
-    gFpgaTriceps = new okCFrontPanel;
-        
-    if (0 != InitFpga(gFpgaBiceps)) {
-		printf("FPGA could not be initialized.\n");
-		return;
-	};
-
-    if (0 != InitFpga(gFpgaTriceps)) {
-		printf("FPGA could not be initialized.\n");
-		return;
-	};   
+    
+    //gXemSpindleBic = SomeFpga(NUM_NEURON, SAMPLING_RATE, "113700021E"); 
+    //gXemSpindleTri = SomeFpga(NUM_NEURON, SAMPLING_RATE, "11160001CG"); 
+    //gXemMuscleBic = SomeFpga(NUM_NEURON, SAMPLING_RATE, "0000000542") ; 
+    //gXemMuscleTri = SomeFpga(NUM_NEURON, SAMPLING_RATE, "1137000222") ; 
+    //    
 
     gSwapFiles = new FileContainer;
 
@@ -859,16 +804,11 @@ void ExitProgram()
     ippsIIRFree_32f(pIIRStateVel0);
     ippsIIRFree_32f(pIIRStateVel1);
     
-
-
-
     TwDeleteBar(gBar);
 
     TwTerminate();    
     delete gSwapFiles;
 
-    delete gFpgaBiceps;
-    delete gFpgaTriceps;
 }
 
 inline void LogData( void)

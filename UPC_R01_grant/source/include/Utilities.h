@@ -1,11 +1,15 @@
 #include <windows.h>
 #include <functional>
 #include <vector>
+#include	"NIDAQmx.h"
+#include "okFrontPanelDLL.h"
 
 #ifndef CMN_UtilityHeader
 #define CMN_UtilityHeader
 
 #define     FPGA_BIT_FILENAME         "C:/nerf_sangerlab/projects/one_joint_robot_all_in1/one_joint_robot_all_in1_xem6010.bit"
+const int   NUM_NEURON = 128;
+const int   SAMPLING_RATE = 1024;
 
 #define		PI 3.14159265
 #define		EPS 0.0000001
@@ -26,10 +30,12 @@ const double		SAFE_MOTOR_VOLTAGE = 0.9;
 const double		ZERO_MOTOR_VOLTAGE = 0.0;
 const int    NUM_MOTOR = 2;
 const int    NUM_FPGA = 2;
+const int    NUM_MUSCLE = 2;
 
 /* FPGA Trigger events */
 const int    DATA_EVT_CLKRATE = 0;
-const int    DATA_EVT_LCE = 8;
+const int    DATA_EVT_LCE = 9;
+const int    DATA_EVT_GD = 4;
 const int    DATA_EVT_VEL = 9;
 const int    DATA_EVT_LCEVEL = 10;
 const int    DATA_EVT_M1_VOL = 11;
@@ -43,7 +49,11 @@ const int    DATA_EVT_M1_DYS = 8;
 
 #define		CHANNEL_NUM 2
 
+int ReInterpret(float32 in, int32 *out);
 
+int ReInterpret(int32 in, int32 *out);
+
+int ReInterpret(int32 in, float32 *out);
 
 class FileContainer 
 {
@@ -98,6 +108,30 @@ private: // noncopyable
 #define ON_SCOPE_EXIT(callback) ScopeGuard SCOPEGUARD_LINENAME(EXIT, __LINE__)(callback)
 
 int SineGen(int (&data)[1024]);
+
+
+
+
+class SomeFpga 
+{
+    public:
+        SomeFpga(int , int , std::string);
+        ~SomeFpga();
+        int SendPara(int bitVal, int trigEvent);
+        float ReadFpga(int getAddr);
+        //int ReadFpga(int getAddr);
+    
+    private:
+        int NUM_NEURON;
+        int SAMPLING_RATE;
+        okCFrontPanel *xem;
+        char serX[50];
+        
+
+
+}; // Semi-colon is REQUIRED!
+
+
 
 #endif // CMN_UtilityHeader
 

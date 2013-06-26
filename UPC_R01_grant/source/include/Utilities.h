@@ -13,7 +13,7 @@ const int   SAMPLING_RATE = 1024;
 
 #define		PI 3.14159265
 #define		EPS 0.0000001
-#define		NUM_THREADS 2
+#define		NUM_THREADS 3
 #define     NUM_AUXVAR 4 // { muscleLen, muscleVel, muscleForce, muscleEmg}
 #define		EMG_SAMPLING_RATE 1000 // samples/s
 
@@ -120,11 +120,11 @@ class SomeFpga
         int SendPara(int bitVal, int trigEvent);
         int ReadFpga(BYTE getAddr, char *type, float *outVal);
         //int ReadFpga(int getAddr);
+        okCFrontPanel *xem;
     
     private:
         int NUM_NEURON;
         int SAMPLING_RATE;
-        okCFrontPanel *xem;
         char serX[50];
         
 

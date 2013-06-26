@@ -96,10 +96,13 @@ lua_State *L;
 int statusLua;
 
 //Fpga Data Logging
-float32 gfireRateIaBic[2];
-float32 gfireLenBic[2];
-float32 gfireEmgBic[2];
-int gRasterPlot[2];
+float32 gLenBic;
+float32 gEmgBic;
+float32 gLenTri;
+float32 gEmgTri;
+float gForceBic;
+float gForceTri;
+
 
 
 void ledIndicator ( float w, float h );
@@ -473,7 +476,7 @@ int WriteFpgaLceVel(okCFrontPanel *xem, int32 bitValLce, int32 bitValVel, int32 
 }
 
 
-void* ControlLoop(void*)
+void* ControlLoopBic(void*)
 {
     
 	int32       error=0;
@@ -497,50 +500,94 @@ void* ControlLoop(void*)
         }    */    
 
         //Read FPGA values for data Logging
-        //ReadFpga(gXemMuscleBic, 0x22, "float32", &gfireRateIaBic[0]);
-        //ReadFpga(gXemMuscleBic, 0x20, "float32", &gfireLenBic[0]);
-        //ReadFpga(gXemMuscleBic, 0x2C, "float32", &gfireEmgBic[0]);
-        //ReadFpga(gXemMuscleBic, 0x2E, "int32", &gRasterPlot[0]);
+        //ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenBic);
+        ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgBic);
+       // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
+        //ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgTri);
 
-        //ReadFpga(gXemMuscleTri, 0x22, "float32", &gfireRateIaBic[1]);
-        //ReadFpga(gXemMuscleTri, 0x20, "float32", &gfireLenBic[1]);
-        //ReadFpga(gXemMuscleTri, 0x2C, "float32", &gfireEmgBic[1]);
-        //ReadFpga(gXemMuscleTri, 0x2E, "int32", &gRasterPlot[1]);
 
 
         //float32 tGainBic = 0.00005;// 0.051; // working = 0.141
         //float32 tGainTri = 0.00005;// 0.051; // working = 0.141
         float32 forceBiasBic = 10.0f;
-        float32 forceBiasTri = 10.0f;
         float   coef_damp = 0.004; // working = 0.04
         float   muslceDamp = 0.0;
 
-        float forceBic, forceTri;
-        gXemMuscleBic->ReadFpga(0x32, "float32", &forceBic);
-        gXemMuscleTri->ReadFpga(0x32, "float32", &forceTri);
+        gXemMuscleBic->ReadFpga(0x32, "float32", &gForceBic);
         const float tGain = 1.0 / 3000.0;
         const float tBias = 0.0;//9000000.0;  
-        gCtrlFromFPGA[0] = (forceBic - tBias) * tGain;
-        gCtrlFromFPGA[1] = (forceTri - tBias) * tGain;
+        gCtrlFromFPGA[0] = (gForceBic - tBias) * tGain;
 
 
 
         int32 bitValLce, bitValVel;
         int32   bitM1VoluntaryBic = 0, 
-                bitM1VoluntaryTri = 0, 
-                bitM1DystoniaBic = 000, 
-                bitM1DystoniaTri = 000;
+                bitM1DystoniaBic = 000;
 
         ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
         gXemMuscleBic->SendPara(bitValLce, DATA_EVT_LCE);
         gXemSpindleBic->SendPara(bitValLce, DATA_EVT_LCE);
         
+        //Sleep(1);
+        if(_kbhit()) break;
+    } 
+	return 0;
+}
+
+void* ControlLoopTri(void*)
+{
+    
+	int32       error=0;
+	char        errBuff[2048]={'\0'};
+        
+    long iLoop = 0;
+    while (1)
+    {
+        if(GetAsyncKeyState(VK_SPACE))
+        { 
+            ShutdownMotor(&gCurrMotorState);
+        }
+
+        if ((MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
+		//printf("\n\t%f",dataEncoder[0]); 
+        iLoop++;
+/*        if (10000 <= iLoop)
+        {
+            gM1Dystonia = 5000;
+            gM1Voluntary = gWave[iLoop % 1024];
+        }    */    
+
+        //Read FPGA values for data Logging
+        //ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenBic);
+        //ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgBic);
+       // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
+        ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgTri);
+
+
+
+        //float32 tGainBic = 0.00005;// 0.051; // working = 0.141
+        //float32 tGainTri = 0.00005;// 0.051; // working = 0.141
+        float32 forceBiasTri = 10.0f;
+        float   coef_damp = 0.004; // working = 0.04
+        float   muslceDamp = 0.0;
+
+        gXemMuscleTri->ReadFpga(0x32, "float32", &gForceTri);
+        const float tGain = 1.0 / 3000.0;
+        const float tBias = 0.0;//9000000.0;  
+        gCtrlFromFPGA[1] = (gForceTri - tBias) * tGain;
+
+
+
+        int32 bitValLce, bitValVel;
+        int32   bitM1VoluntaryTri = 0, 
+                bitM1DystoniaTri = 000;
+
         ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
         gXemMuscleTri->SendPara(bitValLce, DATA_EVT_LCE);
         gXemSpindleTri->SendPara(bitValLce, DATA_EVT_LCE);
 
 
-        Sleep(1);
+        //Sleep(1);
         if(_kbhit()) break;
     } 
 	return 0;
@@ -800,14 +847,9 @@ inline void LogData( void)
     if (gIsRecording)
     {   
         fprintf(gDataFile,"%.3lf\t",actualTime );																	
-        //fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMuscleEMG[0]);			
-        //fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMuscleEMG[1]);			
-        
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t", gMuscleLce[0], gMuscleLce[1], gMuscleVel[0], gMuscleVel[1]);			
-        fprintf(gDataFile,"%f\t%f\t%d\t%d\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1], gMNCount[0], gMNCount[1]);			
 
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t%f\t%u\t%u\t", gfireRateIaBic[0], gfireRateIaBic[1], gfireLenBic[0], gfireLenBic[1],
-                                                              gfireEmgBic[0], gfireEmgBic[1], gRasterPlot[0], gRasterPlot[1]);			
+        fprintf(gDataFile,"%f\t%f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%f\t", gEmgBic, gEmgTri, gLenBic, gLenTri);			
         fprintf(gDataFile,"\n");
     }
 }
@@ -897,8 +939,9 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     // gAuxvar = {current force 0, current force 1, current pos 0, current pos 1};
 
     pthread_mutex_init (&gMutex, NULL);
-    int ctrl_handle = pthread_create(&gThreads[0], NULL, ControlLoop,	(void *)gAuxvar);
-    int logdata_handle = pthread_create(&gThreads[1], NULL, NoTimerCB,	NULL);
+    int logdata_handle = pthread_create(&gThreads[0], NULL, NoTimerCB,	NULL);
+    int ctrl_handle_bic = pthread_create(&gThreads[1], NULL, ControlLoopBic,	(void *)gAuxvar);
+    int ctrl_handle_tri = pthread_create(&gThreads[2], NULL, ControlLoopTri,	(void *)gAuxvar);
    
     gBar = TwNewBar("TweakBar");
     TwDefine(" GLOBAL help='This is our interface for the T5 Project BBDL-SangerLab.' "); // Message added to the help bar.

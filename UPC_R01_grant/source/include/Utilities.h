@@ -34,12 +34,12 @@ const int    NUM_MUSCLE = 2;
 
 /* FPGA Trigger events */
 const int    DATA_EVT_CLKRATE = 0;
-const int    DATA_EVT_LCE = 9;
-const int    DATA_EVT_GD = 4;
-const int    DATA_EVT_VEL = 9;
-const int    DATA_EVT_LCEVEL = 10;
-const int    DATA_EVT_M1_VOL = 11;
-const int    DATA_EVT_M1_DYS = 8;
+//const int    DATA_EVT_LCE = 9;
+//const int    DATA_EVT_GD = 4;
+//const int    DATA_EVT_VEL = 9;
+const int    DATA_EVT_LCEVEL = 9;
+//const int    DATA_EVT_M1_VOL = 11;
+//const int    DATA_EVT_M1_DYS = 8;
 
 /* PRACTICE FLAGS */
 
@@ -121,7 +121,7 @@ class SomeFpga
         int ReadFpga(BYTE getAddr, char *type, float *outVal);
         //int ReadFpga(int getAddr);
         okCFrontPanel *xem;
-    
+        int WriteFpgaLceVel(int32, int32, int32, int32, int32);    
     private:
         int NUM_NEURON;
         int SAMPLING_RATE;
@@ -134,4 +134,3 @@ class SomeFpga
 
 
 #endif // CMN_UtilityHeader
-

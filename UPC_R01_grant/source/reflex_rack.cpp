@@ -49,6 +49,8 @@ FILE                    *gDataFile, *gConfigFile;
 int                     gCurrMotorState = MOTOR_STATE_INIT;
 double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
+const float gGain = 4.5 / 3000.0;
+const float gMusDamp = 100.0;
 
 
 SomeFpga   *gXemSpindleBic; 
@@ -404,76 +406,6 @@ int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
     return 0;
 }
 
-int WriteFpgaLceVel(okCFrontPanel *xem, int32 bitValLce, int32 bitValVel, int32 bitValM1Voluntary, int32 bitValM1Dystonia, int32 trigEvent)
-{
-    //bitVal = 0;
-
-    int32 bitValLo = bitValLce & 0xffff;
-    int32 bitValHi = (bitValLce >> 16) & 0xffff;
-
-    
-    //Send muscle lce to fpga
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x01, bitValLo, 0xffff)) {
-		printf("SetWireInLo failed.\n");
-		//delete xem;
-		return -1;
-	}
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x02, bitValHi, 0xffff)) {
-		printf("SetWireInHi failed.\n");
-		//delete xem;
-		return -1;
-	}
-
-
-    bitValLo = bitValVel & 0xffff;
-    bitValHi = (bitValVel >> 16) & 0xffff;    
-    //send muscle velocity to Fpga
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x03, bitValLo, 0xffff)) {
-		printf("SetWireInLo failed.\n");
-		//delete xem;
-		return -1;
-	}
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x04, bitValHi, 0xffff)) {
-		printf("SetWireInHi failed.\n");
-		//delete xem;
-		return -1;
-	}
-
-    
-
-    bitValLo = bitValM1Voluntary & 0xffff;
-    bitValHi = (bitValM1Voluntary >> 16) & 0xffff;    
-    //send muscle velocity to Fpga
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x05, bitValLo, 0xffff)) {
-		printf("SetWireInLo failed.\n");
-		//delete xem;
-		return -1;
-	}
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x06, bitValHi, 0xffff)) {
-		printf("SetWireInHi failed.\n");
-		//delete xem;
-		return -1;
-    }  
-
-    bitValLo = bitValM1Dystonia & 0xffff;
-    bitValHi = (bitValM1Dystonia >> 16) & 0xffff;    
-    //send muscle velocity to Fpga
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x07, bitValLo, 0xffff)) {
-		printf("SetWireInLo failed.\n");
-		//delete xem;
-		return -1;
-	}
-    if (okCFrontPanel::NoError != xem -> SetWireInValue(0x08, bitValHi, 0xffff)) {
-		printf("SetWireInHi failed.\n");
-		//delete xem;
-		return -1;
-	}
-
-    xem -> UpdateWireIns();
-    xem -> ActivateTriggerIn(0x50, trigEvent)   ;
-    
-    return 0;
-}
 
 
 void* ControlLoopBic(void*)
@@ -511,22 +443,27 @@ void* ControlLoopBic(void*)
         //float32 tGainTri = 0.00005;// 0.051; // working = 0.141
         float32 forceBiasBic = 10.0f;
         float   coef_damp = 0.004; // working = 0.04
-        float   muslceDamp = 0.0;
-
-        gXemMuscleBic->ReadFpga(0x32, "float32", &gForceBic);
-        const float tGain = 1.0 / 3000.0;
-        const float tBias = 0.0;//9000000.0;  
-        gCtrlFromFPGA[0] = (gForceBic - tBias) * tGain;
-
-
 
         int32 bitValLce, bitValVel;
         int32   bitM1VoluntaryBic = 0, 
                 bitM1DystoniaBic = 000;
 
         ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
-        gXemMuscleBic->SendPara(bitValLce, DATA_EVT_LCE);
-        gXemSpindleBic->SendPara(bitValLce, DATA_EVT_LCE);
+        ReInterpret((float32)(gMusDamp * gMuscleVel[0]), &bitValVel);
+
+        gXemMuscleBic->ReadFpga(0x32, "float32", &gForceBic);
+
+        gXemMuscleBic->WriteFpgaLceVel(bitValLce, bitValVel, bitM1VoluntaryBic, bitM1DystoniaBic, DATA_EVT_LCEVEL);
+        //const float gGain = 1.0 / 3000.0;
+        const float tBias = 0.0;//9000000.0;  
+        gCtrlFromFPGA[0] = (gForceBic - tBias) * gGain;
+
+        
+
+
+        //ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
+        //gXemMuscleBic->SendPara(bitValLce, DATA_EVT_LCE);
+        gXemSpindleBic->SendPara(bitValLce, DATA_EVT_LCEVEL);
         
         //Sleep(1);
         if(_kbhit()) break;
@@ -563,28 +500,34 @@ void* ControlLoopTri(void*)
        // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
         ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgTri);
 
-
-
-        //float32 tGainBic = 0.00005;// 0.051; // working = 0.141
-        //float32 tGainTri = 0.00005;// 0.051; // working = 0.141
+        //float32 gGainBic = 0.00005;// 0.051; // working = 0.141
+        //float32 gGainTri = 0.00005;// 0.051; // working = 0.141
         float32 forceBiasTri = 10.0f;
         float   coef_damp = 0.004; // working = 0.04
-        float   muslceDamp = 0.0;
-
-        gXemMuscleTri->ReadFpga(0x32, "float32", &gForceTri);
-        const float tGain = 1.0 / 3000.0;
-        const float tBias = 0.0;//9000000.0;  
-        gCtrlFromFPGA[1] = (gForceTri - tBias) * tGain;
-
-
 
         int32 bitValLce, bitValVel;
         int32   bitM1VoluntaryTri = 0, 
                 bitM1DystoniaTri = 000;
-
+        
         ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
-        gXemMuscleTri->SendPara(bitValLce, DATA_EVT_LCE);
-        gXemSpindleTri->SendPara(bitValLce, DATA_EVT_LCE);
+        ReInterpret((float32)(gMusDamp * gMuscleVel[1]), &bitValVel);
+
+
+
+        gXemMuscleTri->ReadFpga(0x32, "float32", &gForceTri);
+
+        gXemMuscleTri->WriteFpgaLceVel(bitValLce, bitValVel, bitM1VoluntaryTri, bitM1DystoniaTri, DATA_EVT_LCEVEL);
+        
+
+        
+        const float tBias = 0.0;//9000000.0;  
+        gCtrlFromFPGA[1] = (gForceTri - tBias) * gGain;
+
+
+
+        //ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
+        //gXemMuscleTri->SendPara(bitValLce, DATA_EVT_LCE);
+        gXemSpindleTri->SendPara(bitValLce, DATA_EVT_LCEVEL);
 
 
         //Sleep(1);
@@ -824,16 +767,16 @@ void ExitProgram()
 
     ippsIIRFree_32f(pIIRStateVel0);
     ippsIIRFree_32f(pIIRStateVel1);
+    delete gXemSpindleBic;
+    delete gXemSpindleTri;
+    delete gXemMuscleBic ;
+    delete gXemMuscleTri ;
     
     TwDeleteBar(gBar);
 
     TwTerminate();    
     delete gSwapFiles;
 
-    delete gXemSpindleBic;
-    delete gXemSpindleTri;
-    delete gXemMuscleBic ;
-    delete gXemMuscleTri ;
 
 }
 
@@ -849,7 +792,7 @@ inline void LogData( void)
         fprintf(gDataFile,"%.3lf\t",actualTime );																	
 
         fprintf(gDataFile,"%f\t%f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t", gEmgBic, gEmgTri, gLenBic, gLenTri);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%f\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1]);			
         fprintf(gDataFile,"\n");
     }
 }

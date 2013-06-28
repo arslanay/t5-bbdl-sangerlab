@@ -50,8 +50,10 @@ int                     gCurrMotorState = MOTOR_STATE_INIT;
 double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
 const float gGain = 4.5 / 3000.0;
-const float gMusDamp = 100.0;
 
+float gMusDamp = 100.0;
+bool gAlterDamping = false; //Damping flag
+time_t randSeedTime;
 
 SomeFpga   *gXemSpindleBic; 
 SomeFpga   *gXemSpindleTri; 
@@ -169,7 +171,8 @@ void display ( void )   // Create The Display Function
     sprintf_s(gLceLabel1,"%f    %d   %.2f", gMuscleLce[0], gM1Voluntary, gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
 //    sprintf_s(gLceLabel2,"%f    %.2f   %.2f", gMuscleLce[1], gMuscleVel[1],gCtrlFromFPGA[NUM_FPGA - 1]);
-    sprintf_s(gLceLabel2,"%f    %d   %.2f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1]);
+    sprintf_s(gLceLabel2,"%f    %d   %.2f  %.2f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1],gMusDamp);
+    //sprintf_s(gLceLabel2,"%f    %d   %.2f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     //printf("\n\t%f\t%f", gMuscleVel[0], gMuscleVel[1]);
     
@@ -299,6 +302,10 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     case 'G':       //Proceed in FSM
     case 'g':
         ProceedFSM(&gCurrMotorState);
+        break;
+    case 'L':       //Alter the damping
+    case 'l':
+        gAlterDamping = true;
         break;
     case 'R':       //Winding up
     case 'r':
@@ -437,7 +444,9 @@ void* ControlLoopBic(void*)
        // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
         //ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgTri);
 
-
+        if(gAlterDamping && gMusDamp>0.1f)
+            gMusDamp -= 0.2f;
+        
 
         //float32 tGainBic = 0.00005;// 0.051; // working = 0.141
         //float32 tGainTri = 0.00005;// 0.051; // working = 0.141
@@ -448,6 +457,8 @@ void* ControlLoopBic(void*)
         int32   bitM1VoluntaryBic = 0, 
                 bitM1DystoniaBic = 000;
 
+        //gMuscleLce[0] += (-0.01f + (float)(rand() % 2000)/1000.0f/100.0f)*5.0;
+
         ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
         ReInterpret((float32)(gMusDamp * gMuscleVel[0]), &bitValVel);
 
@@ -456,8 +467,9 @@ void* ControlLoopBic(void*)
         gXemMuscleBic->WriteFpgaLceVel(bitValLce, bitValVel, bitM1VoluntaryBic, bitM1DystoniaBic, DATA_EVT_LCEVEL);
         //const float gGain = 1.0 / 3000.0;
         const float tBias = 0.0;//9000000.0;  
+        
         gCtrlFromFPGA[0] = (gForceBic - tBias) * gGain;
-
+        gCtrlFromFPGA[0] = (gCtrlFromFPGA[0]>= 0.0) ? gCtrlFromFPGA[0] : 0.0;
         
 
 
@@ -504,11 +516,14 @@ void* ControlLoopTri(void*)
         //float32 gGainTri = 0.00005;// 0.051; // working = 0.141
         float32 forceBiasTri = 10.0f;
         float   coef_damp = 0.004; // working = 0.04
-
+     
         int32 bitValLce, bitValVel;
         int32   bitM1VoluntaryTri = 0, 
                 bitM1DystoniaTri = 000;
         
+        //rand() % 50
+        //gMuscleLce[1] += (-0.01f + (float)(rand() % 2000)/1000.0f/100.0f)*5.0;
+
         ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
         ReInterpret((float32)(gMusDamp * gMuscleVel[1]), &bitValVel);
 
@@ -522,7 +537,8 @@ void* ControlLoopTri(void*)
         
         const float tBias = 0.0;//9000000.0;  
         gCtrlFromFPGA[1] = (gForceTri - tBias) * gGain;
-
+        gCtrlFromFPGA[1] = (gCtrlFromFPGA[1]>= 0.0) ? gCtrlFromFPGA[1] : 0.0;
+        
 
 
         //ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
@@ -620,6 +636,9 @@ void InitProgram()
     timeinfo = localtime(&rawtime);
     sprintf_s(gTimeStamp,"%4d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min);
     sprintf_s(gTimeStampDropbox,"C:\\Users\\PXI_BBDL\\Dropbox\\DataPxi\\Pxi%4d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min);
+
+    gAlterDamping = false;
+    srand((unsigned) time(&randSeedTime));
 
     // Load Fpga DLLs
     char dll_date[32], dll_time[32];
@@ -792,7 +811,7 @@ inline void LogData( void)
         fprintf(gDataFile,"%.3lf\t",actualTime );																	
 
         fprintf(gDataFile,"%f\t%f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1]);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gMusDamp);			
         fprintf(gDataFile,"\n");
     }
 }

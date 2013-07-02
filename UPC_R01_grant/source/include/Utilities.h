@@ -118,7 +118,8 @@ class SomeFpga
         SomeFpga(int , int , std::string);
         ~SomeFpga();
         int SendPara(int bitVal, int trigEvent);
-        int ReadFpga(BYTE getAddr, char *type, float *outVal);
+        int ReadFpga(BYTE getAddr, char *, float *);
+        int ReadFpga(BYTE getAddr, char *,int *);
         //int ReadFpga(int getAddr);
         okCFrontPanel *xem;
         int WriteFpgaLceVel(int32, int32, int32, int32, int32);    

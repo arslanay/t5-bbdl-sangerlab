@@ -147,9 +147,9 @@ int SomeFpga::ReadFpga(BYTE getAddr, char *type, float *outVal)
 {
     xem -> UpdateWireOuts();
     // Read 18-bit integer from FPGA
-    if (0 == strcmp(type, "int18"))
+    if (0 == strcmp(type, "int32"))
     {
-
+       
     }
     // Read 32-bit signed integer from FPGA
     else if (0 == strcmp(type, "float32"))
@@ -162,6 +162,30 @@ int SomeFpga::ReadFpga(BYTE getAddr, char *type, float *outVal)
 
     return 0;
 }
+
+
+int SomeFpga::ReadFpga(BYTE getAddr, char *type, int *outVal)
+{
+    xem -> UpdateWireOuts();
+    // Read 18-bit integer from FPGA
+    if (0 == strcmp(type, "int32"))
+    {
+        int32 outValLo = xem -> GetWireOutValue(getAddr) & 0xffff;
+        int32 outValHi = xem -> GetWireOutValue(getAddr + 0x01) & 0xffff;
+        int32 outValInt = ((outValHi << 16) + outValLo) & 0xFFFFFFFF;
+        *outVal = (int) outValInt;
+            //memcpy(outVal, &outValInt, sizeof(*outVal));
+        //outVal = ConvertType(outVal, 'I', 'f')
+        //#print outVal
+    }
+    // Read 32-bit signed integer from FPGA
+    else if (0 == strcmp(type, "float32"))
+    {
+    }
+
+    return 0;
+}
+
 
 int SomeFpga::SendPara(int bitVal, int trigEvent)
 {

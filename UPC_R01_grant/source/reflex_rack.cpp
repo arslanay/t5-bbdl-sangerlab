@@ -49,7 +49,7 @@ FILE                    *gDataFile, *gConfigFile;
 int                     gCurrMotorState = MOTOR_STATE_INIT;
 double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
-const float gGain = 4.5 / 3000.0;
+const float gGain = 5.5 / 3000.0;
 
 float gMusDamp = 100.0;
 bool gAlterDamping = false; //Damping flag
@@ -106,7 +106,8 @@ float32 gLenTri;
 float32 gEmgTri;
 float gForceBic;
 float gForceTri;
-
+int gSpikeCountBic;
+int gSpikeCountTri;
 
 
 void ledIndicator ( float w, float h );
@@ -171,7 +172,7 @@ void display ( void )   // Create The Display Function
     sprintf_s(gLceLabel1,"%f    %d   %.2f", gMuscleLce[0], gM1Voluntary, gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
 //    sprintf_s(gLceLabel2,"%f    %.2f   %.2f", gMuscleLce[1], gMuscleVel[1],gCtrlFromFPGA[NUM_FPGA - 1]);
-    sprintf_s(gLceLabel2,"%f    %d   %.2f  %.2f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1],gMusDamp);
+    sprintf_s(gLceLabel2,"%f    %d   %.2f  %u", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1],gSpikeCountBic);
     //sprintf_s(gLceLabel2,"%f    %d   %.2f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     //printf("\n\t%f\t%f", gMuscleVel[0], gMuscleVel[1]);
@@ -356,33 +357,33 @@ void idle(void)
 }
 
 
-
-int ReadFpga(okCFrontPanel *xem, BYTE getAddr, char *type, float32 *outVal)
-{
-    xem -> UpdateWireOuts();
-    // Read 18-bit integer from FPGA
-    if (0 == strcmp(type, "int18"))
-    {
-        //intValLo = self.xem.GetWireOutValue(getAddr) & 0xffff # length = 16-bit
-        //intValHi = self.xem.GetWireOutValue(getAddr + 0x01) & 0x0003 # length = 2-bit
-        //intVal = ((intValHi << 16) + intValLo) & 0xFFFFFFFF
-        //if intVal > 0x1FFFF:
-        //    intVal = -(0x3FFFF - intVal + 0x1)
-        //outVal = float(intVal) # in mV De-Scaling factor = 0xFFFF
-    }
-    // Read 32-bit float
-    else if (0 == strcmp(type, "float32")) 
-    {
-        int32 outValLo = xem -> GetWireOutValue(getAddr) & 0xffff;
-        int32 outValHi = xem -> GetWireOutValue(getAddr + 0x01) & 0xffff;
-        int32 outValInt = ((outValHi << 16) + outValLo) & 0xFFFFFFFF;
-        memcpy(outVal, &outValInt, sizeof(*outVal));
-        //outVal = ConvertType(outVal, 'I', 'f')
-        //#print outVal
-    }
-
-    return 0;
-}
+//
+//int ReadFpga(okCFrontPanel *xem, BYTE getAddr, char *type, float32 *outVal)
+//{
+//    xem -> UpdateWireOuts();
+//    // Read 18-bit integer from FPGA
+//    if (0 == strcmp(type, "int18"))
+//    {
+//        //intValLo = self.xem.GetWireOutValue(getAddr) & 0xffff # length = 16-bit
+//        //intValHi = self.xem.GetWireOutValue(getAddr + 0x01) & 0x0003 # length = 2-bit
+//        //intVal = ((intValHi << 16) + intValLo) & 0xFFFFFFFF
+//        //if intVal > 0x1FFFF:
+//        //    intVal = -(0x3FFFF - intVal + 0x1)
+//        //outVal = float(intVal) # in mV De-Scaling factor = 0xFFFF
+//    }
+//    // Read 32-bit float
+//    else if (0 == strcmp(type, "float32")) 
+//    {
+//        int32 outValLo = xem -> GetWireOutValue(getAddr) & 0xffff;
+//        int32 outValHi = xem -> GetWireOutValue(getAddr + 0x01) & 0xffff;
+//        int32 outValInt = ((outValHi << 16) + outValLo) & 0xFFFFFFFF;
+//        memcpy(outVal, &outValInt, sizeof(*outVal));
+//        //outVal = ConvertType(outVal, 'I', 'f')
+//        //#print outVal
+//    }
+//
+//    return 0;
+//}
 
 
 
@@ -440,12 +441,14 @@ void* ControlLoopBic(void*)
 
         //Read FPGA values for data Logging
         //ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenBic);
-        ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgBic);
+        gXemMuscleBic->ReadFpga(0x20, "float32", &gEmgBic);
+        gXemMuscleBic->ReadFpga(0x30, "int32", &gSpikeCountBic);
+        //ReadFpga(gXemMuscleBic->xem, 0x30, "int32", &gSpikeCountBic);
        // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
         //ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgTri);
 
-        if(gAlterDamping && gMusDamp>0.1f)
-            gMusDamp -= 0.2f;
+        if(gAlterDamping && (gMusDamp>0.03f))
+            gMusDamp -= 0.03f;
         
 
         //float32 tGainBic = 0.00005;// 0.051; // working = 0.141
@@ -510,7 +513,9 @@ void* ControlLoopTri(void*)
         //ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenBic);
         //ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgBic);
        // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
-        ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgTri);
+        gXemMuscleTri->ReadFpga(0x20, "float32", &gEmgTri);
+        gXemMuscleTri->ReadFpga(0x30, "int32", &gSpikeCountTri);
+
 
         //float32 gGainBic = 0.00005;// 0.051; // working = 0.141
         //float32 gGainTri = 0.00005;// 0.051; // working = 0.141
@@ -811,7 +816,7 @@ inline void LogData( void)
         fprintf(gDataFile,"%.3lf\t",actualTime );																	
 
         fprintf(gDataFile,"%f\t%f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gMusDamp);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gSpikeCountBic, gSpikeCountTri);			
         fprintf(gDataFile,"\n");
     }
 }

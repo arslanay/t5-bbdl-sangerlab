@@ -49,7 +49,7 @@ FILE                    *gDataFile, *gConfigFile;
 int                     gCurrMotorState = MOTOR_STATE_INIT;
 double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
-const float gGain = 5.5 / 3000.0;
+const float gGain = 4.5 / 2000.0;
 
 float gMusDamp = 100.0;
 bool gAlterDamping = false; //Damping flag
@@ -108,6 +108,10 @@ float gForceBic;
 float gForceTri;
 int gSpikeCountBic;
 int gSpikeCountTri;
+float32 gSpindleIaBic;
+float32 gSpindleIIBic;
+float32 gSpindleIaTri;
+float32 gSpindleIITri;
 
 
 void ledIndicator ( float w, float h );
@@ -172,7 +176,7 @@ void display ( void )   // Create The Display Function
     sprintf_s(gLceLabel1,"%f    %d   %.2f", gMuscleLce[0], gM1Voluntary, gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
 //    sprintf_s(gLceLabel2,"%f    %.2f   %.2f", gMuscleLce[1], gMuscleVel[1],gCtrlFromFPGA[NUM_FPGA - 1]);
-    sprintf_s(gLceLabel2,"%f    %d   %.2f  %u", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1],gSpikeCountBic);
+    sprintf_s(gLceLabel2,"%f    %d   %.2f   %f   %f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1],gSpindleIaBic,gSpindleIIBic);
     //sprintf_s(gLceLabel2,"%f    %d   %.2f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     //printf("\n\t%f\t%f", gMuscleVel[0], gMuscleVel[1]);
@@ -443,6 +447,8 @@ void* ControlLoopBic(void*)
         //ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenBic);
         gXemMuscleBic->ReadFpga(0x20, "float32", &gEmgBic);
         gXemMuscleBic->ReadFpga(0x30, "int32", &gSpikeCountBic);
+        gXemSpindleBic->ReadFpga(0x22, "float32", &gSpindleIaBic);
+        gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIIBic);
         //ReadFpga(gXemMuscleBic->xem, 0x30, "int32", &gSpikeCountBic);
        // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
         //ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgTri);
@@ -515,6 +521,8 @@ void* ControlLoopTri(void*)
        // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
         gXemMuscleTri->ReadFpga(0x20, "float32", &gEmgTri);
         gXemMuscleTri->ReadFpga(0x30, "int32", &gSpikeCountTri);
+        gXemSpindleBic->ReadFpga(0x22, "float32", &gSpindleIaTri);
+        gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIITri);
 
 
         //float32 gGainBic = 0.00005;// 0.051; // working = 0.141
@@ -658,10 +666,10 @@ void InitProgram()
 
     // Two muscles, each with one Fpga handle
     
-    gXemSpindleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "113700021E"); 
-    gXemSpindleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "11160001CG"); 
-    gXemMuscleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "0000000542") ; 
-    gXemMuscleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "1137000222") ; 
+    gXemSpindleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "124300046A"); 
+    gXemSpindleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "12320003RN"); 
+    gXemMuscleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "1201000216") ; 
+    gXemMuscleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "12430003T2") ; 
         
 
     gSwapFiles = new FileContainer;
@@ -817,6 +825,7 @@ inline void LogData( void)
 
         fprintf(gDataFile,"%f\t%f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
         fprintf(gDataFile,"%f\t%f\t%f\t%f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gSpikeCountBic, gSpikeCountTri);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri);			
         fprintf(gDataFile,"\n");
     }
 }

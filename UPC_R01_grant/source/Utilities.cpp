@@ -99,7 +99,7 @@ int SineGen(int (&data)[1024])
 
     auto w = F * 2 * PI * dt;
     int max_n = 1024; //floor(periods * SAMPLING_RATE / F);
-    printf("max_n = %d\n", max_n);
+    //printf("max_n = %d\n", max_n);
     for (int i = 0; i < max_n; i++)
     {
         data[i] = (int) (AMP * sin(w * i + PHASE) + BIAS);

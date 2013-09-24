@@ -420,7 +420,7 @@ Error:
 	return 0;
 }
 
-int DisableMotors(TaskHandle *rawHandle)
+int DisableMotors(TaskHandle *rawHandle)  
 {
     TaskHandle motorTaskHandle = *rawHandle;
 
@@ -456,6 +456,8 @@ Error:
 
 int StartReadPos(TaskHandle *rawHandle0,TaskHandle *rawHandle1)
 {
+        printf("\n\nOut\n\n");        printf("\n\nIn\n\n");
+
 	TaskHandle  encoderTaskHandle[NUM_MOTOR] ;
     encoderTaskHandle[0] = *rawHandle0;
     encoderTaskHandle[1] = *rawHandle1;

@@ -102,7 +102,7 @@ void init ( GLvoid )     // Create Some Everyday Functions
 {
     glClearColor(0.0f, 0.0f, 0.0f, 0.f);				// Black Background
     //glClearDepth(1.0f);								// Depth Buffer Setup
-    gMyGraph = OGLGraph::Instance();
+    gMyGraph = OGLGraph::Instance(); 
     gMyGraph->setup( 500, 100, 10, 20, 2, 2, 1, 200 );
 }
 void outputText(int x, int y, char *string)

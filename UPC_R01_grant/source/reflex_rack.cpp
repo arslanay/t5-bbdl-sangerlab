@@ -40,7 +40,7 @@ extern "C"{
 // *** Global variables
 float                   gAuxvar [NUM_AUXVAR*NUM_MOTOR];
 pthread_t               gThreads[NUM_THREADS];
-pthread_mutex_t         gMutex;
+pthread_mutex_t         gMutex;  
 TaskHandle              gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
 float                   gLenOrig[NUM_MOTOR], gLenScale[NUM_MOTOR], gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
 bool                    gResetSim=false,gIsRecording=false, gResetGlobal=false;
@@ -49,9 +49,9 @@ FILE                    *gDataFile, *gConfigFile;
 int                     gCurrMotorState = MOTOR_STATE_INIT;
 double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
-const float gGain = 4.5 / 2000.0;
+const float gGain = 2.5 / 2000.0;
 
-float gMusDamp = 100.0;
+float gMusDamp = 120.0;
 bool gAlterDamping = false; //Damping flag
 time_t randSeedTime;
 
@@ -454,7 +454,8 @@ void* ControlLoopBic(void*)
         //ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgTri);
 
         if(gAlterDamping && (gMusDamp>0.03f))
-            gMusDamp -= 0.03f;
+            //gMusDamp -= 0.03f;
+            gMusDamp = 0.0f;
         
 
         //float32 tGainBic = 0.00005;// 0.051; // working = 0.141
@@ -666,14 +667,18 @@ void InitProgram()
 
     // Two muscles, each with one Fpga handle
     
-    gXemSpindleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "124300046A"); 
-    gXemSpindleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "12320003RN"); 
-    gXemMuscleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "1201000216") ; 
-    gXemMuscleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "12430003T2") ; 
+    //gXemSpindleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "124300046A"); 
+    //gXemSpindleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "12320003RN"); 
+    //gXemMuscleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "1201000216") ; 
+    //gXemMuscleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "12430003T2") ; 
+
+    gXemSpindleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "113700021E"); 
+    gXemSpindleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "11160001CG"); 
+    gXemMuscleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "0000000542") ; 
+    gXemMuscleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "1137000222") ; 
         
 
     gSwapFiles = new FileContainer;
-
 
     //IPP_VEL_IIR
     dlysVel0IIR = ippsMalloc_32f(2 * (lenFilterVel_IIR + 1));
@@ -762,55 +767,90 @@ void InitProgram()
     //WARNING: DON'T CHANGE THE SEQUENCE BELOW
     StartReadPos(&gEncoderHandle[0], &gEncoderHandle[1]);
 
+
     StartSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle); 
     InitMotor(&gCurrMotorState);
+
 }
 
-void ExitProgram() 
+
+//#include <winsock2.h>
+#pragma comment(lib,"ws2_32.lib") //Winsock Library
+ 
+#define SERVER "192.168.0.2"  //ip address of udp server
+#define BUFLEN 512  //Max length of buffer
+#define PORT 8899   //The port on which to listen for incoming data
+
+struct sockaddr_in si_other;
+int sock, slen;
+char buf[BUFLEN];
+char message[BUFLEN];
+WSADATA wsa;
+ 
+int initUdpEmg()
 {
-    //pthread_join(gThreads[0], NULL);
-    SaveConfigCache();
-    DisableMotors(&gEnableHandle);    
-    StopSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
-    StopPositionRead(&gEncoderHandle[0],&gEncoderHandle[1]);
-
-    report_errors(L, statusLua);
-    lua_close(L);
-    //IPP
-    //ippsFIRFree_32f(pFIRState0);
-    //ippsFIRFree_32f(pFIRState1);
-    
-    ippsFree(taps0);
-    ippsFree(taps1);
-    ippsFree(dly0);
-    ippsFree(dly1);
-
-
-    ippsIIRFree_32f(pIIRState0);
-    ippsIIRFree_32f(pIIRState1);
-    
-
-    //IPP_VEL_IIR
-
-    ippsFree(tapsVel0IIR);
-    ippsFree(tapsVel1IIR);
-    ippsFree(dlysVel0IIR);
-    ippsFree(dlysVel1IIR);
-
-    ippsIIRFree_32f(pIIRStateVel0);
-    ippsIIRFree_32f(pIIRStateVel1);
-    delete gXemSpindleBic;
-    delete gXemSpindleTri;
-    delete gXemMuscleBic ;
-    delete gXemMuscleTri ;
-    
-    TwDeleteBar(gBar);
-
-    TwTerminate();    
-    delete gSwapFiles;
-
-
+    slen=sizeof(si_other);
+    //Initialise winsock
+    printf("\nInitialising Winsock...");
+    if (WSAStartup(MAKEWORD(2,2),&wsa) != 0)
+    {
+        printf("Failed. Error Code : %d",WSAGetLastError());
+        exit(EXIT_FAILURE);
+    }
+    printf("\n\nInitialised.\n\n");
+     
+    //create socket
+    if ( (sock=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == SOCKET_ERROR)
+    {
+        printf("socket() failed with error code : %d" , WSAGetLastError());
+        exit(EXIT_FAILURE);
+    }
+     
+    //setup address structure
+    memset((char *) &si_other, 0, sizeof(si_other));
+    si_other.sin_family = AF_INET;
+    si_other.sin_port = htons(PORT);
+    si_other.sin_addr.S_un.S_addr = inet_addr(SERVER);
+    return 0;
 }
+
+char strSendUdp[100] = "wakawaka";
+
+int updateUdpEmg(float32 inputVal)
+{
+    sprintf_s(strSendUdp, "%.4f", inputVal);
+
+    //send the message
+    if (sendto(sock, strSendUdp, strlen(strSendUdp) , 0 , (struct sockaddr *) &si_other, slen) == SOCKET_ERROR)
+    {
+        printf("sendto() failed with error code : %d" , WSAGetLastError());
+        exit(EXIT_FAILURE);
+    }
+         
+    //receive a reply and print it
+    ////clear the buffer by filling null, it might have previously received data
+    //memset(buf,'\0', BUFLEN);
+    ////try to receive some data, this is a blocking call
+    //if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen) == SOCKET_ERROR)
+    //{
+    //    printf("recvfrom() failed with error code : %d" , WSAGetLastError());
+    //    exit(EXIT_FAILURE);
+    //}
+    //     
+    //puts(buf);
+ 
+ 
+    return 0;
+}
+
+int closeUdpEmg()
+{
+    closesocket(sock);
+    WSACleanup();
+    return 0;
+}
+
+
 
 inline void LogData( void)
 {   
@@ -824,9 +864,14 @@ inline void LogData( void)
         fprintf(gDataFile,"%.3lf\t",actualTime );																	
 
         fprintf(gDataFile,"%f\t%f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gSpikeCountBic, gSpikeCountTri);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1]);//, gSpikeCountBic, gSpikeCountTri);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri, gMusDamp);			
         fprintf(gDataFile,"\n");
+        
+        //printf("\n%lf",gEmgBic);
+        updateUdpEmg(gEmgBic);
+
+        //updateUdpEmg(3.555);
     }
 }
 
@@ -847,6 +892,8 @@ void* NoTimerCB (void *)
         Sleep(1);
     }
 }
+void ExitProgram();
+
 
 int main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
 {
@@ -902,7 +949,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     glutKeyboardFunc( keyboard );
     glutIdleFunc(idle);
 
-
+    initUdpEmg();
 
 
     // Make sure to pair InitProgram() with ExitProgram()
@@ -937,3 +984,52 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
 
 }
 
+
+void ExitProgram() 
+{
+    //pthread_join(gThreads[0], NULL);
+    SaveConfigCache();
+    DisableMotors(&gEnableHandle);    
+    StopSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
+    StopPositionRead(&gEncoderHandle[0],&gEncoderHandle[1]);
+
+    report_errors(L, statusLua);
+    lua_close(L);
+    //IPP
+    //ippsFIRFree_32f(pFIRState0);
+    //ippsFIRFree_32f(pFIRState1);
+    
+    
+    closeUdpEmg();
+
+    ippsFree(taps0);
+    ippsFree(taps1);
+    ippsFree(dly0);
+    ippsFree(dly1);
+
+
+    ippsIIRFree_32f(pIIRState0);
+    ippsIIRFree_32f(pIIRState1);
+    
+
+    //IPP_VEL_IIR
+
+    ippsFree(tapsVel0IIR);
+    ippsFree(tapsVel1IIR);
+    ippsFree(dlysVel0IIR);
+    ippsFree(dlysVel1IIR);
+
+    ippsIIRFree_32f(pIIRStateVel0);
+    ippsIIRFree_32f(pIIRStateVel1);
+    delete gXemSpindleBic;
+    delete gXemSpindleTri;
+    delete gXemMuscleBic ;
+    delete gXemMuscleTri ;
+    
+    TwDeleteBar(gBar);
+
+    TwTerminate();    
+    delete gSwapFiles;
+
+
+}

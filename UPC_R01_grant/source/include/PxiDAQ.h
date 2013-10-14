@@ -46,7 +46,7 @@ extern int gCurrMotorState;
 
 
 extern bool gIsRecording;
-extern float gLenOrig[], gLenScale[], gMuscleLce[], gMuscleVel[];
+extern float gLenOrig[], gLenScale[], gMuscleLce[], gMuscleVel[], gDeltaLen;
 extern double gEncoderCount[];
 
 int32 CVICALLBACK EveryNCallback(TaskHandle taskHandleDAQmx, int32 everyNsamplesEventType, uInt32 nSamples, void *callbackData);

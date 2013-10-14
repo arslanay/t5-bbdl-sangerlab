@@ -294,7 +294,7 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         if(!gIsRecording)
         {
             gIsRecording=true;
-            sendLuaUdp();
+            //sendLuaUdp();
         }
         else
             gIsRecording=false;
@@ -564,6 +564,7 @@ void* ControlLoop(void*)
         ReadFPGA(gFpgaTriceps, 0x2C, "float32", &gfireEmgBic[1]);
         ReadFPGA(gFpgaTriceps, 0x2E, "int32", &gRasterPlot[1]);
 
+        
 
         //float32 tGainBic = 0.00005;// 0.051; // working = 0.141
         //float32 tGainTri = 0.00005;// 0.051; // working = 0.141

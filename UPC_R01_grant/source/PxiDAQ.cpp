@@ -244,8 +244,8 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         gEncoderCount[0] = 0.0; 
         gEncoderCount[1] = 0.0;
         
-        gMuscleLce[0] = min(max(-gLenScale[0] * (-gAuxvar[2] - gEncoderCount[0] + gLenOrig[0]) + 1.0, 0.2), 2.0);
-        gMuscleLce[1] = min(max(-gLenScale[1] * (-gAuxvar[2+NUM_AUXVAR] - gEncoderCount[1] + gLenOrig[1]) + 1.0, 0.2), 2.0);
+        gMuscleLce[0] = min(max(-gLenScale[0] * (-gAuxvar[2] - gEncoderCount[0] + gLenOrig[0])  + gDeltaLen + 1.0, 0.2), 2.0);
+        gMuscleLce[1] = min(max(-gLenScale[1] * (-gAuxvar[2+NUM_AUXVAR] - gEncoderCount[1] + gLenOrig[1]) - gDeltaLen + 1.0, 0.2), 2.0);
         //float32 residuleMuscleLce = (2.02 - gMuscleLce[0] - gMuscleLce[1]) / 2.0;
         //gMuscleLce[0] += residuleMuscleLce;
         //gMuscleLce[1] += residuleMuscleLce;

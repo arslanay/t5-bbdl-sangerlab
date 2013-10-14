@@ -43,7 +43,8 @@ pthread_t               gThreads[NUM_THREADS];
 pthread_mutex_t         gMutex;  
 TaskHandle              gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
 float                   gLenOrig[NUM_MOTOR], gLenScale[NUM_MOTOR], gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
-bool                    gResetSim=false,gIsRecording=false, gResetGlobal=false;
+bool                    gResetSim=false,gIsRecording=false, gResetGlobal=false, gIsP2pMoving=false;
+float                   gP2pIndex = 0.0f, gDeltaLen = 0.0f;
 LARGE_INTEGER           gInitTick, gCurrentTick, gClkFrequency;
 FILE                    *gDataFile, *gConfigFile;
 int                     gCurrMotorState = MOTOR_STATE_INIT;
@@ -51,7 +52,7 @@ double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
 const float gGain = 2.5 / 2000.0;
 
-float gMusDamp = 120.0;
+float gMusDamp = 200.0;//120.0;
 bool gAlterDamping = false; //Damping flag
 time_t randSeedTime;
 
@@ -317,7 +318,7 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         if(!gIsRecording)
         {
             gIsRecording=true;
-            sendLuaUdp();
+            //sendLuaUdp();
         }
         else
             gIsRecording=false;
@@ -339,6 +340,10 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
        //SendButton(gXemMuscleTri, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
        //SendButton(gXemSpindleBic, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
        //SendButton(gXemSpindleTri, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+        break;   
+    case 'p':       //Minos: workaround for p2p movement
+    case 'P':
+        gIsP2pMoving = true;
         break;
     case 'z':       //Rezero
     case 'Z':
@@ -865,30 +870,33 @@ inline void LogData( void)
 
         fprintf(gDataFile,"%f\t%f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
         fprintf(gDataFile,"%f\t%f\t%f\t%f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1]);//, gSpikeCountBic, gSpikeCountTri);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri, gMusDamp);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t%f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri, gMusDamp, -gAuxvar[2]);			
         fprintf(gDataFile,"\n");
         
         //printf("\n%lf",gEmgBic);
-        updateUdpEmg(gEmgBic);
+        //updateUdpEmg(gEmgBic);
 
         //updateUdpEmg(3.555);
     }
 }
 
 
-void TimerCB (int iTimer)
-{
-    LogData();
-
-	// Set The Timer For This Function Again
-	glutTimerFunc (3, TimerCB, 1);
-}
-
 void* NoTimerCB (void *)
 {
     while (1)
     {
         LogData();
+        if (gIsP2pMoving) // Update the neutral joint angle using mini-jerk
+        {
+            float   af = 0.6f, d = 200.0f;
+
+            gP2pIndex += 1.0f;
+
+            gDeltaLen = min(af, af*(10.0f*pow(gP2pIndex/d, 3) - 15.0f*pow(gP2pIndex/d, 4) + 6.0f*pow(gP2pIndex/d, 5)));
+
+            
+        }
+
         Sleep(1);
     }
 }

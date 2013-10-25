@@ -294,7 +294,7 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         if(!gIsRecording)
         {
             gIsRecording=true;
-            //sendLuaUdp();
+            sendLuaUdp();
         }
         else
             gIsRecording=false;

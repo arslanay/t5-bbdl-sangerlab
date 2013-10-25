@@ -318,7 +318,7 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         if(!gIsRecording)
         {
             gIsRecording=true;
-            //sendLuaUdp();
+            sendLuaUdp();
         }
         else
             gIsRecording=false;
@@ -874,7 +874,7 @@ inline void LogData( void)
         fprintf(gDataFile,"\n");
         
         //printf("\n%lf",gEmgBic);
-        //updateUdpEmg(gEmgBic);
+        updateUdpEmg(gEmgBic);
 
         //updateUdpEmg(3.555);
     }

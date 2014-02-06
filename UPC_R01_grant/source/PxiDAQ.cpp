@@ -472,7 +472,7 @@ int StartReadPos(TaskHandle *rawHandle0,TaskHandle *rawHandle1)
     //printf("IN");
     //DAQmxLoadTask ("EncoderSlot3Ctr3",&encoderTaskHandle);
 	if( encoderTaskHandle[0]!=0 ) {
-        DAQmxErrChk (DAQmxCreateCIAngEncoderChan(encoderTaskHandle[0],"PXI1Slot3/ctr3","",DAQmx_Val_X4,0,0.0,DAQmx_Val_AHighBHigh,DAQmx_Val_Degrees,24,0.0,""));
+        DAQmxErrChk (DAQmxCreateCIAngEncoderChan(encoderTaskHandle[0],"PXI1Slot3/ctr5","",DAQmx_Val_X4,0,0.0,DAQmx_Val_AHighBHigh,DAQmx_Val_Degrees,24,0.0,""));
         //DAQmxErrChk (DAQmxCreateCIAngEncoderChan(encoderTaskHandle,"PXI1Slot3/ctr4","",DAQmx_Val_X4,0,0.0,DAQmx_Val_AHighBHigh,DAQmx_Val_Degrees,24,0.0,""));
 
 	    DAQmxErrChk (DAQmxStartTask(encoderTaskHandle[0]));

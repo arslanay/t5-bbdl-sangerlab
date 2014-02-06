@@ -150,9 +150,9 @@ void display ( void )   // Create The Display Function
     value = 5*sin( 5*time ) + 10.f;
 
     
-    //gMyGraph->update( 10.0 * gAuxvar[0] );
-    //gMyGraph->update( gMuscleVel[0] );
-    gMyGraph->update( gCtrlFromFPGA[0] );
+    // gMyGraph->update( 10.0 * gAuxvar[0] );
+    //  gMyGraph->update( gMuscleVel[0] );
+    gMyGraph->update( gCtrlFromFPGA[1] );
 
     gMyGraph->draw();
     

@@ -1,11 +1,6 @@
 
 using namespace std;
 
-extern "C"{
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-}
 
 #include <iostream>
 #include <conio.h>
@@ -34,8 +29,6 @@ extern "C"{
 #include	"Utilities.h"
 #include	"glut.h"   // The GL Utility Toolkit (Glut) Header
 #include	"OGLGraph.h"
-
-//#pragma comment(lib, "lua51.lib")
 
 // *** Global variables
 float                   gAuxvar [NUM_AUXVAR*NUM_MOTOR];
@@ -95,10 +88,6 @@ int gM1Dystonia = 0;
 
 //AntTweakBar
 TwBar *gBar; // Pointer to the tweak bar
-
-//Lua UDP
-lua_State *L;
-int statusLua;
 
 //Fpga Data Logging
 float32 gLenBic;
@@ -277,23 +266,6 @@ int ShutdownMotor(int *state)
     return 0;
 }
 
-void report_errors(lua_State *L, int status)
-{
-  if ( status!=0 ) {
-    std::cerr << "-- " << lua_tostring(L, -1) << std::endl;
-    lua_pop(L, 1); // remove error message
-  }
-}
-
-void sendLuaUdp()
-{
-    if ( statusLua == 0 )
-	{
-      // execute Lua program
-      statusLua = lua_pcall(L, 0, LUA_MULTRET, 0);
-    }
-}
-
 void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
 {
     switch ( key ) 
@@ -318,7 +290,6 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         if(!gIsRecording)
         {
             gIsRecording=true;
-            sendLuaUdp();
         }
         else
             gIsRecording=false;
@@ -911,18 +882,6 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     gM1Voluntary= 0.0;
     gM1Dystonia= 0.0;
     //gLenScale=0.0001;
-    
-    //Lua Init
-    L = lua_open();
-	luaL_openlibs(L);
-	luaopen_base(L);
-	luaopen_table(L);
-    luaopen_string(L);
-    luaopen_math(L);
-    char filename[40] = "..\\source\\sendUdp.lua";
-	std::cerr << "-- Loading file: " << filename << std::endl;
-	statusLua = luaL_loadfile(L, filename);
-
 
     FILE *ConfigFile;
     ConfigFile= fopen("ConfigPXI.txt","r");
@@ -1001,8 +960,6 @@ void ExitProgram()
     StopSignalLoop(&gAOTaskHandle, &gForceReadTaskHandle);
     StopPositionRead(&gEncoderHandle[0],&gEncoderHandle[1]);
 
-    report_errors(L, statusLua);
-    lua_close(L);
     //IPP
     //ippsFIRFree_32f(pFIRState0);
     //ippsFIRFree_32f(pFIRState1);

@@ -104,6 +104,6 @@ SET(CMN_EXECUTABLE_NAMES
 # Now loop through each name, defining the executable by grabbing the
 # identically-named source file and linking the required libraries.
 FOREACH(EXEC ${CMN_EXECUTABLE_NAMES})
-	ADD_EXECUTABLE(${EXEC} ${EXEC}.cpp okFrontPanelDLL.cpp)
+	ADD_EXECUTABLE(${EXEC} ${EXEC}.cpp okFrontPanelDLL.cpp UdpClient.cpp)
 	TARGET_LINK_LIBRARIES(${EXEC} ${SYS_LIBRARIES} ${CMN_LIBRARIES})
 ENDFOREACH(EXEC)

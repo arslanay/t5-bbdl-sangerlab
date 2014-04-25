@@ -40,7 +40,7 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
 	char        errBuff[2048]={'\0'};
 
 
-    gDataFile = fopen(gTimeStampDropbox,"a");
+    gDataFile = fopen(gTimeStamp, "a");
     //gDataFileDB = fopen(gTimeStampDropbox,"a");
 
 	/*********************************************/

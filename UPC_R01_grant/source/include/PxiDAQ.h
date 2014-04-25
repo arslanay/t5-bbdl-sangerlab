@@ -70,8 +70,7 @@ extern float gCtrlFromFPGA[];
 //extern float gCtrlFromFpgaBic, gCtrlFromFpgaTri;
 extern int gMNCount[];
 
-extern char gTimeStamp[100];
-extern char gTimeStampDropbox[100];
+extern char gTimeStamp[200];
 
 extern LARGE_INTEGER gInitTick, gCurrentTick, gClkFrequency;
 #endif

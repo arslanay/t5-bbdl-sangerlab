@@ -654,7 +654,7 @@ void InitProgram()
     time(&rawtime);
     timeinfo = localtime(&rawtime);
     sprintf_s(gTimeStampSend,"%4d%02d%02d%02d%02d%02d",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
-    sprintf_s(gTimeStamp,"%4d%02d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+    sprintf_s(gTimeStamp,"C:\\data\\%s_PXI.txt",gTimeStampSend);
 
     gAlterDamping = false;
     srand((unsigned) time(&randSeedTime));
@@ -792,69 +792,6 @@ char buf[BUFLEN];
 char message[BUFLEN];
 WSADATA wsa;
  
-int initUdpEmg()
-{
-    slen=sizeof(si_other);
-    //Initialise winsock
-    printf("\nInitialising Winsock...");
-    if (WSAStartup(MAKEWORD(2,2),&wsa) != 0)
-    {
-        printf("Failed. Error Code : %d",WSAGetLastError());
-        exit(EXIT_FAILURE);
-    }
-    printf("\n\nInitialised.\n\n");
-     
-    //create socket
-    if ( (sock=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == SOCKET_ERROR)
-    {
-        printf("socket() failed with error code : %d" , WSAGetLastError());
-        exit(EXIT_FAILURE);
-    }
-     
-    //setup address structure
-    memset((char *) &si_other, 0, sizeof(si_other));
-    si_other.sin_family = AF_INET;
-    si_other.sin_port = htons(PORT);
-    si_other.sin_addr.S_un.S_addr = inet_addr(SERVER);
-    return 0;
-}
-
-char strSendUdp[100] = "wakawaka";
-
-int updateUdpEmg(float32 inputVal)
-{
-    sprintf_s(strSendUdp, "%.4f", inputVal);
-
-    //send the message
-    if (sendto(sock, strSendUdp, strlen(strSendUdp) , 0 , (struct sockaddr *) &si_other, slen) == SOCKET_ERROR)
-    {
-        printf("sendto() failed with error code : %d" , WSAGetLastError());
-        exit(EXIT_FAILURE);
-    }
-         
-    //receive a reply and print it
-    ////clear the buffer by filling null, it might have previously received data
-    //memset(buf,'\0', BUFLEN);
-    ////try to receive some data, this is a blocking call
-    //if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen) == SOCKET_ERROR)
-    //{
-    //    printf("recvfrom() failed with error code : %d" , WSAGetLastError());
-    //    exit(EXIT_FAILURE);
-    //}
-    //     
-    //puts(buf);
- 
- 
-    return 0;
-}
-
-int closeUdpEmg()
-{
-    closesocket(sock);
-    WSACleanup();
-    return 0;
-}
-
 
 
 inline void LogData( void)
@@ -874,7 +811,6 @@ inline void LogData( void)
         fprintf(gDataFile,"\n");
         
         //printf("\n%lf",gEmgBic);
-        updateUdpEmg(gEmgBic);
 
         //updateUdpEmg(3.555);
     }
@@ -943,11 +879,8 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     // send the ''glutGetModifers'' function pointer to AntTweakBar
     TwGLUTModifiersFunc(glutGetModifiers);
 
-    glutKeyboardFunc( keyboard );
+    glutKeyboardFunc(keyboard);
     glutIdleFunc(idle);
-
-    initUdpEmg();
-
 
     // Make sure to pair InitProgram() with ExitProgram()
     // Resources need to be released  
@@ -995,7 +928,6 @@ void ExitProgram()
     //ippsFIRFree_32f(pFIRState1);
     
     
-    closeUdpEmg();
 
     ippsFree(taps0);
     ippsFree(taps1);

@@ -61,8 +61,8 @@ int                     gMuscleEMG[NUM_FPGA], gMNCount[NUM_FPGA];
 OGLGraph*               gMyGraph;
 char                    gLceLabel1[60];
 char                    gLceLabel2[60];
-char                    gTimeStamp[100];
-char                    gTimeStampDropbox[100];
+char                    gTimeStamp[200];
+char                    gTimeStampSend[200];
 char                    gStateLabel[5][30] = { "MOTOR_STATE_INIT",
                                                "MOTOR_STATE_WINDING_UP",
                                                "MOTOR_STATE_OPEN_LOOP",
@@ -267,6 +267,8 @@ int ShutdownMotor(int *state)
     return 0;
 }
 
+int countNameSendEvent ;
+
 void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
 {
     switch ( key ) 
@@ -279,6 +281,13 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     //case 32:        // SpaceBar 
     //    //ShutdownMotor(&gCurrMotorState);
     //    break;  
+    case 'N':       //Alter the damping
+    case 'n':
+        if(countNameSendEvent == 0) {
+            gUdpClient.sendMessageToServer(gTimeStampSend);
+            countNameSendEvent++;
+        }
+        break;
     case 'T':       //Alter the damping
     case 't':
         gUdpClient.sendMessageToServer("TER");
@@ -644,8 +653,8 @@ void InitProgram()
     struct tm *timeinfo;
     time(&rawtime);
     timeinfo = localtime(&rawtime);
-    sprintf_s(gTimeStamp,"%4d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min);
-    sprintf_s(gTimeStampDropbox,"C:\\Users\\PXI_BBDL\\Dropbox\\DataPxi\\Pxi%4d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min);
+    sprintf_s(gTimeStampSend,"%4d%02d%02d%02d%02d%02d",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+    sprintf_s(gTimeStamp,"%4d%02d%02d%02d%02d%02d.txt",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
 
     gAlterDamping = false;
     srand((unsigned) time(&randSeedTime));
@@ -896,6 +905,7 @@ void ExitProgram();
 
 int main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
 {
+    countNameSendEvent = 0;
     gLenOrig[0]=0.0;
     gLenOrig[1]=0.0;
     

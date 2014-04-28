@@ -37,7 +37,7 @@ pthread_t               gThreads[NUM_THREADS];
 pthread_mutex_t         gMutex;  
 TaskHandle              gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
 float                   gLenOrig[NUM_MOTOR], gLenScale[NUM_MOTOR], gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
-bool                    gResetSim=false,gIsPerturbing= false,gIsRecording=false, gResetGlobal=false, gIsP2pMoving=false;
+bool                    gResetSim=false,gIsPerturbing= false, gIsKinematicPerturbing = false, gIsRecording=false, gResetGlobal=false, gIsP2pMoving=false;
 float                   gP2pIndex = 0.0f, gDeltaLen = 0.0f;
 LARGE_INTEGER           gInitTick, gCurrentTick, gClkFrequency;
 FILE                    *gDataFile, *gConfigFile;
@@ -290,6 +290,7 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         break;
     case 'T':       //Alter the damping
     case 't':
+        gIsRecording = false;
         gUdpClient.sendMessageToServer("TER");
         break;
     case 'P':       //Alter the damping
@@ -301,6 +302,17 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         else {
             gIsPerturbing=false;
             gUdpClient.sendMessageToServer("PPL");
+        }
+        break;
+    case 'K':
+    case 'k':
+        if(!gIsKinematicPerturbing) {
+            gIsKinematicPerturbing=true;
+            gUdpClient.sendMessageToServer("PKH");
+        }
+        else {
+            gIsKinematicPerturbing=false;
+            gUdpClient.sendMessageToServer("PKL");
         }
         break;
 
@@ -649,6 +661,9 @@ FileContainer *gSwapFiles;
 
 void InitProgram()
 {
+    //+++ Change so when you press N the program logs a different file and you send the new 
+    // timestamp to the other programs
+    //+++ Stop local recording when you press T
     time_t rawtime;
     struct tm *timeinfo;
     time(&rawtime);
@@ -806,7 +821,7 @@ inline void LogData( void)
         fprintf(gDataFile,"%.3lf\t",actualTime );																	
 
         fprintf(gDataFile,"%f\t%f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1]);//, gSpikeCountBic, gSpikeCountTri);			
+        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gSpikeCountBic, gSpikeCountTri);			
         fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t%f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri, gMusDamp, -gAuxvar[2]);			
         fprintf(gDataFile,"\n");
         

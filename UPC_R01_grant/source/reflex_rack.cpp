@@ -37,7 +37,8 @@ pthread_t               gThreads[NUM_THREADS];
 pthread_mutex_t         gMutex;  
 TaskHandle              gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
 float                   gLenOrig[NUM_MOTOR], gLenScale[NUM_MOTOR], gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
-bool                    gResetSim=false,gIsPerturbing= false, gIsKinematicPerturbing = false, gIsRecording=false, gResetGlobal=false, gIsP2pMoving=false;
+bool                    gResetSim=false, gIsKinematic = false,
+    gIsPerturbing = false, gIsRecording=false, gResetGlobal=false, gIsP2pMoving=false;
 float                   gP2pIndex = 0.0f, gDeltaLen = 0.0f;
 LARGE_INTEGER           gInitTick, gCurrentTick, gClkFrequency;
 FILE                    *gDataFile, *gConfigFile;
@@ -288,31 +289,35 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
             countNameSendEvent++;
         }
         break;
-    case 'T':       //Alter the damping
+
+    case 'T':       // Terminate the current trial
     case 't':
         gIsRecording = false;
         gUdpClient.sendMessageToServer("TER");
+        // Reset the countNameSendEvent = 0;  
         break;
-    case 'P':       //Alter the damping
+
+    case 'K':       // Selects the perturbation mode: Phantom or Kinematic
+    case 'k':
+        if(!gIsKinematic) {
+            gIsKinematic = true;
+            gUdpClient.sendMessageToServer("KIN");
+        }
+        else {
+            gIsKinematic = false;
+            gUdpClient.sendMessageToServer("PHA");
+        }
+        break;
+
+    case 'P':       // Generic perturbing state
     case 'p':
         if(!gIsPerturbing) {
             gIsPerturbing=true;
-            gUdpClient.sendMessageToServer("PPH");
+            gUdpClient.sendMessageToServer("GPH");
         }
         else {
             gIsPerturbing=false;
-            gUdpClient.sendMessageToServer("PPL");
-        }
-        break;
-    case 'K':
-    case 'k':
-        if(!gIsKinematicPerturbing) {
-            gIsKinematicPerturbing=true;
-            gUdpClient.sendMessageToServer("PKH");
-        }
-        else {
-            gIsKinematicPerturbing=false;
-            gUdpClient.sendMessageToServer("PKL");
+            gUdpClient.sendMessageToServer("GPL");
         }
         break;
 
@@ -327,12 +332,12 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     case 'R':       //Winding up
     case 'r':
         if(!gIsRecording) {
-            gIsRecording=true;
-            gUdpClient.sendMessageToServer("RPH");
+            gIsRecording = true;
+            gUdpClient.sendMessageToServer("GRH");
         }
         else {
-            gIsRecording=false;
-            gUdpClient.sendMessageToServer("RPL");
+            gIsRecording = false;
+            gUdpClient.sendMessageToServer("GRL");
         }
         break;
     //case '0':       //Reset SIM

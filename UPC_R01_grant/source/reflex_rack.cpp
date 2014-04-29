@@ -175,6 +175,12 @@ void display ( void )   // Create The Display Function
     
     //sprintf_s(gStateLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
     outputText(300,95,gStateLabel[gCurrMotorState]);
+    if(gIsKinematic) {
+        outputText(300, 80, "Kinematic");
+    }
+    else {
+        outputText(300, 80, "Phantom");
+    }
 
     
 

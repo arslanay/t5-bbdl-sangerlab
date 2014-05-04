@@ -299,7 +299,10 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     case 'T':       // Terminate the current trial
     case 't':
         gIsRecording = false;
-        gUdpClient.sendMessageToServer("TER");
+        //gUdpClient.sendMessageToServer("TER");
+        gIsPerturbing = false;
+        //gUdpClient.sendMessageToServer("GRL");
+        gUdpClient.sendMessageToServer("GPL");
         // Reset the countNameSendEvent = 0;  
         break;
 
@@ -318,12 +321,8 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     case 'P':       // Generic perturbing state
     case 'p':
         if(!gIsPerturbing) {
-            gIsPerturbing=true;
+            gIsPerturbing = true;
             gUdpClient.sendMessageToServer("GPH");
-        }
-        else {
-            gIsPerturbing=false;
-            gUdpClient.sendMessageToServer("GPL");
         }
         break;
 

@@ -291,6 +291,20 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     case 'N':       //Alter the damping
     case 'n':
         if(countNameSendEvent == 0) {
+	    time_t rawtime;
+	    struct tm *timeinfo;
+	    time(&rawtime);
+	    timeinfo = localtime(&rawtime);
+	    sprintf_s(
+		gTimeStampSend,
+		"%4d%02d%02d%02d%02d%02d",
+		timeinfo->tm_year+1900, 
+		timeinfo->tm_mon+1, 
+		timeinfo->tm_mday, 
+		timeinfo->tm_hour, 
+		timeinfo->tm_min, 
+		timeinfo->tm_sec
+		);
             gUdpClient.sendMessageToServer(gTimeStampSend);
             countNameSendEvent++;
         }
@@ -302,8 +316,8 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         //gUdpClient.sendMessageToServer("TER");
         gIsPerturbing = false;
         //gUdpClient.sendMessageToServer("GRL");
-        gUdpClient.sendMessageToServer("GPL");
-        // Reset the countNameSendEvent = 0;  
+        gUdpClient.sendMessageToServer("TER");
+	countNameSendEvent = 0;
         break;
 
     case 'K':       // Selects the perturbation mode: Phantom or Kinematic

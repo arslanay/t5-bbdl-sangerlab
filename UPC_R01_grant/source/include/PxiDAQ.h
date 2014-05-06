@@ -7,7 +7,7 @@
 #include    <windows.h>
 #include    <ipp.h>
 
-class TimeData
+class TimeDataDaq
 {
 private:
 
@@ -18,7 +18,7 @@ public:
     float lce10, lce11, lce12;
     float h1, h2;
 
-    TimeData();
+    TimeDataDaq();
     //TODO: initialize tick0, tick1, tick2, etc.
 
     //
@@ -64,7 +64,7 @@ int StopSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle);
 int EnableMotors(TaskHandle *rawHandle);
 int DisableMotors(TaskHandle *rawHandle);
 
-extern FILE *gDataFile;
+//extern FILE *gDataFile;
 extern float64 gMotorCmd[];
 extern float gCtrlFromFPGA[];
 //extern float gCtrlFromFpgaBic, gCtrlFromFpgaTri;

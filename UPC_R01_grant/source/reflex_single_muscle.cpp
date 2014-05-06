@@ -1,11 +1,11 @@
 
-using namespace std;
 
-extern "C"{
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-}
+
+//extern "C"{
+//#include "lua.h"
+//#include "lualib.h"
+//#include "lauxlib.h"
+//}
 
 #include <iostream>
 #include <conio.h>
@@ -36,7 +36,7 @@ extern "C"{
 #include	"OGLGraph.h"
 
 //#pragma comment(lib, "lua51.lib")
-
+using namespace std;
 // *** Global variables
 float                   gAuxvar [NUM_AUXVAR*NUM_MOTOR];
 pthread_t               gThreads[NUM_THREADS];
@@ -871,46 +871,46 @@ void ExitProgram()
     delete gFpgaBiceps;
     delete gFpgaTriceps;
 }
+//
+//inline void LogData( void)
+//{   
+//    // Approximately 100 Hz Recording
+//    double actualTime;
+//    QueryPerformanceCounter(&gCurrentTick);
+//    actualTime = gCurrentTick.QuadPart - gInitTick.QuadPart;
+//    actualTime /= gClkFrequency.QuadPart;
+//    if (gIsRecording)
+//    {   
+//        fprintf(gDataFile,"%.3lf\t",actualTime );																	
+//        //fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMuscleEMG[0]);			
+//        //fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMuscleEMG[1]);			
+//        
+//        fprintf(gDataFile,"%f\t%f\t%f\t%f\t", gMuscleLce[0], gMuscleLce[1], gMuscleVel[0], gMuscleVel[1]);			
+//        fprintf(gDataFile,"%f\t%f\t%d\t%d\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1], gMNCount[0], gMNCount[1]);			
+//
+//        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t%f\t%u\t%u\t", gfireRateIaBic[0], gfireRateIaBic[1], gfireLenBic[0], gfireLenBic[1],
+//                                                              gfireEmgBic[0], gfireEmgBic[1], gRasterPlot[0], gRasterPlot[1]);			
+//        fprintf(gDataFile,"\n");
+//    }
+//}
 
-inline void LogData( void)
-{   
-    // Approximately 100 Hz Recording
-    double actualTime;
-    QueryPerformanceCounter(&gCurrentTick);
-    actualTime = gCurrentTick.QuadPart - gInitTick.QuadPart;
-    actualTime /= gClkFrequency.QuadPart;
-    if (gIsRecording)
-    {   
-        fprintf(gDataFile,"%.3lf\t",actualTime );																	
-        //fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[0],gMuscleVel[0],gCtrlFromFPGA[0],gMuscleEMG[0]);			
-        //fprintf(gDataFile,"%f\t%f\t%f\t%d\t", gMuscleLce[1],gMuscleVel[1],gCtrlFromFPGA[1],gMuscleEMG[1]);			
-        
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t", gMuscleLce[0], gMuscleLce[1], gMuscleVel[0], gMuscleVel[1]);			
-        fprintf(gDataFile,"%f\t%f\t%d\t%d\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1], gMNCount[0], gMNCount[1]);			
-
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t%f\t%u\t%u\t", gfireRateIaBic[0], gfireRateIaBic[1], gfireLenBic[0], gfireLenBic[1],
-                                                              gfireEmgBic[0], gfireEmgBic[1], gRasterPlot[0], gRasterPlot[1]);			
-        fprintf(gDataFile,"\n");
-    }
-}
-
-
-void TimerCB (int iTimer)
-{
-    LogData();
-
-	// Set The Timer For This Function Again
-	glutTimerFunc (3, TimerCB, 1);
-}
-
-void* NoTimerCB (void *)
-{
-    while (1)
-    {
-        LogData();
-        Sleep(1);
-    }
-}
+//
+//void TimerCB (int iTimer)
+//{
+//    LogData();
+//
+//	// Set The Timer For This Function Again
+//	glutTimerFunc (3, TimerCB, 1);
+////}
+//
+//void* NoTimerCB (void *)
+//{
+//    while (1)
+//    {
+//        LogData();
+//        Sleep(1);
+//    }
+//}
 
 int main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
 {
@@ -922,7 +922,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     //gLenScale=0.0001;
     
     //Lua Init
-    L = lua_open();
+    /*L = lua_open();
 	luaL_openlibs(L);
 	luaopen_base(L);
 	luaopen_table(L);
@@ -930,7 +930,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     luaopen_math(L);
     char filename[40] = "..\\source\\sendUdp.lua";
 	std::cerr << "-- Loading file: " << filename << std::endl;
-	statusLua = luaL_loadfile(L, filename);
+	statusLua = luaL_loadfile(L, filename);*/
 
 
     FILE *ConfigFile;
@@ -951,7 +951,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     TwInit(TW_OPENGL, NULL);
 
     glutMouseFunc((GLUTmousebuttonfun)TwEventMouseButtonGLUT);
-    glutMotionFunc((GLUTmousemotionfun)TwEventMouseMotionGLUT);
+    glutMotionFunc((GLUTmouse,motionfun)TwEventMouseMotionGLUT);
     glutPassiveMotionFunc((GLUTmousemotionfun)TwEventMouseMotionGLUT); // same as MouseMotion
     glutKeyboardFunc((GLUTkeyboardfun)TwEventKeyboardGLUT);
     glutSpecialFunc((GLUTspecialfun)TwEventSpecialGLUT);

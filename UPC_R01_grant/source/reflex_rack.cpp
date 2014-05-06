@@ -1092,10 +1092,10 @@ void DataLogger::recordingCallback()
             }
 
             if(fileOpenCounter == 1 && bIsRecording) {
-                fprintf(dataFile,"%.3lf\t", gTimeData.getCurrentTime());																	
-                fprintf(dataFile,"%.4f\t%.4f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
-                fprintf(dataFile,"%.4f\t%.4f\t%.4f\t%.4f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gSpikeCountBic, gSpikeCountTri);			
-                fprintf(dataFile,"%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri, gMusDamp);			
+                fprintf(dataFile,"%.3lf,", gTimeData.getCurrentTime());																	
+                fprintf(dataFile,"%.4f,%.4f,", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
+                fprintf(dataFile,"%.4f,%.4f,%.4f,%.4f,%u,%u,", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gSpikeCountBic, gSpikeCountTri);			
+                fprintf(dataFile,"%.4f,%.4f,%.4f,%.4f,%.4f", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri, gMusDamp);			
                 fprintf(dataFile,"\n");
 
                 //fprintf(dataFile, "%s", sData);

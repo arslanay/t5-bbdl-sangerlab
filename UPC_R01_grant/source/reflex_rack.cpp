@@ -316,7 +316,7 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         //gUdpClient.sendMessageToServer("TER");
         gIsPerturbing = false;
         //gUdpClient.sendMessageToServer("GRL");
-        gUdpClient.sendMessageToServer("TER");
+        gUdpClient.sendMessageToServer("TTT");
 	countNameSendEvent = 0;
         break;
 
@@ -324,11 +324,11 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     case 'k':
         if(!gIsKinematic) {
             gIsKinematic = true;
-            gUdpClient.sendMessageToServer("KIN");
+            gUdpClient.sendMessageToServer("KKK");
         }
         else {
             gIsKinematic = false;
-            gUdpClient.sendMessageToServer("PHA");
+            gUdpClient.sendMessageToServer("KKK");
         }
         break;
 
@@ -336,7 +336,7 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     case 'p':
         if(!gIsPerturbing) {
             gIsPerturbing = true;
-            gUdpClient.sendMessageToServer("GPH");
+            gUdpClient.sendMessageToServer("PPP");
         }
         break;
 
@@ -352,11 +352,11 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     case 'r':
         if(!gIsRecording) {
             gIsRecording = true;
-            gUdpClient.sendMessageToServer("GRH");
+            gUdpClient.sendMessageToServer("RRR");
         }
         else {
             gIsRecording = false;
-            gUdpClient.sendMessageToServer("GRL");
+            gUdpClient.sendMessageToServer("RRR");
         }
         break;
     //case '0':       //Reset SIM

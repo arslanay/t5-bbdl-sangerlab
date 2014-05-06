@@ -427,23 +427,7 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
 	gDataLogger.startRecording();
 	gUdpClient.sendMessageToServer("RRR");
 	
-
-        //if(!gIsRecording) {
-        //    gIsRecording = true;
-        //}
-        //else {
-        //    gIsRecording = false;
-        //    gUdpClient.sendMessageToServer("RRR");
-        //}
         break;
-        //case '0':       //Reset SIM
-        //    if(!gResetSim)
-        //        gResetSim=true;
-        //    else
-        //        gResetSim=false;
-        //    SendButton(gXemMuscleBic, (int) gResetSim, "BUTTON_RESET_SIM");
-        //    SendButton(gXemMuscleTri, (int) gResetSim, "BUTTON_RESET_SIM");
-        //    break;
     case '9':       //Reset GLOBAL
         if(!gResetGlobal)
             gResetGlobal=true;
@@ -1108,12 +1092,11 @@ void DataLogger::recordingCallback()
             }
 
             if(fileOpenCounter == 1 && bIsRecording) {
-
-                fprintf(gDataFile,"%.3lf\t", gTimeData.getCurrentTime());																	
-                fprintf(gDataFile,"%.4f\t%.4f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
-                fprintf(gDataFile,"%.4f\t%.4f\t%.4f\t%.4f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gSpikeCountBic, gSpikeCountTri);			
-                fprintf(gDataFile,"%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri, gMusDamp);			
-                fprintf(gDataFile,"\n");
+                fprintf(dataFile,"%.3lf\t", gTimeData.getCurrentTime());																	
+                fprintf(dataFile,"%.4f\t%.4f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
+                fprintf(dataFile,"%.4f\t%.4f\t%.4f\t%.4f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gSpikeCountBic, gSpikeCountTri);			
+                fprintf(dataFile,"%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri, gMusDamp);			
+                fprintf(dataFile,"\n");
 
                 //fprintf(dataFile, "%s", sData);
             }

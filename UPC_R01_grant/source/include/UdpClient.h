@@ -5,11 +5,11 @@
 #include <process.h>
 
 #pragma comment(lib,"ws2_32.lib") 
- 
+
 #define SERVER "192.168.0.2" 
 #define BUFLEN 512  
 #define PORT 9888  
- 
+
 class UdpClient
 {
     struct sockaddr_in si_other;
@@ -18,9 +18,9 @@ class UdpClient
     char message[BUFLEN];
     WSADATA wsa;
     int kill;
-	HANDLE hIOMutex;	
-    
-	static void staticUdpClientCallback(void*);
+    HANDLE hIOMutex;	
+
+    static void staticUdpClientCallback(void*);
     void udpClientCallback(void);
 
     bool bMessageSet;

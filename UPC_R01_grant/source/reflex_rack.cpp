@@ -13,9 +13,10 @@ using namespace std;
 #include <AntTweakBar.h>
 #include "okFrontPanelDLL.h"
 /*
-    Name:			reflex_single_muscle    
-    Author:			C. Minos Niu    
-    Email:			minos.niu AT sangerlab.net
+Name:			reflex_single_muscle    
+Authors:			
+	C. Minos Niu   minos.niu AT sangerlab.net 
+	John Rocamora    johnrocamora AT gmail.com
 */
 
 #include	<math.h>
@@ -30,7 +31,84 @@ using namespace std;
 #include	"glut.h"   // The GL Utility Toolkit (Glut) Header
 #include	"OGLGraph.h"
 
+#pragma once
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <stdio.h>
+#include <string.h>
+#include <process.h>
+#include <time.h>
+#include <iostream>
+
+// Time Data class
+class TimeData
+{
+    //+++ Add status string to send to console
+    // or other debugging output
+
+    LARGE_INTEGER initialTick, currentTick, frequency;
+
+public:
+    double actualTime;
+
+    // Initialize tick and frequency
+    TimeData(void);	
+
+    // Generate status exit string
+    ~TimeData(void);
+
+    //Get current time in seconds
+    double getCurrentTime(void);
+    int resetCounter(void);
+};
+
+
+// DataLogger class declaration. For now let's leave it here
+// Data Logging Class
+// Allows us to record data by giving the function the values from 
+// global variables or from variables calculated in data adquisition
+// classes or others
+class DataLogger
+{
+public:
+
+    bool bIsRecording;   // Used to let user know the recording state
+
+    DataLogger(DWORD delayMS, char* sDirectoryContainer, char* sDataHeader);
+    ~DataLogger(void);
+
+    int startRecording(void);
+    int closeRecordingFile(void);
+    void sendLogString(char *);
+    int setFileName(char *);
+
+private:
+    static void staticRecordingCallback(void* param);
+    void recordingCallback(void);
+    int stopRecording(void);
+
+    bool bClosingFile;
+    char sDirectoryContainer[512];
+    char sData[600];
+    char sDataHeader[600];
+    int fileOpenCounter;
+    char sFileName[400];
+    FILE *dataFile;
+    int kill;
+    HANDLE hIOMutex;	
+    DWORD delayMS;
+    bool bInSingleTrial;
+};
+
 // *** Global variables
+TimeData		    gTimeData;
+DataLogger		gDataLogger = DataLogger(
+    10,		// 100 Hz Recording
+    "C:\\data\\%s_fpga",
+    "time,ctrlFpga0,ctrlFpga1,emg0,emg1,musLce0,musLce1,spkCnt0,spkCnt1,spinIa0,spinIa1,spinII0,spinII1,musDamp\n"
+    );
+
+
 UdpClient               gUdpClient;
 float                   gAuxvar [NUM_AUXVAR*NUM_MOTOR];
 pthread_t               gThreads[NUM_THREADS];
@@ -45,6 +123,7 @@ FILE                    *gDataFile, *gConfigFile;
 int                     gCurrMotorState = MOTOR_STATE_INIT;
 double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
+
 const float gGain = 2.5 / 2000.0;
 
 float gMusDamp = 200.0;//120.0;
@@ -65,10 +144,10 @@ char                    gLceLabel2[60];
 char                    gTimeStamp[200];
 char                    gTimeStampSend[200];
 char                    gStateLabel[5][30] = { "MOTOR_STATE_INIT",
-                                               "MOTOR_STATE_WINDING_UP",
-                                               "MOTOR_STATE_OPEN_LOOP",
-                                               "MOTOR_STATE_CLOSED_LOOP",                            
-                                               "MOTOR_STATE_SHUTTING_DOWN"};
+    "MOTOR_STATE_WINDING_UP",
+    "MOTOR_STATE_OPEN_LOOP",
+    "MOTOR_STATE_CLOSED_LOOP",                            
+    "MOTOR_STATE_SHUTTING_DOWN"};
 //IPP
 Ipp32f *taps0;
 Ipp32f *taps1;
@@ -117,13 +196,13 @@ void init ( GLvoid )     // Create Some Everyday Functions
 }
 void outputText(int x, int y, char *string)
 {
-  int len, i;
-  glRasterPos2f(x, y);
-  len = (int) strlen(string);
-  for (i = 0; i < len; i++)
-  {
-    glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, string[i]);
-  }
+    int len, i;
+    glRasterPos2f(x, y);
+    len = (int) strlen(string);
+    for (i = 0; i < len; i++)
+    {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, string[i]);
+    }
 }
 void display ( void )   // Create The Display Function
 {
@@ -140,14 +219,14 @@ void display ( void )   // Create The Display Function
     float value;
     value = 5*sin( 5*time ) + 10.f;
 
-    
+
     // gMyGraph->update( 10.0 * gAuxvar[0] );
     //  gMyGraph->update( gMuscleVel[0] );
     gMyGraph->update( gCtrlFromFPGA[1] );
 
     gMyGraph->draw();
-    
-    
+
+
     if(MOTOR_STATE_WINDING_UP)
         glColor3f(1.0f,0.0f,0.0f);
     else
@@ -164,15 +243,15 @@ void display ( void )   // Create The Display Function
 
     // Draw tweak bars
     TwDraw();
-//    sprintf_s(gLceLabel1,"%f    %.2f   %.2f", gMuscleLce[0], gMuscleVel[0], gCtrlFromFPGA[0]);
+    //    sprintf_s(gLceLabel1,"%f    %.2f   %.2f", gMuscleLce[0], gMuscleVel[0], gCtrlFromFPGA[0]);
     sprintf_s(gLceLabel1,"%f    %d   %.2f", gMuscleLce[0], gM1Voluntary, gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
-//    sprintf_s(gLceLabel2,"%f    %.2f   %.2f", gMuscleLce[1], gMuscleVel[1],gCtrlFromFPGA[NUM_FPGA - 1]);
+    //    sprintf_s(gLceLabel2,"%f    %.2f   %.2f", gMuscleLce[1], gMuscleVel[1],gCtrlFromFPGA[NUM_FPGA - 1]);
     sprintf_s(gLceLabel2,"%f    %d   %.2f   %f   %f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1],gSpindleIaBic,gSpindleIIBic);
     //sprintf_s(gLceLabel2,"%f    %d   %.2f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
     //printf("\n\t%f\t%f", gMuscleVel[0], gMuscleVel[1]);
-    
+
     //sprintf_s(gStateLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
     outputText(300,95,gStateLabel[gCurrMotorState]);
     if(gIsKinematic) {
@@ -182,7 +261,7 @@ void display ( void )   // Create The Display Function
         outputText(300, 80, "Phantom");
     }
 
-    
+
 
     glutSwapBuffers ( );
 }
@@ -190,10 +269,10 @@ void display ( void )   // Create The Display Function
 void ledIndicator ( float w, float h )   // Create The Reshape Function (the viewport)
 {
     glBegin(GL_TRIANGLE_FAN);
-        glVertex3f(w,h,0.0f);
-        glVertex3f(w,h+10.0f,0.0f);
-        glVertex3f(w+10.0,h+10.0f,0.0f);
-        glVertex3f(w+10.0f,h,0.0f);
+    glVertex3f(w,h,0.0f);
+    glVertex3f(w,h+10.0f,0.0f);
+    glVertex3f(w+10.0,h+10.0f,0.0f);
+    glVertex3f(w+10.0f,h,0.0f);
     glEnd();
 }
 void reshape ( int w, int h )   // Create The Reshape Function (the viewport)
@@ -236,25 +315,25 @@ int ProceedFSM(int *state)
 {
     switch(*state)
     {
-        case MOTOR_STATE_INIT:
-            EnableMotors(&gEnableHandle);
-            *state = MOTOR_STATE_WINDING_UP;
-            break;
-        case MOTOR_STATE_WINDING_UP:
-            *state = MOTOR_STATE_OPEN_LOOP;
-            break;
-        case MOTOR_STATE_OPEN_LOOP:
-            *state = MOTOR_STATE_CLOSED_LOOP;
-            break;
-        case MOTOR_STATE_CLOSED_LOOP:
-            DisableMotors(&gEnableHandle);
-            *state = MOTOR_STATE_SHUTTING_DOWN;
-            break;
-        case MOTOR_STATE_SHUTTING_DOWN:
-            *state = MOTOR_STATE_SHUTTING_DOWN;
-            break;
-        default:
-            *state = MOTOR_STATE_INIT;
+    case MOTOR_STATE_INIT:
+        EnableMotors(&gEnableHandle);
+        *state = MOTOR_STATE_WINDING_UP;
+        break;
+    case MOTOR_STATE_WINDING_UP:
+        *state = MOTOR_STATE_OPEN_LOOP;
+        break;
+    case MOTOR_STATE_OPEN_LOOP:
+        *state = MOTOR_STATE_CLOSED_LOOP;
+        break;
+    case MOTOR_STATE_CLOSED_LOOP:
+        DisableMotors(&gEnableHandle);
+        *state = MOTOR_STATE_SHUTTING_DOWN;
+        break;
+    case MOTOR_STATE_SHUTTING_DOWN:
+        *state = MOTOR_STATE_SHUTTING_DOWN;
+        break;
+    default:
+        *state = MOTOR_STATE_INIT;
     }
     return 0;
 }
@@ -285,26 +364,27 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         exit(0);   // Exit The Program
         break;        
 
-    //case 32:        // SpaceBar 
-    //    //ShutdownMotor(&gCurrMotorState);
-    //    break;  
+        //case 32:        // SpaceBar 
+        //    //ShutdownMotor(&gCurrMotorState);
+        //    break;  
     case 'N':       //Alter the damping
     case 'n':
         if(countNameSendEvent == 0) {
-	    time_t rawtime;
-	    struct tm *timeinfo;
-	    time(&rawtime);
-	    timeinfo = localtime(&rawtime);
-	    sprintf_s(
-		gTimeStampSend,
-		"%4d%02d%02d%02d%02d%02d",
-		timeinfo->tm_year+1900, 
-		timeinfo->tm_mon+1, 
-		timeinfo->tm_mday, 
-		timeinfo->tm_hour, 
-		timeinfo->tm_min, 
-		timeinfo->tm_sec
-		);
+            time_t rawtime;
+            struct tm *timeinfo;
+            time(&rawtime);
+            timeinfo = localtime(&rawtime);
+            sprintf_s(
+                gTimeStampSend,
+                "%4d%02d%02d%02d%02d%02d",
+                timeinfo->tm_year+1900, 
+                timeinfo->tm_mon+1, 
+                timeinfo->tm_mday, 
+                timeinfo->tm_hour, 
+                timeinfo->tm_min, 
+                timeinfo->tm_sec
+                );
+            gDataLogger.setFileName(gTimeStampSend);
             gUdpClient.sendMessageToServer(gTimeStampSend);
             countNameSendEvent++;
         }
@@ -313,23 +393,16 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
     case 'T':       // Terminate the current trial
     case 't':
         gIsRecording = false;
-        //gUdpClient.sendMessageToServer("TER");
         gIsPerturbing = false;
-        //gUdpClient.sendMessageToServer("GRL");
         gUdpClient.sendMessageToServer("TTT");
-	countNameSendEvent = 0;
+	gDataLogger.closeRecordingFile();
+        countNameSendEvent = 0;
         break;
 
     case 'K':       // Selects the perturbation mode: Phantom or Kinematic
     case 'k':
-        if(!gIsKinematic) {
-            gIsKinematic = true;
-            gUdpClient.sendMessageToServer("KKK");
-        }
-        else {
-            gIsKinematic = false;
-            gUdpClient.sendMessageToServer("KKK");
-        }
+        gIsKinematic = !gIsKinematic;
+        gUdpClient.sendMessageToServer("KKK");
         break;
 
     case 'P':       // Generic perturbing state
@@ -350,36 +423,41 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         break;
     case 'R':       //Winding up
     case 'r':
-        if(!gIsRecording) {
-            gIsRecording = true;
-            gUdpClient.sendMessageToServer("RRR");
-        }
-        else {
-            gIsRecording = false;
-            gUdpClient.sendMessageToServer("RRR");
-        }
+	gIsRecording = true;
+	gDataLogger.startRecording();
+	gUdpClient.sendMessageToServer("RRR");
+	
+
+        //if(!gIsRecording) {
+        //    gIsRecording = true;
+        //}
+        //else {
+        //    gIsRecording = false;
+        //    gUdpClient.sendMessageToServer("RRR");
+        //}
         break;
-    //case '0':       //Reset SIM
-    //    if(!gResetSim)
-    //        gResetSim=true;
-    //    else
-    //        gResetSim=false;
-    //    SendButton(gXemMuscleBic, (int) gResetSim, "BUTTON_RESET_SIM");
-    //    SendButton(gXemMuscleTri, (int) gResetSim, "BUTTON_RESET_SIM");
-    //    break;
+        //case '0':       //Reset SIM
+        //    if(!gResetSim)
+        //        gResetSim=true;
+        //    else
+        //        gResetSim=false;
+        //    SendButton(gXemMuscleBic, (int) gResetSim, "BUTTON_RESET_SIM");
+        //    SendButton(gXemMuscleTri, (int) gResetSim, "BUTTON_RESET_SIM");
+        //    break;
     case '9':       //Reset GLOBAL
         if(!gResetGlobal)
             gResetGlobal=true;
         else
             gResetGlobal=false;
-       //SendButton(gXemMuscleBic, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
-       //SendButton(gXemMuscleTri, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
-       //SendButton(gXemSpindleBic, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
-       //SendButton(gXemSpindleTri, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+        //SendButton(gXemMuscleBic, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+        //SendButton(gXemMuscleTri, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+        //SendButton(gXemSpindleBic, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
+        //SendButton(gXemSpindleTri, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
         break;   
     case 'M':       //Minos: workaround for p2p movement
     case 'm':
-        gIsP2pMoving = true;
+        // FUNCTIONALITY NOT SUPPORTED IN THIS VERSION
+        //gIsP2pMoving = true;
         break;
     case 'z':       //Rezero
     case 'Z':
@@ -440,22 +518,22 @@ int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
     int32 bitValLo = bitVal & 0xffff;
     int32 bitValHi = (bitVal >> 16) & 0xffff;
 
-    
+
     //xem -> SetWireInValue(0x01, bitValLo, 0xffff);
     if (okCFrontPanel::NoError != xem -> SetWireInValue(0x01, bitValLo, 0xffff)) {
-		printf("SetWireInLo failed.\n");
-		//delete xem;
-		return -1;
-	}
+        printf("SetWireInLo failed.\n");
+        //delete xem;
+        return -1;
+    }
     if (okCFrontPanel::NoError != xem -> SetWireInValue(0x02, bitValHi, 0xffff)) {
-		printf("SetWireInHi failed.\n");
-		//delete xem;
-		return -1;
-	}
-   
+        printf("SetWireInHi failed.\n");
+        //delete xem;
+        return -1;
+    }
+
     xem -> UpdateWireIns();
     xem -> ActivateTriggerIn(0x50, trigEvent)   ;
-    
+
     return 0;
 }
 
@@ -463,10 +541,10 @@ int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
 
 void* ControlLoopBic(void*)
 {
-    
-	int32       error=0;
-	char        errBuff[2048]={'\0'};
-        
+
+    int32       error=0;
+    char        errBuff[2048]={'\0'};	
+
     long iLoop = 0;
     while (1)
     {
@@ -476,12 +554,12 @@ void* ControlLoopBic(void*)
         }
 
         if ((MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
-		//printf("\n\t%f",dataEncoder[0]); 
+        //printf("\n\t%f",dataEncoder[0]); 
         iLoop++;
-/*        if (10000 <= iLoop)
+        /*        if (10000 <= iLoop)
         {
-            gM1Dystonia = 5000;
-            gM1Voluntary = gWave[iLoop % 1024];
+        gM1Dystonia = 5000;
+        gM1Voluntary = gWave[iLoop % 1024];
         }    */    
 
         //Read FPGA values for data Logging
@@ -491,13 +569,13 @@ void* ControlLoopBic(void*)
         gXemSpindleBic->ReadFpga(0x22, "float32", &gSpindleIaBic);
         gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIIBic);
         //ReadFpga(gXemMuscleBic->xem, 0x30, "int32", &gSpikeCountBic);
-       // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
+        // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
         //ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgTri);
 
         if(gAlterDamping && (gMusDamp>0.03f))
             //gMusDamp -= 0.03f;
             gMusDamp = 0.0f;
-        
+
 
         //float32 tGainBic = 0.00005;// 0.051; // working = 0.141
         //float32 tGainTri = 0.00005;// 0.051; // working = 0.141
@@ -506,7 +584,7 @@ void* ControlLoopBic(void*)
 
         int32 bitValLce, bitValVel;
         int32   bitM1VoluntaryBic = 0, 
-                bitM1DystoniaBic = 000;
+            bitM1DystoniaBic = 000;
 
         //gMuscleLce[0] += (-0.01f + (float)(rand() % 2000)/1000.0f/100.0f)*5.0;
 
@@ -518,28 +596,28 @@ void* ControlLoopBic(void*)
         gXemMuscleBic->WriteFpgaLceVel(bitValLce, bitValVel, bitM1VoluntaryBic, bitM1DystoniaBic, DATA_EVT_LCEVEL);
         //const float gGain = 1.0 / 3000.0;
         const float tBias = 0.0;//9000000.0;  
-        
+
         gCtrlFromFPGA[0] = (gForceBic - tBias) * gGain;
         gCtrlFromFPGA[0] = (gCtrlFromFPGA[0]>= 0.0) ? gCtrlFromFPGA[0] : 0.0;
-        
+
 
 
         //ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
         //gXemMuscleBic->SendPara(bitValLce, DATA_EVT_LCE);
         gXemSpindleBic->SendPara(bitValLce, DATA_EVT_LCEVEL);
-        
+
         //Sleep(1);
         if(_kbhit()) break;
     } 
-	return 0;
+    return 0;
 }
 
 void* ControlLoopTri(void*)
 {
-    
-	int32       error=0;
-	char        errBuff[2048]={'\0'};
-        
+
+    int32       error=0;
+    char        errBuff[2048]={'\0'};
+
     long iLoop = 0;
     while (1)
     {
@@ -549,18 +627,18 @@ void* ControlLoopTri(void*)
         }
 
         if ((MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
-		//printf("\n\t%f",dataEncoder[0]); 
+        //printf("\n\t%f",dataEncoder[0]); 
         iLoop++;
-/*        if (10000 <= iLoop)
+        /*        if (10000 <= iLoop)
         {
-            gM1Dystonia = 5000;
-            gM1Voluntary = gWave[iLoop % 1024];
+        gM1Dystonia = 5000;
+        gM1Voluntary = gWave[iLoop % 1024];
         }    */    
 
         //Read FPGA values for data Logging
         //ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenBic);
         //ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgBic);
-       // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
+        // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
         gXemMuscleTri->ReadFpga(0x20, "float32", &gEmgTri);
         gXemMuscleTri->ReadFpga(0x30, "int32", &gSpikeCountTri);
         gXemSpindleBic->ReadFpga(0x22, "float32", &gSpindleIaTri);
@@ -571,11 +649,11 @@ void* ControlLoopTri(void*)
         //float32 gGainTri = 0.00005;// 0.051; // working = 0.141
         float32 forceBiasTri = 10.0f;
         float   coef_damp = 0.004; // working = 0.04
-     
+
         int32 bitValLce, bitValVel;
         int32   bitM1VoluntaryTri = 0, 
-                bitM1DystoniaTri = 000;
-        
+            bitM1DystoniaTri = 000;
+
         //rand() % 50
         //gMuscleLce[1] += (-0.01f + (float)(rand() % 2000)/1000.0f/100.0f)*5.0;
 
@@ -587,24 +665,24 @@ void* ControlLoopTri(void*)
         gXemMuscleTri->ReadFpga(0x32, "float32", &gForceTri);
 
         gXemMuscleTri->WriteFpgaLceVel(bitValLce, bitValVel, bitM1VoluntaryTri, bitM1DystoniaTri, DATA_EVT_LCEVEL);
-        
 
-        
+
+
         const float tBias = 0.0;//9000000.0;  
         gCtrlFromFPGA[1] = (gForceTri - tBias) * gGain;
         gCtrlFromFPGA[1] = (gCtrlFromFPGA[1]>= 0.0) ? gCtrlFromFPGA[1] : 0.0;
-        
+
 
 
         //ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
-        //gXemMuscleTri->SendPara(bitValLce, DATA_EVT_LCE);
+        //gXemMuscleTri->SendPara(bitValLce, DATA_EVT_LCE);	
         gXemSpindleTri->SendPara(bitValLce, DATA_EVT_LCEVEL);
 
 
         //Sleep(1);
         if(_kbhit()) break;
     } 
-	return 0;
+    return 0;
 }
 
 void SaveConfigCache()
@@ -617,21 +695,21 @@ void SaveConfigCache()
 
 int InitFpga(okCFrontPanel *xem0)
 {   
-	if (okCFrontPanel::NoError != xem0->OpenBySerial()) {
-		delete xem0;
-		printf("Device could not be opened.  Is one connected?\n");
-		return(NULL);
-	}
-	
-	printf("Found a device: %s\n", xem0->GetBoardModelString(xem0->GetBoardModel()).c_str());
+    if (okCFrontPanel::NoError != xem0->OpenBySerial()) {
+        delete xem0;
+        printf("Device could not be opened.  Is one connected?\n");
+        return(NULL);
+    }
+
+    printf("Found a device: %s\n", xem0->GetBoardModelString(xem0->GetBoardModel()).c_str());
 
     // Configure the PLL using default config
-	xem0->LoadDefaultPLLConfiguration();
-
-	// Get some general information about the XEM.
-	printf("Device firmware version: %d.%d\n", xem0->GetDeviceMajorVersion(), xem0->GetDeviceMinorVersion());
-	printf("Device serial number: %s\n", xem0->GetSerialNumber().c_str());
-	printf("Device ID string: %s\n", xem0->GetDeviceID().c_str());
+    xem0->LoadDefaultPLLConfiguration();
+	
+    // Get some general information about the XEM.
+    printf("Device firmware version: %d.%d\n", xem0->GetDeviceMajorVersion(), xem0->GetDeviceMinorVersion());
+    printf("Device serial number: %s\n", xem0->GetSerialNumber().c_str());
+    printf("Device ID string: %s\n", xem0->GetDeviceID().c_str());
 
 
     okCPLL22393 *pll;
@@ -647,11 +725,11 @@ int InitFpga(okCFrontPanel *xem0)
     xem0 -> SetPLL22393Configuration(*pll);
 
     // Download the configuration file.
-	if (okCFrontPanel::NoError != xem0->ConfigureFPGA(FPGA_BIT_FILENAME)) {
-		printf("FPGA configuration failed.\n");
-		delete xem0;
-		return(-1);
-	}
+    if (okCFrontPanel::NoError != xem0->ConfigureFPGA(FPGA_BIT_FILENAME)) {
+        printf("FPGA configuration failed.\n");
+        delete xem0;
+        return(-1);
+    }
 
 
     //int newHalfCnt = 1 * 200 * (10 **6) / SAMPLING_RATE / NUM_NEURON / (value*4) / 2 / 2;
@@ -659,41 +737,41 @@ int InitFpga(okCFrontPanel *xem0)
     const int32 X_REAL_TENTH_TIME = 10;
 
     //int32 newHalfCnt = HIGHEST_CLK_FREQ * (int32)(1e6) / 1024 / 128 / X_REAL_TIME / 2 / 2;
-    
+
     int32 newHalfCnt = HIGHEST_CLK_FREQ * (int32)(1e6) * 10 / 1024 / 128 / X_REAL_TENTH_TIME / 2 / 2;
     printf("newHalfCnt = %d \n", newHalfCnt);
-//    WriteFPGA(xem0, 197, DATA_EVT_CLKRATE);
+    //    WriteFPGA(xem0, 197, DATA_EVT_CLKRATE);
     WriteFPGA(xem0, newHalfCnt, DATA_EVT_CLKRATE);
 
 
-	// Check for FrontPanel support in the FPGA configuration.
-	if (false == xem0->IsFrontPanelEnabled()) {
-		printf("FrontPanel support is not enabled.\n");
-		delete xem0;
-		return(-1);
-	}
-    
+    // Check for FrontPanel support in the FPGA configuration.
+    if (false == xem0->IsFrontPanelEnabled()) {
+        printf("FrontPanel support is not enabled.\n");
+        delete xem0;
+        return(-1);
+    }
+
     SendButton(xem0, (int) true, "BUTTON_RESET_SIM");
     SendButton(xem0, (int) false, "BUTTON_RESET_SIM");
-	printf("FrontPanel support is enabled.\n");
+    printf("FrontPanel support is enabled.\n");
 
 
-	return 0;
+    return 0;
 }
 
-FileContainer *gSwapFiles;
+FileContainer *gSwapFiles;	
 
 void InitProgram()
 {
     //+++ Change so when you press N the program logs a different file and you send the new 
     // timestamp to the other programs
     //+++ Stop local recording when you press T
-    time_t rawtime;
-    struct tm *timeinfo;
-    time(&rawtime);
-    timeinfo = localtime(&rawtime);
-    sprintf_s(gTimeStampSend,"%4d%02d%02d%02d%02d%02d",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
-    sprintf_s(gTimeStamp,"C:\\data\\%s_PXI.txt",gTimeStampSend);
+    //time_t rawtime;
+    //struct tm *timeinfo;
+    //time(&rawtime);	
+    //timeinfo = localtime(&rawtime);
+    //sprintf_s(gTimeStampSend,"%4d%02d%02d%02d%02d%02d",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+    //sprintf_s(gTimeStamp,"C:\\data\\%s_PXI.txt",gTimeStampSend);
 
     gAlterDamping = false;
     srand((unsigned) time(&randSeedTime));
@@ -701,16 +779,16 @@ void InitProgram()
     // Load Fpga DLLs
     char dll_date[32], dll_time[32];
 
-	printf("---- Opal Kelly ---- FPGA-DES Application v1.0 ----\n");
-	if (FALSE == okFrontPanelDLL_LoadLib(NULL)) {
-		printf("FrontPanel DLL could not be loaded.\n");
-		return;
-	}
-	okFrontPanelDLL_GetVersion(dll_date, dll_time);
-	printf("FrontPanel DLL loaded.  Built: %s  %s\n", dll_date, dll_time);
+    printf("---- Opal Kelly ---- FPGA-DES Application v1.0 ----\n");
+    if (FALSE == okFrontPanelDLL_LoadLib(NULL)) {
+        printf("FrontPanel DLL could not be loaded.\n");
+        return;
+    }
+    okFrontPanelDLL_GetVersion(dll_date, dll_time);
+    printf("FrontPanel DLL loaded.  Built: %s  %s\n", dll_date, dll_time);
 
     // Two muscles, each with one Fpga handle
-    
+
     //gXemSpindleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "124300046A"); 
     //gXemSpindleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "12320003RN"); 
     //gXemMuscleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "1201000216") ; 
@@ -720,7 +798,7 @@ void InitProgram()
     gXemSpindleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "11160001CG"); 
     gXemMuscleBic = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "0000000542") ; 
     gXemMuscleTri = new SomeFpga(NUM_NEURON, SAMPLING_RATE, "1137000222") ; 
-        
+
 
     gSwapFiles = new FileContainer;
 
@@ -729,7 +807,7 @@ void InitProgram()
     dlysVel1IIR = ippsMalloc_32f(2 * (lenFilterVel_IIR + 1));
     tapsVel0IIR  = ippsMalloc_32f(2 * (lenFilterVel_IIR + 1));
     tapsVel1IIR  = ippsMalloc_32f(2 * (lenFilterVel_IIR + 1));
-    
+
     ippsZero_32f(dlysVel0IIR, 2 * (lenFilterVel_IIR + 1) );
     ippsZero_32f(dlysVel1IIR, 2 * (lenFilterVel_IIR + 1) );
 
@@ -756,14 +834,14 @@ void InitProgram()
     taps1 = ippsMalloc_32f(lenFilter);
     dly0  = ippsMalloc_32f(lenFilter);
     dly1  = ippsMalloc_32f(lenFilter);
-    
+
     float   P   =   1.0;
     float   e   =   2.7183;
     float   T   =   0.001;
     float   tau   =   0.090; // rising time of muscle twitch in seconds
     float   a   =   exp(-T / tau);
     float   pefat = P * e * T * a / tau;
-    
+
 
     taps0[0] =   0.0000000 * pefat;
     taps0[1] =   1.00 * pefat;
@@ -771,7 +849,7 @@ void InitProgram()
     taps0[3] =   1.00 * pefat;
     taps0[4] =  -2 * a * pefat;
     taps0[5] =   a * a * pefat;
-                          
+
     taps1[0] =   0.0000000 * pefat;
     taps1[1] =   1.00 * pefat;
     taps1[2] =   0.0000000 * pefat;
@@ -782,7 +860,7 @@ void InitProgram()
 
     ippsZero_32f(dly0,lenFilter);
     ippsZero_32f(dly1,lenFilter);
-        
+
     //ippsFIRInitAlloc_32f( &pFIRState0, taps0, lenFilter, dly0 );
     //ippsFIRInitAlloc_32f( &pFIRState1, taps1, lenFilter, dly1 );
     ippsIIRInitAlloc_32f( &pIIRState0, taps0, lenFilter, dly0 );
@@ -807,7 +885,7 @@ void InitProgram()
     //        gWave[i] = (int) (AMP * sin(w * i + PHASE) + BIAS);
     //    }
     //}
- 
+
     //WARNING: DON'T CHANGE THE SEQUENCE BELOW
     StartReadPos(&gEncoderHandle[0], &gEncoderHandle[1]);
 
@@ -816,22 +894,6 @@ void InitProgram()
     InitMotor(&gCurrMotorState);
 
 }
-
-
-//#include <winsock2.h>
-#pragma comment(lib,"ws2_32.lib") //Winsock Library
- 
-#define SERVER "192.168.0.2"  //ip address of udp server
-#define BUFLEN 512  //Max length of buffer
-#define PORT 8899   //The port on which to listen for incoming data
-
-struct sockaddr_in si_other;
-int sock, slen;
-char buf[BUFLEN];
-char message[BUFLEN];
-WSADATA wsa;
- 
-
 
 inline void LogData( void)
 {   
@@ -848,33 +910,30 @@ inline void LogData( void)
         fprintf(gDataFile,"%f\t%f\t%f\t%f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gSpikeCountBic, gSpikeCountTri);			
         fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t%f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri, gMusDamp, -gAuxvar[2]);			
         fprintf(gDataFile,"\n");
-        
-        //printf("\n%lf",gEmgBic);
 
-        //updateUdpEmg(3.555);
     }
 }
 
 
-void* NoTimerCB (void *)
-{
-    while (1)
-    {
-        LogData();
-        if (gIsP2pMoving) // Update the neutral joint angle using mini-jerk
-        {
-            float   af = 0.6f, d = 200.0f;
-
-            gP2pIndex += 1.0f;
-
-            gDeltaLen = min(af, af*(10.0f*pow(gP2pIndex/d, 3) - 15.0f*pow(gP2pIndex/d, 4) + 6.0f*pow(gP2pIndex/d, 5)));
-
-            
-        }
-
-        Sleep(1);
-    }
-}
+//void* NoTimerCB (void *)
+//{
+//    while (1)
+//    {
+//        LogData();
+//        if (gIsP2pMoving) // Update the neutral joint angle using mini-jerk
+//        {
+//            float   af = 0.6f, d = 200.0f;
+//
+//            gP2pIndex += 1.0f;
+//
+//            gDeltaLen = min(af, af*(10.0f*pow(gP2pIndex/d, 3) - 15.0f*pow(gP2pIndex/d, 4) + 6.0f*pow(gP2pIndex/d, 5)));
+//
+//            
+//        }
+//
+//        Sleep(1);
+//    }
+//}
 void ExitProgram();
 
 
@@ -883,7 +942,7 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     countNameSendEvent = 0;
     gLenOrig[0]=0.0;
     gLenOrig[1]=0.0;
-    
+
     gM1Voluntary= 0.0;
     gM1Dystonia= 0.0;
     //gLenScale=0.0001;
@@ -910,48 +969,39 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     glutPassiveMotionFunc((GLUTmousemotionfun)TwEventMouseMotionGLUT); // same as MouseMotion
     glutKeyboardFunc((GLUTkeyboardfun)TwEventKeyboardGLUT);
     glutSpecialFunc((GLUTspecialfun)TwEventSpecialGLUT);
-    // TODO: Code the TimerCB() to log data
-    //printf("\n\t%f",gMuscleLce); 
-    //***** RELOCATE THIS -->   
-    //glutTimerFunc(3, TimerCB, 1);
 
-    // send the ''glutGetModifers'' function pointer to AntTweakBar
     TwGLUTModifiersFunc(glutGetModifiers);
 
     glutKeyboardFunc(keyboard);
     glutIdleFunc(idle);
 
-    // Make sure to pair InitProgram() with ExitProgram()
-    // Resources need to be released  
     InitProgram();
-   
+
     atexit(ExitProgram);
 
 
-    // gAuxvar = {current force 0, current force 1, current pos 0, current pos 1};
-
     pthread_mutex_init (&gMutex, NULL);
-    int logdata_handle = pthread_create(&gThreads[0], NULL, NoTimerCB,	NULL);
     int ctrl_handle_bic = pthread_create(&gThreads[1], NULL, ControlLoopBic,	(void *)gAuxvar);
     int ctrl_handle_tri = pthread_create(&gThreads[2], NULL, ControlLoopTri,	(void *)gAuxvar);
-   
+
     gBar = TwNewBar("TweakBar");
     TwDefine(" GLOBAL help='This is our interface for the T5 Project BBDL-SangerLab.' "); // Message added to the help bar.
     TwDefine(" TweakBar size='400 200' color='96 216 224' "); // change default tweak bar size and color
 
     // Add 'g_Zoom' to 'bar': this is a modifable (RW) variable of type TW_TYPE_FLOAT. Its key shortcuts are [z] and [Z].
     TwAddVarRW(gBar, "Gain", TW_TYPE_FLOAT, &gLenScale, 
-               " min=0.0000 max=0.0002 step=0.000001 keyIncr=l keyDecr=L help='Scale the object (1=original size).' ");
+        " min=0.0000 max=0.0002 step=0.000001 keyIncr=l keyDecr=L help='Scale the object (1=original size).' ");
     //TwAddVarRW(gBar, "M1Voluntary", TW_TYPE_INT32, &gM1Voluntary, 
     //           " min=0.00 max=500000.00 step=40000 ");
     TwAddVarRW(gBar, "M1Dystonia", TW_TYPE_INT32, &gM1Dystonia, 
-               " min=0.00 max=500000.00 step=20000 ");
+        " min=0.00 max=500000.00 step=20000 ");
 
     glutMainLoop( );          // Initialize The Main Loop  
 
     return 0;
 
 }
+
 
 
 void ExitProgram() 
@@ -965,8 +1015,8 @@ void ExitProgram()
     //IPP
     //ippsFIRFree_32f(pFIRState0);
     //ippsFIRFree_32f(pFIRState1);
-    
-    
+
+
 
     ippsFree(taps0);
     ippsFree(taps1);
@@ -976,7 +1026,7 @@ void ExitProgram()
 
     ippsIIRFree_32f(pIIRState0);
     ippsIIRFree_32f(pIIRState1);
-    
+
 
     //IPP_VEL_IIR
 
@@ -991,11 +1041,165 @@ void ExitProgram()
     delete gXemSpindleTri;
     delete gXemMuscleBic ;
     delete gXemMuscleTri ;
-    
+
     TwDeleteBar(gBar);
 
     TwTerminate();    
     delete gSwapFiles;
 
 
+}
+
+
+
+DataLogger::DataLogger(DWORD delayMS, char *sDirectoryContainer, char *sDataHeader)
+{
+    bInSingleTrial = false;
+    bClosingFile = false;
+    this->delayMS = delayMS;
+    strcpy_s(this->sDirectoryContainer, sDirectoryContainer);
+    strcpy_s(this->sDataHeader, sDataHeader);
+    fileOpenCounter = 0;
+
+    hIOMutex = CreateMutex(NULL, FALSE, NULL);
+    kill = 0;
+    bIsRecording = false;
+    _beginthread(DataLogger::staticRecordingCallback, 0, this);
+}
+
+DataLogger::~DataLogger(void)
+{
+    bIsRecording = false;
+    kill = 1;
+}
+
+void DataLogger::sendLogString(char *logString)
+{
+    strcpy_s(sData, logString);
+}
+
+void DataLogger::recordingCallback() 
+{ 
+    int count = 0;
+
+    while (!kill) {
+        if(delayMS > 0) {
+            Sleep(delayMS); 
+        }
+        WaitForSingleObject(hIOMutex, INFINITE);
+
+        if (bInSingleTrial) {
+            if (fileOpenCounter == 0) {
+                dataFile = fopen(sFileName, "w");
+                if (dataFile == NULL) {
+                    MessageBoxA(
+                        NULL, 
+                        "Could not open data file", 
+                        "File Error",
+                        MB_OK
+                        );
+                }
+
+                fprintf(
+                    dataFile,
+                    sDataHeader
+                    );
+                fileOpenCounter++;
+            }
+
+            if(fileOpenCounter == 1 && bIsRecording) {
+
+                fprintf(gDataFile,"%.3lf\t", gTimeData.getCurrentTime());																	
+                fprintf(gDataFile,"%.4f\t%.4f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
+                fprintf(gDataFile,"%.4f\t%.4f\t%.4f\t%.4f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gSpikeCountBic, gSpikeCountTri);			
+                fprintf(gDataFile,"%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri, gMusDamp);			
+                fprintf(gDataFile,"\n");
+
+                //fprintf(dataFile, "%s", sData);
+            }
+
+            if(fileOpenCounter == 1 && bClosingFile) {
+                if(dataFile != NULL) {
+                    fclose(dataFile);
+                }
+                // If this was successfull then exit the single trial and reset flags
+                dataFile = NULL;
+                fileOpenCounter = 0;
+                bClosingFile = false;
+                bInSingleTrial = false;
+
+            }   
+
+        }	
+        ReleaseMutex( hIOMutex);
+    }
+}
+
+
+void DataLogger::staticRecordingCallback(void* a) {
+    //std::cout << "In threadFunc\n";
+    ((DataLogger*)a)->recordingCallback();
+}
+
+
+// Corresponds to the R message
+int DataLogger::startRecording()
+{
+    bIsRecording = true;
+    return 0;
+}
+
+// Corresponds to the T message
+
+int DataLogger::stopRecording()
+{
+    bIsRecording = false;
+    return 0;
+}
+
+int DataLogger::closeRecordingFile()
+{
+    bClosingFile = true;
+    stopRecording();
+    return 0;
+}
+
+
+// Corresponds to the N message
+int DataLogger::setFileName(char *inFileName)
+{
+    sprintf(
+        sFileName, 
+        sDirectoryContainer, 
+        inFileName
+        );
+    bInSingleTrial = true;
+    return 0;
+}
+
+TimeData::TimeData(void)
+{
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&initialTick);
+}
+
+
+TimeData::~TimeData(void)
+{
+}
+
+// Get current time in seconds
+double TimeData::getCurrentTime(void)
+{
+    QueryPerformanceCounter(&currentTick);
+    actualTime = (double)(currentTick.QuadPart - initialTick.QuadPart);
+    actualTime /= (double)frequency.QuadPart;
+    return actualTime;
+}
+
+int TimeData::resetCounter()
+{
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&initialTick);
+    return 0;
 }

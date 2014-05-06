@@ -21,7 +21,7 @@ void myMakeSrc_32f(Ipp32f** pSig, int len)
 	ippsVectorJaehne_32f( *pSig, len, 1 );
 }       
 
-TimeData::TimeData() :
+TimeDataDaq::TimeDataDaq() :
     lce00(1.0), lce01(1.0), lce02(1.0), h1(1.0), h2(1.0),
     lce10(1.0), lce11(1.0), lce12(1.0)
 {
@@ -30,7 +30,7 @@ TimeData::TimeData() :
     QueryPerformanceCounter(&tick1);
     QueryPerformanceCounter(&tick2);
 }
-TimeData     gtime_data;    
+TimeDataDaq     gtime_data;    
 
 int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
 {
@@ -40,7 +40,7 @@ int StartSignalLoop(TaskHandle *rawAOHandle,  TaskHandle *rawForceHandle)
 	char        errBuff[2048]={'\0'};
 
 
-    gDataFile = fopen(gTimeStamp, "a");
+    //gDataFile = fopen(gTimeStamp, "a");
     //gDataFileDB = fopen(gTimeStampDropbox,"a");
 
 	/*********************************************/
@@ -105,7 +105,7 @@ int StopSignalLoop(TaskHandle *rawAOHandle, TaskHandle *rawForceHandle)
 	char        errBuff[2048] = {'\0'};
     const float64     ZERO_VOLTS[NUM_MOTOR]={0.0, 0.0};
     
-    fclose(gDataFile);
+//    fclose(gDataFile);
     //fclose(gDataFileDB);
 
     DAQmxErrChk (DAQmxWriteAnalogF64(AOHandle, 1, TRUE, 10.0, DAQmx_Val_GroupByChannel, ZERO_VOLTS, NULL, NULL));
@@ -258,7 +258,7 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
             
     	//QueryPerformanceFrequency(&frequency);
 
-        TimeData *td = (TimeData*) callbackData;
+        TimeDataDaq *td = (TimeDataDaq*) callbackData;
 
         QueryPerformanceCounter(&(td->tick0));
 

@@ -553,9 +553,9 @@ void* ControlLoopBic(void*)
         //Read FPGA values for data Logging
         //ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenBic);
         gXemMuscleBic->ReadFpga(0x20, "float32", &gEmgBic);
-        gXemMuscleBic->ReadFpga(0x30, "int32", &gSpikeCountBic);
-        gXemSpindleBic->ReadFpga(0x22, "float32", &gSpindleIaBic);
-        gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIIBic);
+        //gXemMuscleBic->ReadFpga(0x30, "int32", &gSpikeCountBic);
+        //gXemSpindleBic->ReadFpga(0x22, "float32", &gSpindleIaBic);
+        //gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIIBic);
         //ReadFpga(gXemMuscleBic->xem, 0x30, "int32", &gSpikeCountBic);
         // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
         //ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgTri);
@@ -628,9 +628,9 @@ void* ControlLoopTri(void*)
         //ReadFpga(gXemMuscleBic->xem, 0x20, "float32", &gEmgBic);
         // ReadFpga(gXemSpindleBic->xem, 0x26, "float32", &gLenTri);
         gXemMuscleTri->ReadFpga(0x20, "float32", &gEmgTri);
-        gXemMuscleTri->ReadFpga(0x30, "int32", &gSpikeCountTri);
-        gXemSpindleBic->ReadFpga(0x22, "float32", &gSpindleIaTri);
-        gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIITri);
+        //gXemMuscleTri->ReadFpga(0x30, "int32", &gSpikeCountTri);
+        //gXemSpindleBic->ReadFpga(0x22, "float32", &gSpindleIaTri);
+        //gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIITri);
 
 
         //float32 gGainBic = 0.00005;// 0.051; // working = 0.141

@@ -106,7 +106,7 @@ private:
 // *** Global variables
 TimeData		    gTimeData;
 DataLogger		gDataLogger = DataLogger(
-    10,		// 100 Hz Recording
+    3,		// 100 Hz Recording
     "C:\\data\\%s_fpga",
     "time,ctrlFpga0,ctrlFpga1,emg0,emg1,musLce0,musLce1,spkCnt0,spkCnt1,spinIa0,spinIa1,spinII0,spinII1,musDamp\n"
     );

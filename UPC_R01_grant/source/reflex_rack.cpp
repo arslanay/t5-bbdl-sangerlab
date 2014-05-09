@@ -40,27 +40,30 @@ Authors:
 #include <time.h>
 #include <iostream>
 
-// Time Data class
 class TimeData
 {
-    //+++ Add status string to send to console
-    // or other debugging output
+	//+++ Add status string to send to console
+	// or other debugging output
 
-    LARGE_INTEGER initialTick, currentTick, frequency;
+	LARGE_INTEGER initialTick, currentTick, frequency;
 
 public:
-    double actualTime;
+	double actualTime;
 
-    // Initialize tick and frequency
-    TimeData(void);	
+	// Initialize tick and frequency
+	TimeData(void);	
 
-    // Generate status exit string
-    ~TimeData(void);
+	// Generate status exit string
+	~TimeData(void);
 
-    //Get current time in seconds
-    double getCurrentTime(void);
-    int resetCounter(void);
+	// Resets the timer
+	int resetTimer();
+
+	//Get current time in seconds
+	double getCurrentTime(void);
 };
+
+
 
 
 // DataLogger class declaration. For now let's leave it here
@@ -423,6 +426,7 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         break;
     case 'R':       //Winding up
     case 'r':
+	gTimeData.resetTimer();
 	gIsRecording = true;
 	gDataLogger.startRecording();
 	gUdpClient.sendMessageToServer("RRR");
@@ -1160,10 +1164,11 @@ int DataLogger::setFileName(char *inFileName)
     return 0;
 }
 
+
 TimeData::TimeData(void)
 {
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&initialTick);
+	QueryPerformanceFrequency(&frequency);
+	QueryPerformanceCounter(&initialTick);
 }
 
 
@@ -1171,18 +1176,19 @@ TimeData::~TimeData(void)
 {
 }
 
+// Reset the timer
+int TimeData::resetTimer(void)
+{
+	QueryPerformanceCounter(&initialTick);
+	return 0;
+}
+
+
 // Get current time in seconds
 double TimeData::getCurrentTime(void)
 {
-    QueryPerformanceCounter(&currentTick);
-    actualTime = (double)(currentTick.QuadPart - initialTick.QuadPart);
-    actualTime /= (double)frequency.QuadPart;
-    return actualTime;
-}
-
-int TimeData::resetCounter()
-{
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&initialTick);
-    return 0;
+	QueryPerformanceCounter(&currentTick);
+	actualTime = (double)(currentTick.QuadPart - initialTick.QuadPart);
+	actualTime /= (double)frequency.QuadPart;
+	return actualTime;
 }

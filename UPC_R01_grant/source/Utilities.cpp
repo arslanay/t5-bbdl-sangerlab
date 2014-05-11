@@ -198,6 +198,35 @@ int SomeFpga::SendPara(int bitVal, int trigEvent)
     return 0;
 }
 
+int SomeFpga::SendButton(bool buttonValue, int buttonEvt)
+{
+
+    switch (buttonEvt) {
+    case BUTTON_RESET:
+        if (buttonValue)
+            this->xem->SetWireInValue(0x00, 0x01, 0x01);
+        else
+            this->xem->SetWireInValue(0x00, 0x00, 0x01);
+        this->xem->UpdateWireIns();
+        break;
+    case BUTTON_INPUT_FROM_TRIG:
+        if (buttonValue)
+            this->xem->SetWireInValue(0x00, 0x02, 0x02);
+        else
+            this->xem->SetWireInValue(0x00, 0x00, 0x02);
+        this->xem->UpdateWireIns();
+        break;
+    case BUTTON_RESET_SIM:
+        if (buttonValue)
+            this->xem->SetWireInValue(0x00, 0x04, 0x04);
+        else 
+            this->xem->SetWireInValue(0x00, 0x00, 0x04);
+        break;
+    }
+
+    return 0;
+}
+
 
 
 int SomeFpga::WriteFpgaLceVel(int32 bitValLce, int32 bitValVel, int32 bitValM1Voluntary, int32 bitValM1Dystonia, int32 trigEvent)

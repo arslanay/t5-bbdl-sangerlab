@@ -127,7 +127,7 @@ int                     gCurrMotorState = MOTOR_STATE_INIT;
 double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
 
-const float gGain = 2.5 / 2000.0;
+const float gGain = 0.7 / 2000.0;
 
 float gMusDamp = 200.0;//120.0;
 bool gAlterDamping = false; //Damping flag
@@ -441,7 +441,8 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         //SendButton(gXemMuscleTri, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
         //SendButton(gXemSpindleBic, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
         //SendButton(gXemSpindleTri, (int) gResetGlobal, "BUTTON_RESET_GLOBAL");
-        break;   
+        break;      
+
     case 'M':       //Minos: workaround for p2p movement
     case 'm':
         // FUNCTIONALITY NOT SUPPORTED IN THIS VERSION

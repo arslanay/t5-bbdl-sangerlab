@@ -41,6 +41,11 @@ const int    DATA_EVT_LCEVEL = 9;
 //const int    DATA_EVT_M1_VOL = 11;
 //const int    DATA_EVT_M1_DYS = 8;
 
+/* FPGA Button events */
+const int    BUTTON_RESET = 0;
+const int    BUTTON_INPUT_FROM_TRIG = 1;
+const int    BUTTON_RESET_SIM = 2;
+
 /* PRACTICE FLAGS */
 
 
@@ -118,6 +123,7 @@ class SomeFpga
         SomeFpga(int , int , std::string);
         ~SomeFpga();
         int SendPara(int bitVal, int trigEvent);
+        int SendButton(bool bitVal, int buttonEvt);
         int ReadFpga(BYTE getAddr, char *, float *);
         int ReadFpga(BYTE getAddr, char *,int *);
         //int ReadFpga(int getAddr);

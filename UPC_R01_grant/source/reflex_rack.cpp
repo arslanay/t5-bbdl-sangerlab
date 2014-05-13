@@ -127,7 +127,7 @@ int                     gCurrMotorState = MOTOR_STATE_INIT;
 double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
 
-const float gGain = 0.7 / 2000.0;
+const float gGain = 0.4 / 2000.0; //0.4/2000.0 as the safe value
 
 float gMusDamp = 200.0;//120.0;
 bool gAlterDamping = false; //Damping flag

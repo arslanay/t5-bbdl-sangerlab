@@ -119,24 +119,26 @@ pthread_mutex_t         gMutex;
 TaskHandle              gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
 float                   gLenOrig[NUM_MOTOR], gLenScale[NUM_MOTOR], gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
 bool                    gResetSim=false, gIsKinematic = false,
-    gIsPerturbing = false, gIsRecording=false, gResetGlobal=false, gIsP2pMoving=false;
+                        gIsPerturbing = false, gIsRecording=false, gResetGlobal=false, gIsP2pMoving=false;
 float                   gP2pIndex = 0.0f, gDeltaLen = 0.0f;
 LARGE_INTEGER           gInitTick, gCurrentTick, gClkFrequency;
 FILE                    *gDataFile, *gConfigFile;
 int                     gCurrMotorState = MOTOR_STATE_INIT;
 double                  gEncoderCount[NUM_MOTOR];
 float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
+float32                 gGammaDyn = 0.0;
+float32                 gGammaSta = 0.0;
 
-const float gGain = 0.4 / 2000.0; //0.4/2000.0 as the safe value
+const float             gGain = 0.4 / 2000.0; //0.4/2000.0 as the safe value
 
-float gMusDamp = 200.0;//120.0;
-bool gAlterDamping = false; //Damping flag
-time_t randSeedTime;
+float                   gMusDamp = 200.0;//120.0;
+bool                    gAlterDamping = false; //Damping flag
+time_t                  randSeedTime;
 
-SomeFpga   *gXemSpindleBic; 
-SomeFpga   *gXemSpindleTri; 
-SomeFpga   *gXemMuscleBic ; 
-SomeFpga   *gXemMuscleTri ; 
+SomeFpga                *gXemSpindleBic; 
+SomeFpga                *gXemSpindleTri; 
+SomeFpga                *gXemMuscleBic ; 
+SomeFpga                *gXemMuscleTri ; 
 
 float                   gCtrlFromFPGA[NUM_MUSCLE];
 int                     gMuscleEMG[NUM_FPGA], gMNCount[NUM_FPGA];
@@ -146,11 +148,11 @@ char                    gLceLabel1[60];
 char                    gLceLabel2[60];
 char                    gTimeStamp[200];
 char                    gTimeStampSend[200];
-char                    gStateLabel[5][30] = { "MOTOR_STATE_INIT",
-    "MOTOR_STATE_WINDING_UP",
-    "MOTOR_STATE_OPEN_LOOP",
-    "MOTOR_STATE_CLOSED_LOOP",                            
-    "MOTOR_STATE_SHUTTING_DOWN"};
+char                    gStateLabel[5][30] = {  "MOTOR_STATE_INIT",
+                                                "MOTOR_STATE_WINDING_UP",
+                                                "MOTOR_STATE_OPEN_LOOP",
+                                                "MOTOR_STATE_CLOSED_LOOP",                            
+                                                "MOTOR_STATE_SHUTTING_DOWN"};
 //IPP
 Ipp32f *taps0;
 Ipp32f *taps1;
@@ -174,18 +176,18 @@ int gM1Dystonia = 0;
 TwBar *gBar; // Pointer to the tweak bar
 
 //Fpga Data Logging
-float32 gLenBic;
-float32 gEmgBic;
-float32 gLenTri;
-float32 gEmgTri;
-float gForceBic;
-float gForceTri;
-int gSpikeCountBic;
-int gSpikeCountTri;
-float32 gSpindleIaBic;
-float32 gSpindleIIBic;
-float32 gSpindleIaTri;
-float32 gSpindleIITri;
+float32         gLenBic;
+float32         gEmgBic;
+float32         gLenTri;
+float32         gEmgTri;
+float           gForceBic;
+float           gForceTri;
+int             gSpikeCountBic;
+int             gSpikeCountTri;
+float32         gSpindleIaBic;
+float32         gSpindleIIBic;
+float32         gSpindleIaTri;
+float32         gSpindleIITri;
 
 
 void ledIndicator ( float w, float h );
@@ -246,16 +248,11 @@ void display ( void )   // Create The Display Function
 
     // Draw tweak bars
     TwDraw();
-    //    sprintf_s(gLceLabel1,"%f    %.2f   %.2f", gMuscleLce[0], gMuscleVel[0], gCtrlFromFPGA[0]);
+
     sprintf_s(gLceLabel1,"%f    %d   %.2f", gMuscleLce[0], gM1Voluntary, gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
-    //    sprintf_s(gLceLabel2,"%f    %.2f   %.2f", gMuscleLce[1], gMuscleVel[1],gCtrlFromFPGA[NUM_FPGA - 1]);
     sprintf_s(gLceLabel2,"%f    %d   %.2f   %f   %f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1],gSpindleIaBic,gSpindleIIBic);
-    //sprintf_s(gLceLabel2,"%f    %d   %.2f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1]);
     outputText(10,85,gLceLabel2);
-    //printf("\n\t%f\t%f", gMuscleVel[0], gMuscleVel[1]);
-
-    //sprintf_s(gStateLabel,"%.2f    %.2f   %f",gAuxvar[0], gMuscleLce, gCtrlFromFPGA[0]);
     outputText(300,95,gStateLabel[gCurrMotorState]);
     if(gIsKinematic) {
         outputText(300, 80, "Kinematic");
@@ -468,38 +465,6 @@ void idle(void)
     glutPostRedisplay();
 }
 
-
-//
-//int ReadFpga(okCFrontPanel *xem, BYTE getAddr, char *type, float32 *outVal)
-//{
-//    xem -> UpdateWireOuts();
-//    // Read 18-bit integer from FPGA
-//    if (0 == strcmp(type, "int18"))
-//    {
-//        //intValLo = self.xem.GetWireOutValue(getAddr) & 0xffff # length = 16-bit
-//        //intValHi = self.xem.GetWireOutValue(getAddr + 0x01) & 0x0003 # length = 2-bit
-//        //intVal = ((intValHi << 16) + intValLo) & 0xFFFFFFFF
-//        //if intVal > 0x1FFFF:
-//        //    intVal = -(0x3FFFF - intVal + 0x1)
-//        //outVal = float(intVal) # in mV De-Scaling factor = 0xFFFF
-//    }
-//    // Read 32-bit float
-//    else if (0 == strcmp(type, "float32")) 
-//    {
-//        int32 outValLo = xem -> GetWireOutValue(getAddr) & 0xffff;
-//        int32 outValHi = xem -> GetWireOutValue(getAddr + 0x01) & 0xffff;
-//        int32 outValInt = ((outValHi << 16) + outValLo) & 0xFFFFFFFF;
-//        memcpy(outVal, &outValInt, sizeof(*outVal));
-//        //outVal = ConvertType(outVal, 'I', 'f')
-//        //#print outVal
-//    }
-//
-//    return 0;
-//}
-
-
-
-
 int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
 {
     //bitVal = 0;
@@ -583,14 +548,11 @@ void* ControlLoopBic(void*)
         gXemMuscleBic->ReadFpga(0x32, "float32", &gForceBic);
 
         gXemMuscleBic->WriteFpgaLceVel(bitValLce, bitValVel, bitM1VoluntaryBic, bitM1DystoniaBic, DATA_EVT_LCEVEL);
-        //const float gGain = 1.0 / 3000.0;
-        const float tBias = 0.0;//9000000.0;  
+        const float tBias = 0.0;
 
-        gCtrlFromFPGA[0] = (gForceBic - tBias) * gGain;
-        gCtrlFromFPGA[0] = (gCtrlFromFPGA[0]>= 0.0) ? gCtrlFromFPGA[0] : 0.0;
-
-
-
+        float tCtrl = (gForceBic - tBias) * gGain;
+        gCtrlFromFPGA[0] = (tCtrl>= 0.0) ? tCtrl : 0.0;
+        
         //ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
         //gXemMuscleBic->SendPara(bitValLce, DATA_EVT_LCE);
         gXemSpindleBic->SendPara(bitValLce, DATA_EVT_LCEVEL);
@@ -634,8 +596,6 @@ void* ControlLoopTri(void*)
         //gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIITri);
 
 
-        //float32 gGainBic = 0.00005;// 0.051; // working = 0.141
-        //float32 gGainTri = 0.00005;// 0.051; // working = 0.141
         float32 forceBiasTri = 10.0f;
         float   coef_damp = 0.004; // working = 0.04
 
@@ -643,23 +603,15 @@ void* ControlLoopTri(void*)
         int32   bitM1VoluntaryTri = 0, 
             bitM1DystoniaTri = 000;
 
-        //rand() % 50
-        //gMuscleLce[1] += (-0.01f + (float)(rand() % 2000)/1000.0f/100.0f)*5.0;
-
         ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
         ReInterpret((float32)(gMusDamp * gMuscleVel[1]), &bitValVel);
-
-
-
+        
         gXemMuscleTri->ReadFpga(0x32, "float32", &gForceTri);
-
         gXemMuscleTri->WriteFpgaLceVel(bitValLce, bitValVel, bitM1VoluntaryTri, bitM1DystoniaTri, DATA_EVT_LCEVEL);
 
-
-
         const float tBias = 0.0;//9000000.0;  
-        gCtrlFromFPGA[1] = (gForceTri - tBias) * gGain;
-        gCtrlFromFPGA[1] = (gCtrlFromFPGA[1]>= 0.0) ? gCtrlFromFPGA[1] : 0.0;
+        float tCtrl = (gForceTri - tBias) * gGain;
+        gCtrlFromFPGA[1] = (tCtrl = 0.0) ? tCtrl : 0.0;
 
 
 
@@ -752,16 +704,6 @@ FileContainer *gSwapFiles;
 
 void InitProgram()
 {
-    //+++ Change so when you press N the program logs a different file and you send the new 
-    // timestamp to the other programs
-    //+++ Stop local recording when you press T
-    //time_t rawtime;
-    //struct tm *timeinfo;
-    //time(&rawtime);	
-    //timeinfo = localtime(&rawtime);
-    //sprintf_s(gTimeStampSend,"%4d%02d%02d%02d%02d%02d",timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
-    //sprintf_s(gTimeStamp,"C:\\data\\%s_PXI.txt",gTimeStampSend);
-
     gAlterDamping = false;
     srand((unsigned) time(&randSeedTime));
 
@@ -904,26 +846,21 @@ inline void LogData( void)
 }
 
 
-//void* NoTimerCB (void *)
-//{
-//    while (1)
-//    {
-//        LogData();
-//        if (gIsP2pMoving) // Update the neutral joint angle using mini-jerk
-//        {
-//            float   af = 0.6f, d = 200.0f;
-//
-//            gP2pIndex += 1.0f;
-//
-//            gDeltaLen = min(af, af*(10.0f*pow(gP2pIndex/d, 3) - 15.0f*pow(gP2pIndex/d, 4) + 6.0f*pow(gP2pIndex/d, 5)));
-//
-//            
-//        }
-//
-//        Sleep(1);
-//    }
-//}
 void ExitProgram();
+
+
+void TW_CALL SendGamma(void * foo)
+{ 
+    int32 bitValGammaDyn, bitValGammaSta;
+    
+    ReInterpret((float32)(gGammaDyn), &bitValGammaDyn);
+    ReInterpret((float32)(gGammaSta), &bitValGammaSta);
+    gXemSpindleBic->SendPara(bitValGammaDyn, DATA_EVT_GAMMA_DYN);
+    gXemSpindleBic->SendPara(bitValGammaSta, DATA_EVT_GAMMA_STA);
+    gXemSpindleTri->SendPara(bitValGammaDyn, DATA_EVT_GAMMA_DYN);
+    gXemSpindleTri->SendPara(bitValGammaSta, DATA_EVT_GAMMA_STA);
+  
+}
 
 
 int main ( int argc, char** argv )   // Create Main Function For Bringing It All Together
@@ -978,12 +915,16 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     TwDefine(" TweakBar size='400 200' color='96 216 224' "); // change default tweak bar size and color
 
     // Add 'g_Zoom' to 'bar': this is a modifable (RW) variable of type TW_TYPE_FLOAT. Its key shortcuts are [z] and [Z].
-    TwAddVarRW(gBar, "Gain", TW_TYPE_FLOAT, &gLenScale, 
+    TwAddVarRW(gBar, "Len Scale", TW_TYPE_FLOAT, &gLenScale, 
         " min=0.0000 max=0.0002 step=0.000001 keyIncr=l keyDecr=L help='Scale the object (1=original size).' ");
-    //TwAddVarRW(gBar, "M1Voluntary", TW_TYPE_INT32, &gM1Voluntary, 
-    //           " min=0.00 max=500000.00 step=40000 ");
-    TwAddVarRW(gBar, "M1Dystonia", TW_TYPE_INT32, &gM1Dystonia, 
-        " min=0.00 max=500000.00 step=20000 ");
+
+    TwAddVarRW(gBar, "GammaDyn", TW_TYPE_FLOAT, &gGammaDyn, 
+        " min=0.00 max=400.00 step=10 ");
+    TwAddVarRW(gBar, "GammaSta", TW_TYPE_FLOAT, &gGammaSta, 
+        " min=0.00 max=400.00 step=10 ");
+
+    
+    TwAddButton(gBar, "GammaBoth", SendGamma, NULL, " label='Set Gammas' ");
 
     glutMainLoop( );          // Initialize The Main Loop  
 

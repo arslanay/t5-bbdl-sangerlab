@@ -35,7 +35,8 @@ const int    NUM_MUSCLE = 2;
 /* FPGA Trigger events */
 const int    DATA_EVT_CLKRATE = 0;
 //const int    DATA_EVT_LCE = 9;
-//const int    DATA_EVT_GD = 4;
+const int    DATA_EVT_GAMMA_DYN = 4;
+const int    DATA_EVT_GAMMA_STA = 5;
 //const int    DATA_EVT_VEL = 9;
 const int    DATA_EVT_LCEVEL = 9;
 //const int    DATA_EVT_M1_VOL = 11;

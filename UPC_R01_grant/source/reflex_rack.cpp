@@ -551,7 +551,7 @@ void* ControlLoopBic(void*)
         const float tBias = 0.0;
 
         float tCtrl = (gForceBic - tBias) * gGain;
-        gCtrlFromFPGA[0] = (tCtrl>= 0.0) ? tCtrl : 0.0;
+        gCtrlFromFPGA[0] = (tCtrl >= 0.0) ? tCtrl : 0.0;
         
         //ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
         //gXemMuscleBic->SendPara(bitValLce, DATA_EVT_LCE);
@@ -611,7 +611,7 @@ void* ControlLoopTri(void*)
 
         const float tBias = 0.0;//9000000.0;  
         float tCtrl = (gForceTri - tBias) * gGain;
-        gCtrlFromFPGA[1] = (tCtrl = 0.0) ? tCtrl : 0.0;
+        gCtrlFromFPGA[1] = (tCtrl >= 0.0) ? tCtrl : 0.0;
 
 
 

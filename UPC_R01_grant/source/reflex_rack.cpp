@@ -195,6 +195,8 @@ float32         gSpindleIITri;
 
 void ledIndicator ( float w, float h );
 
+void SendGammaTemp(void);
+
 void init ( GLvoid )     // Create Some Everyday Functions
 {
     glClearColor(0.0f, 0.0f, 0.0f, 0.f);				// Black Background
@@ -254,7 +256,7 @@ void display ( void )   // Create The Display Function
 
     sprintf_s(gLceLabel1,"%f    %d   %.2f", gMuscleLce[0], gM1Voluntary, gCtrlFromFPGA[0]);
     outputText(10,95,gLceLabel1);
-    sprintf_s(gLceLabel2,"%f    %d   %.2f   %f   %f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1],gSpindleIaBic,gSpindleIIBic);
+    sprintf_s(gLceLabel2,"%f    %d   %.2f   %f   %f    %f", gMuscleLce[1], gM1Dystonia, gCtrlFromFPGA[NUM_FPGA - 1],gSpindleIaBic,gSpindleIIBic, gGammaSta);
     outputText(10,85,gLceLabel2);
     outputText(300,95,gStateLabel[gCurrMotorState]);
     if(gIsKinematic) {
@@ -527,12 +529,25 @@ int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
 
 void* TrialLoop(void*)
 {
+    float32 valDyn = 0;
+    float32 valSta = 0;
+    int i = 0;
     SwitchToKinematicPerturbation();
     while(1)
     {    Sleep(10);
-        if(gCurrMotorState == MOTOR_STATE_RUN_PARADIGM) 
+        
+        if(gCurrMotorState == MOTOR_STATE_RUN_PARADIGM && valSta <= 200) 
         {
+           
+            gGammaDyn = valDyn;
+            gGammaSta = valSta;
+            SendGammaTemp();
             Rezero();
+            Sleep(50);
+            Rezero();
+            Sleep(50);
+            Rezero();
+            Sleep(50);
             CreateNewDataLog();
             Sleep(100);
             StartRecording();
@@ -541,6 +556,13 @@ void* TrialLoop(void*)
             Sleep(8000);
             TerminateTrial();
             Sleep(100);
+            //valDyn += 20;
+            i++;
+            if(i > 9)
+            {
+                valSta += 20;
+                i = 0;
+            }
             
         }
     }
@@ -904,6 +926,19 @@ void ExitProgram();
 
 
 void TW_CALL SendGamma(void * foo)
+{ 
+    int32 bitValGammaDyn, bitValGammaSta;
+    
+    ReInterpret((float32)(gGammaDyn), &bitValGammaDyn);
+    ReInterpret((float32)(gGammaSta), &bitValGammaSta);
+    gXemSpindleBic->SendPara(bitValGammaDyn, DATA_EVT_GAMMA_DYN);
+    gXemSpindleBic->SendPara(bitValGammaSta, DATA_EVT_GAMMA_STA);
+    gXemSpindleTri->SendPara(bitValGammaDyn, DATA_EVT_GAMMA_DYN);
+    gXemSpindleTri->SendPara(bitValGammaSta, DATA_EVT_GAMMA_STA);
+  
+}
+
+void SendGammaTemp(void)
 { 
     int32 bitValGammaDyn, bitValGammaSta;
     

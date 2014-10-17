@@ -129,7 +129,9 @@ float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
 float32                 gGammaDyn = 0.0;
 float32                 gGammaSta = 0.0;
 
-const float             gGain = 0.4 / 2000.0; //0.4/2000.0 as the safe value
+//const float             gGain = 0.4 / 1000.0; //0.4/2000.0 as the safe value
+const float             gGain = 1.5 / 1000.0; //0.4/2000.0 as the safe value
+// 
 
 float                   gMusDamp = 200.0;//120.0;
 bool                    gAlterDamping = false; //Damping flag
@@ -148,10 +150,11 @@ char                    gLceLabel1[60];
 char                    gLceLabel2[60];
 char                    gTimeStamp[200];
 char                    gTimeStampSend[200];
-char                    gStateLabel[5][30] = {  "MOTOR_STATE_INIT",
+char                    gStateLabel[6][30] = {  "MOTOR_STATE_INIT",
                                                 "MOTOR_STATE_WINDING_UP",
                                                 "MOTOR_STATE_OPEN_LOOP",
-                                                "MOTOR_STATE_CLOSED_LOOP",                            
+                                                "MOTOR_STATE_CLOSED_LOOP",
+                                                "MOTOR_STATE_RUN_PARADIGM",
                                                 "MOTOR_STATE_SHUTTING_DOWN"};
 //IPP
 Ipp32f *taps0;
@@ -326,6 +329,9 @@ int ProceedFSM(int *state)
         *state = MOTOR_STATE_CLOSED_LOOP;
         break;
     case MOTOR_STATE_CLOSED_LOOP:
+        *state = MOTOR_STATE_RUN_PARADIGM;
+        break;
+    case MOTOR_STATE_RUN_PARADIGM:
         DisableMotors(&gEnableHandle);
         *state = MOTOR_STATE_SHUTTING_DOWN;
         break;
@@ -355,21 +361,15 @@ int ShutdownMotor(int *state)
 
 int countNameSendEvent ;
 
-void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
+void SwitchToKinematicPerturbation()
 {
-    switch ( key ) 
-    {
-    case 27:        // When Escape Is Pressed...
+    gIsKinematic = !gIsKinematic;
+    gUdpClient.sendMessageToServer("KKK");
+}
 
-        exit(0);   // Exit The Program
-        break;        
-
-        //case 32:        // SpaceBar 
-        //    //ShutdownMotor(&gCurrMotorState);
-        //    break;  
-    case 'N':       //Alter the damping
-    case 'n':
-        if(countNameSendEvent == 0) {
+void CreateNewDataLog()
+{
+    if(countNameSendEvent == 0) {
             time_t rawtime;
             struct tm *timeinfo;
             time(&rawtime);
@@ -388,29 +388,67 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
             gUdpClient.sendMessageToServer(gTimeStampSend);
             countNameSendEvent++;
         }
+}
+
+void StartRecording()
+{
+    gTimeData.resetTimer();
+	gIsRecording = true;
+	gDataLogger.startRecording();
+	gUdpClient.sendMessageToServer("RRR");
+}
+
+void Perturb()
+{
+    if(!gIsPerturbing) {
+            gIsPerturbing = true;
+            gUdpClient.sendMessageToServer("PPP");
+        }
+}
+void TerminateTrial()
+{
+    gIsRecording = false;
+    gIsPerturbing = false;
+    gUdpClient.sendMessageToServer("TTT");
+	gDataLogger.closeRecordingFile();
+    countNameSendEvent = 0;
+}
+void Rezero()
+{
+    gLenOrig[0]=gAuxvar[2] + gEncoderCount[0];
+    gLenOrig[1]=gAuxvar[2+NUM_AUXVAR] + gEncoderCount[1];
+}
+
+void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
+{
+    switch ( key ) 
+    {
+    case 27:        // When Escape Is Pressed...
+
+        exit(0);   // Exit The Program
+        break;        
+
+        //case 32:        // SpaceBar 
+        //    //ShutdownMotor(&gCurrMotorState);
+        //    break;  
+    case 'N':       //Alter the damping
+    case 'n':
+        CreateNewDataLog();
         break;
 
     case 'T':       // Terminate the current trial
     case 't':
-        gIsRecording = false;
-        gIsPerturbing = false;
-        gUdpClient.sendMessageToServer("TTT");
-	gDataLogger.closeRecordingFile();
-        countNameSendEvent = 0;
+        TerminateTrial();
         break;
 
     case 'K':       // Selects the perturbation mode: Phantom or Kinematic
     case 'k':
-        gIsKinematic = !gIsKinematic;
-        gUdpClient.sendMessageToServer("KKK");
+        SwitchToKinematicPerturbation();
         break;
 
     case 'P':       // Generic perturbing state
     case 'p':
-        if(!gIsPerturbing) {
-            gIsPerturbing = true;
-            gUdpClient.sendMessageToServer("PPP");
-        }
+        Perturb();
         break;
 
     case 'G':       //Proceed in FSM
@@ -423,10 +461,7 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         break;
     case 'R':       //Winding up
     case 'r':
-	gTimeData.resetTimer();
-	gIsRecording = true;
-	gDataLogger.startRecording();
-	gUdpClient.sendMessageToServer("RRR");
+	    StartRecording();
 	
         break;
     case '9':       //Reset GLOBAL
@@ -447,8 +482,7 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         break;
     case 'z':       //Rezero
     case 'Z':
-        gLenOrig[0]=gAuxvar[2] + gEncoderCount[0];
-        gLenOrig[1]=gAuxvar[2+NUM_AUXVAR] + gEncoderCount[1];
+        Rezero();
         break;
     case 'E':         
     case 'e':     
@@ -491,7 +525,27 @@ int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
     return 0;
 }
 
-
+void* TrialLoop(void*)
+{
+    SwitchToKinematicPerturbation();
+    while(1)
+    {    Sleep(10);
+        if(gCurrMotorState == MOTOR_STATE_RUN_PARADIGM) 
+        {
+            Rezero();
+            CreateNewDataLog();
+            Sleep(100);
+            StartRecording();
+            Sleep(100);
+            Perturb();
+            Sleep(8000);
+            TerminateTrial();
+            Sleep(100);
+            
+        }
+    }
+    return 0;
+}
 
 void* ControlLoopBic(void*)
 {
@@ -507,7 +561,7 @@ void* ControlLoopBic(void*)
             ShutdownMotor(&gCurrMotorState);
         }
 
-        if ((MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
+        if ((MOTOR_STATE_RUN_PARADIGM != gCurrMotorState) && (MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
         //printf("\n\t%f",dataEncoder[0]); 
         iLoop++;
         /*        if (10000 <= iLoop)
@@ -577,7 +631,7 @@ void* ControlLoopTri(void*)
             ShutdownMotor(&gCurrMotorState);
         }
 
-        if ((MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
+        if ((MOTOR_STATE_RUN_PARADIGM != gCurrMotorState) && (MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
         //printf("\n\t%f",dataEncoder[0]); 
         iLoop++;
         /*        if (10000 <= iLoop)
@@ -909,6 +963,8 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     pthread_mutex_init (&gMutex, NULL);
     int ctrl_handle_bic = pthread_create(&gThreads[1], NULL, ControlLoopBic,	(void *)gAuxvar);
     int ctrl_handle_tri = pthread_create(&gThreads[2], NULL, ControlLoopTri,	(void *)gAuxvar);
+    int ctrl_handle_trial = pthread_create(&gThreads[3], NULL, TrialLoop,       (void *)gAuxvar);
+
 
     gBar = TwNewBar("TweakBar");
     TwDefine(" GLOBAL help='This is our interface for the T5 Project BBDL-SangerLab.' "); // Message added to the help bar.

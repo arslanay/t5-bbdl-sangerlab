@@ -13,7 +13,7 @@ const int   SAMPLING_RATE = 1024;
 
 #define		PI 3.14159265
 #define		EPS 0.0000001
-#define		NUM_THREADS 3
+#define		NUM_THREADS 4
 #define     NUM_AUXVAR 4 // { muscleLen, muscleVel, muscleForce, muscleEmg}
 #define		EMG_SAMPLING_RATE 1000 // samples/s
 
@@ -22,7 +22,8 @@ const int   SAMPLING_RATE = 1024;
 #define     MOTOR_STATE_WINDING_UP 1
 #define     MOTOR_STATE_OPEN_LOOP 2
 #define     MOTOR_STATE_CLOSED_LOOP 3
-#define     MOTOR_STATE_SHUTTING_DOWN 4
+#define     MOTOR_STATE_RUN_PARADIGM 4
+#define     MOTOR_STATE_SHUTTING_DOWN 5
 
 /* Safety Configurations */
 const float		MAX_VOLT = 6.0;

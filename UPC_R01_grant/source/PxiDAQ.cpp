@@ -199,6 +199,10 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
             //motor_cmd[0] = gCtrlFromFPGA[0];
             //motor_cmd[1] = gCtrlFromFPGA[1];
             break;
+        case MOTOR_STATE_RUN_PARADIGM:
+            motor_cmd[0] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[0];
+            motor_cmd[1] = SAFE_MOTOR_VOLTAGE + gCtrlFromFPGA[1];
+            break;
         case MOTOR_STATE_SHUTTING_DOWN:
             motor_cmd[0] = ZERO_MOTOR_VOLTAGE;
             motor_cmd[1] = ZERO_MOTOR_VOLTAGE;

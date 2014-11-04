@@ -13,7 +13,7 @@ const int   SAMPLING_RATE = 1024;
 
 #define		PI 3.14159265
 #define		EPS 0.0000001
-#define		NUM_THREADS 4
+#define		NUM_THREADS 6
 #define     NUM_AUXVAR 4 // { muscleLen, muscleVel, muscleForce, muscleEmg}
 #define		EMG_SAMPLING_RATE 1000 // samples/s
 

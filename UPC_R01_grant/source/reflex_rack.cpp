@@ -586,6 +586,63 @@ void* TrialLoop(void*)
     return 0;
 }
 
+void* SpindleLoopBic(void*)
+{
+    while (true)
+    {
+        if(GetAsyncKeyState(VK_SPACE))
+        { 
+            ShutdownMotor(&gCurrMotorState);
+        }
+
+        if ((MOTOR_STATE_RUN_PARADIGM != gCurrMotorState) && (MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
+   
+        
+        //*** Read from FPGA
+        gXemSpindleBic->ReadFpga(0x22, "float32", &gSpindleIaBic);
+        //gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIIBic);        
+
+        int32 bitValLce;
+        ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
+
+        // *** Write back to FPGA
+        gXemSpindleBic->SendPara(bitValLce, DATA_EVT_LCEVEL);
+
+        //Sleep(1);
+        if(_kbhit()) break;
+    } 
+    return 0;
+}
+
+void* SpindleLoopTri(void*)
+{
+    while (true)
+    {
+        if(GetAsyncKeyState(VK_SPACE))
+        { 
+            ShutdownMotor(&gCurrMotorState);
+        }
+
+        if ((MOTOR_STATE_RUN_PARADIGM != gCurrMotorState) && (MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
+   
+        
+        //*** Read from FPGA
+        gXemSpindleTri->ReadFpga(0x22, "float32", &gSpindleIaTri);
+        //gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIIBic);        
+
+        int32 bitValLce;
+        ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
+
+        // *** Write back to FPGA
+        gXemSpindleTri->SendPara(bitValLce, DATA_EVT_LCEVEL);
+
+        //Sleep(1);
+        if(_kbhit()) break;
+    } 
+    return 0;
+}
+
+
 void* ControlLoopBic(void*)
 {
 
@@ -612,9 +669,8 @@ void* ControlLoopBic(void*)
         //Read FPGA values for data Logging
         gXemMuscleBic->ReadFpga(0x20, "float32", &gEmgBic);
         //gXemMuscleBic->ReadFpga(0x30, "int32", &gSpikeCountBic);
-        gXemSpindleBic->ReadFpga(0x22, "float32", &gSpindleIaBic);
-        //gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIIBic);
-        
+
+
         if(gAlterDamping && (gMusDamp>0.03f))
             //gMusDamp -= 0.03f;
             gMusDamp = 0.0f;
@@ -629,31 +685,21 @@ void* ControlLoopBic(void*)
         int32   bitM1VoluntaryBic = 0, 
             bitM1DystoniaBic = 000;
 
-        //gMuscleLce[0] += (-0.01f + (float)(rand() % 2000)/1000.0f/100.0f)*5.0;
-
-        ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
         ReInterpret((float32)(gMusDamp * gMuscleVel[0]), &bitValVel);
-
-
+        
         //*** Read from FPGA
         gXemMuscleBic->ReadFpga(0x32, "float32", &gForceBic);
 
 
+        //*** Write back to Muscle_fpga
+        ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
         gXemMuscleBic->WriteFpgaLceVel(bitValLce, bitValVel, bitM1VoluntaryBic, bitM1DystoniaBic, DATA_EVT_LCEVEL);
+       
         const float tBias = 0.0;
-
         float tCtrl = (gForceBic - tBias) * gGain;
-        gCtrlFromFPGA[0] = (tCtrl >= 0.0) ? tCtrl : 0.0;
-        //gCtrlFromFPGA[0] = (tCtrl >= 0.0) ? 2.0 : 0.0;
+        //gCtrlFromFPGA[0] = (tCtrl >= 0.0) ? tCtrl : 0.0;
+        gCtrlFromFPGA[0] = 2.0;
         
-
-
-
-        // *** Write back to FPGA
-        //ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
-        //gXemMuscleBic->SendPara(bitValLce, DATA_EVT_LCE);
-        gXemSpindleBic->SendPara(bitValLce, DATA_EVT_LCEVEL);
-
         //Sleep(1);
         if(_kbhit()) break;
     } 
@@ -686,9 +732,6 @@ void* ControlLoopTri(void*)
         //Read FPGA values for data Logging
         gXemMuscleTri->ReadFpga(0x20, "float32", &gEmgTri);
         //gXemMuscleTri->ReadFpga(0x30, "int32", &gSpikeCountTri);
-        gXemSpindleTri->ReadFpga(0x22, "float32", &gSpindleIaTri);
-        //gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIITri);
-
 
         float32 forceBiasTri = 10.0f;
         float   coef_damp = 0.004; // working = 0.04
@@ -705,16 +748,10 @@ void* ControlLoopTri(void*)
 
         const float tBias = 0.0;//9000000.0;  
         float tCtrl = (gForceTri - tBias) * gGain;
-        gCtrlFromFPGA[1] = (tCtrl >= 0.0) ? tCtrl : 0.0;
-        //gCtrlFromFPGA[1] = (tCtrl >= 0.0) ? 2.0 : 0.0;
+        //gCtrlFromFPGA[1] = (tCtrl >= 0.0) ? tCtrl : 0.0;
+        gCtrlFromFPGA[1] = 2.0;
 
-
-
-        //ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
-        //gXemMuscleTri->SendPara(bitValLce, DATA_EVT_LCE);	
-        gXemSpindleTri->SendPara(bitValLce, DATA_EVT_LCEVEL);
-
-
+        
         //Sleep(1);
         if(_kbhit()) break;
     } 
@@ -837,19 +874,34 @@ void InitProgram()
     ippsZero_32f(dlysVel0IIR, 2 * (lenFilterVel_IIR + 1) );
     ippsZero_32f(dlysVel1IIR, 2 * (lenFilterVel_IIR + 1) );
 
-    tapsVel0IIR[0] =  0.0078; // for Lowpass filter velocity
-    tapsVel0IIR[1] =  0.0156;
-    tapsVel0IIR[2] =  0.0078;
-    tapsVel0IIR[3] =  1.0000;
-    tapsVel0IIR[4] = -1.7347;
-    tapsVel0IIR[5] =  0.7660;
+    //tapsVel0IIR[0] =  0.0078; // for Lowpass filter velocity
+    //tapsVel0IIR[1] =  0.0156;
+    //tapsVel0IIR[2] =  0.0078;
+    //tapsVel0IIR[3] =  1.0000;
+    //tapsVel0IIR[4] = -1.7347;
+    //tapsVel0IIR[5] =  0.7660;
 
-    tapsVel1IIR[0] =  0.0078;
-    tapsVel1IIR[1] =  0.0156;
-    tapsVel1IIR[2] =  0.0078;
+    //tapsVel1IIR[0] =  0.0078;
+    //tapsVel1IIR[1] =  0.0156;
+    //tapsVel1IIR[2] =  0.0078;
+    //tapsVel1IIR[3] =  1.0000;
+    //tapsVel1IIR[4] = -1.7347;
+    //tapsVel1IIR[5] =  0.7660;
+
+    
+    tapsVel0IIR[0] =  0.3260;  // for Lowpass filter velocity
+    tapsVel0IIR[1] =  0.3481;
+    tapsVel0IIR[2] =  0.3260;
+    tapsVel0IIR[3] =  1.0000;
+    tapsVel0IIR[4] =  0.0000;
+    tapsVel0IIR[5] =  0.0000;
+
+    tapsVel1IIR[0] =  0.3260; 
+    tapsVel1IIR[1] =  0.3481;
+    tapsVel1IIR[2] =  0.3260;
     tapsVel1IIR[3] =  1.0000;
-    tapsVel1IIR[4] = -1.7347;
-    tapsVel1IIR[5] =  0.7660;
+    tapsVel1IIR[4] =  0.0000;
+    tapsVel1IIR[5] =  0.0000;
 
     ippsIIRInitAlloc_32f(&pIIRStateVel0, tapsVel0IIR, lenFilterVel_IIR, dlysVel0IIR);
     ippsIIRInitAlloc_32f(&pIIRStateVel1, tapsVel1IIR, lenFilterVel_IIR, dlysVel1IIR);
@@ -920,25 +972,25 @@ void InitProgram()
     InitMotor(&gCurrMotorState);
 
 }
-
-inline void LogData( void)
-{   
-    // Approximately 100 Hz Recording
-    double actualTime;
-    QueryPerformanceCounter(&gCurrentTick);
-    actualTime = gCurrentTick.QuadPart - gInitTick.QuadPart;
-    actualTime /= gClkFrequency.QuadPart;
-    if (gIsRecording)
-    {   
-        fprintf(gDataFile,"%.3lf\t",actualTime );																	
-
-        fprintf(gDataFile,"%f\t%f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gSpikeCountBic, gSpikeCountTri);			
-        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t%f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri, gMusDamp, -gAuxvar[2]);			
-        fprintf(gDataFile,"\n");
-
-    }
-}
+//
+//inline void LogData( void)
+//{   
+//    // Approximately 100 Hz Recording
+//    double actualTime;
+//    QueryPerformanceCounter(&gCurrentTick);
+//    actualTime = gCurrentTick.QuadPart - gInitTick.QuadPart;
+//    actualTime /= gClkFrequency.QuadPart;
+//    if (gIsRecording)
+//    {   
+//        fprintf(gDataFile,"%.3lf\t",actualTime );																	
+//
+//        fprintf(gDataFile,"%f\t%f\t", gCtrlFromFPGA[0], gCtrlFromFPGA[1]);			
+//        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%u\t%u\t", gEmgBic, gEmgTri, gMuscleLce[0], gMuscleLce[1], gSpikeCountBic, gSpikeCountTri);			
+//        fprintf(gDataFile,"%f\t%f\t%f\t%f\t%f\t%f\t", gSpindleIaBic, gSpindleIaTri, gSpindleIIBic, gSpindleIITri, gMusDamp, -gAuxvar[2]);			
+//        fprintf(gDataFile,"\n");
+//
+//    }
+//}
 
 
 void ExitProgram();
@@ -1018,6 +1070,8 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     int ctrl_handle_bic = pthread_create(&gThreads[1], NULL, ControlLoopBic,	(void *)gAuxvar);
     int ctrl_handle_tri = pthread_create(&gThreads[2], NULL, ControlLoopTri,	(void *)gAuxvar);
     int ctrl_handle_trial = pthread_create(&gThreads[3], NULL, TrialLoop,       (void *)gAuxvar);
+    int spindle_bic = pthread_create(&gThreads[4], NULL, SpindleLoopBic,	(void *)gAuxvar);
+    int spindle_tri = pthread_create(&gThreads[5], NULL, SpindleLoopTri,	(void *)gAuxvar);
 
 
     gBar = TwNewBar("TweakBar");

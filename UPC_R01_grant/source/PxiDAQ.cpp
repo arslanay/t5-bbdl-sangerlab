@@ -8,7 +8,8 @@
 #define		DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 //#define     USING_SMOOTH
 //#define     USING_IPP_VEL_IIR
-#define     USING_IPP_FR
+#define     USING_IPP_POS_IIR
+//#define     USING_IPP_FR
 
 int const ORDER_LOWPASS = 2;
 
@@ -248,11 +249,16 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         gEncoderCount[0] = 0.0; 
         gEncoderCount[1] = 0.0;
         
-        gMuscleLce[0] = min(max(-gLenScale[0] * (-gAuxvar[2] - gEncoderCount[0] + gLenOrig[0])  + gDeltaLen + 1.0, 0.2), 2.0);
-        gMuscleLce[1] = min(max(-gLenScale[1] * (-gAuxvar[2+NUM_AUXVAR] - gEncoderCount[1] + gLenOrig[1]) - gDeltaLen + 1.0, 0.2), 2.0);
-        //float32 residuleMuscleLce = (2.02 - gMuscleLce[0] - gMuscleLce[1]) / 2.0;
-        //gMuscleLce[0] += residuleMuscleLce;
-        //gMuscleLce[1] += residuleMuscleLce;
+        float muscleLce0;
+        float muscleLce1;
+        
+        //gMuscleLce[0] = min(max(-gLenScale[0] * (-gAuxvar[2] - gEncoderCount[0] + gLenOrig[0])  + gDeltaLen + 1.0, 0.2), 2.0);
+        //gMuscleLce[1] = min(max(-gLenScale[1] * (-gAuxvar[2+NUM_AUXVAR] - gEncoderCount[1] + gLenOrig[1]) - gDeltaLen + 1.0, 0.2), 2.0);
+
+        muscleLce0 = min(max(-gLenScale[0] * (-gAuxvar[2] - gEncoderCount[0] + gLenOrig[0])  + gDeltaLen + 1.0, 0.2), 2.0);
+        muscleLce1 = min(max(-gLenScale[1] * (-gAuxvar[2+NUM_AUXVAR] - gEncoderCount[1] + gLenOrig[1]) - gDeltaLen + 1.0, 0.2), 2.0);
+
+
         if ((0.0 == gMuscleLce[0]) || (0.0 == gMuscleLce[1]))
         {
             gMuscleLce[0] = 1.01;
@@ -283,6 +289,20 @@ int32 CVICALLBACK UpdatePxiData(TaskHandle taskHandleDAQmx, int32 signalID, void
         // Convert encoderTicks/sec to L0/sec
         float muscleVel0;
         float muscleVel1;
+
+
+#ifdef  USING_IPP_POS_IIR
+        //ippsFIROne_32f(dEncoderCounts0, &muscleVel0, pFIRState0);
+        //ippsFIROne_32f(dEncoderCounts1, &muscleVel1, pFIRState1);
+        ippsIIROne_32f(muscleLce0, &gMuscleLce[0], pIIRStateVel0);
+        ippsIIROne_32f(muscleLce1, &gMuscleLce[1], pIIRStateVel1);
+        //muscleVel0*=(-gLenScale[0]) * 1000.0f;
+        //muscleVel1*=(-gLenScale[1]) * 1000.0f;
+#else
+        gMuscleLce[0] = muscleLce0;
+        gMuscleLce[1] = muscleLce1;
+#endif
+
 
 #ifdef  USING_IPP_VEL_IIR
         //ippsFIROne_32f(dEncoderCounts0, &muscleVel0, pFIRState0);

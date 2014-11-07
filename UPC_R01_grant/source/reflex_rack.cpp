@@ -1,4 +1,5 @@
 
+#define    SWEEP_GAMMA_DYN
 
 #include "UdpClient.h"
 #include <iostream>
@@ -107,7 +108,7 @@ private:
 TimeData		    gTimeData;
 DataLogger		gDataLogger = DataLogger(
     3,		// 100 Hz Recording
-    "C:\\data\\%s_fpga",
+    "C:\\data\\%s\.dev_fpga\.txt",
     "time,ctrlFpga0,ctrlFpga1,emg0,emg1,musLce0,musLce1,spkCnt0,spkCnt1,spinIa0,spinIa1,spinII0,spinII1,musDamp\n"
     );
 
@@ -129,7 +130,7 @@ float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
 float32                 gGammaDyn = 0.0;
 float32                 gGammaSta = 0.0;
 
-const float             gGain = 0.2 / 1000.0; //0.4/2000.0 as the safe value
+const float             gGain = 0.8 / 1000.0; //0.4/2000.0 as the safe value
 //const float             gGain = 0.1 / 1000.0; //0.4/2000.0 as the safe value
 // 
 
@@ -192,6 +193,20 @@ float32         gSpindleIIBic;
 float32         gSpindleIaTri;
 float32         gSpindleIITri;
 
+//Paradigm
+float32 gLowerGammaDyn = 0;
+float32 gLowerGammaSta = 40;
+float32 gDynStep = 20;
+float32 gStaStep = 0;
+int gLevelsGammaDyn = 11;
+int gLevelsGammaSta = 1;
+int gNumRepetition = 1;
+
+//Memory of trial state
+int gammaDynState = 0;
+int gammaStaState = 0;
+int repState = 0;
+
 
 void ledIndicator ( float w, float h );
 
@@ -232,7 +247,8 @@ void display ( void )   // Create The Display Function
 
     // gMyGraph->update( 10.0 * gAuxvar[0] );
     //  gMyGraph->update( gMuscleVel[0] );
-    gMyGraph->update( gCtrlFromFPGA[1] );
+    //gMyGraph->update( gCtrlFromFPGA[1] );
+    gMyGraph->update( gMuscleEMG[1] * 20 );
 
     gMyGraph->draw();
 
@@ -392,6 +408,26 @@ void CreateNewDataLog()
         }
 }
 
+void CreateNewDataLogParadigm(float32 gammaDyn, float32 gammaSta, int rep)
+{
+    if(countNameSendEvent == 0) {
+            time_t rawtime;
+            struct tm *timeinfo;
+            time(&rawtime);
+            timeinfo = localtime(&rawtime);
+            sprintf_s(
+                gTimeStampSend,
+                "expt_rampnhold.gd_%0.0f.gs_%0.0f.rep_%00d",
+                gammaDyn,
+                gammaSta,
+                rep
+                );
+            gDataLogger.setFileName(gTimeStampSend);
+            gUdpClient.sendMessageToServer(gTimeStampSend);
+            countNameSendEvent++;
+        }
+}
+
 void StartRecording()
 {
     gTimeData.resetTimer();
@@ -527,61 +563,90 @@ int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
     return 0;
 }
 
+
+
 void* TrialLoop(void*)
 {
-    float32 valDyn = 0;
-    float32 valSta = 40;
-    int i = 0;
+    
     SwitchToKinematicPerturbation();
+    
     while(1)
-    {    
+    {   
         Sleep(10);
-        if(gCurrMotorState == MOTOR_STATE_RUN_PARADIGM && valDyn <= 200) 
+        /*gLowerGammaDyn = 0;
+        gLowerGammaSta = 40;
+        gDynStep = 20;
+        gStaStep = 0;
+        gLevelsGammaDyn = 11;
+        gLevelsGammaSta = 1;
+        gNumRepetition = 1;*/
+        float32 valDyn = gLowerGammaDyn;
+        float32 valSta = gLowerGammaSta;
+        
+        if(gCurrMotorState == MOTOR_STATE_RUN_PARADIGM) 
         {
-           
-            gGammaDyn = valDyn;
-            gGammaSta = valSta;
-            SendGammaTemp(valDyn, valSta);
-            Rezero();
-            Sleep(10);
-            Rezero();
-            Sleep(10);
-            Rezero();
-            Sleep(300);
-            CreateNewDataLog();
-            Sleep(100);
-            StartRecording();
-            Rezero();
-            Sleep(50);
-            Rezero();
-            Sleep(50);
-            Rezero();
-            Sleep(50);
-            Rezero();
-            Sleep(50);
-            Rezero();
-            Sleep(50);
-            Rezero();
-            Sleep(50);
-            Rezero();
-            Sleep(50);
-            Rezero();
-            Sleep(50);
-            Rezero();
-            Sleep(200);
-            Perturb();
-            Sleep(4000);
-            TerminateTrial();
-            Sleep(100);
-            //valDyn += 20;
-            i++;
-            if(i > 0)
+            for(int i = 0; i < gLevelsGammaDyn && gCurrMotorState == MOTOR_STATE_RUN_PARADIGM; i++)
             {
-                valDyn += 20;
-                i = 0;
+                gammaDynState = i;
+                for(int j = 0; j < gLevelsGammaSta && gCurrMotorState == MOTOR_STATE_RUN_PARADIGM; j++)
+                {
+                    gammaStaState = j;
+                    for(int k = 0; k < gNumRepetition && gCurrMotorState == MOTOR_STATE_RUN_PARADIGM; k++)
+                    {
+                        repState = k;
+                        printf("%d  %d\n%f  %f\n",i,j,valDyn,valSta);
+                        gGammaDyn = valDyn;
+                        gGammaSta = valSta;
+                        SendGammaTemp(valDyn, valSta);
+                        Rezero();
+                        Sleep(10);
+                        Rezero();
+                        Sleep(10);
+                        Rezero();
+                        Sleep(300);
+                        CreateNewDataLogParadigm(gGammaDyn,gGammaSta,k);
+                        Sleep(100);
+                        StartRecording();
+                        Rezero();
+                        Sleep(50);
+                        Rezero();
+                        Sleep(50);
+                        Rezero();
+                        Sleep(50);
+                        Rezero();
+                        Sleep(50);
+                        Rezero();
+                        Sleep(50);
+                        Rezero();
+                        Sleep(50);
+                        Rezero();
+                        Sleep(50);
+                        Rezero();
+                        Sleep(50);
+                        Rezero();
+                        Sleep(200);
+                        Perturb();
+                        Sleep(4000);
+                        TerminateTrial();
+                        Sleep(100);
+
+                        valSta += gStaStep;
+                    }
+                }
+                valSta = gLowerGammaSta;
+                valDyn += gDynStep;
             }
-            
+            if(gCurrMotorState == MOTOR_STATE_RUN_PARADIGM)
+            {
+                ProceedFSM(&gCurrMotorState);
+            }
+            else
+            {
+                valSta -= gStaStep;
+                valDyn -= gDynStep;
+            }
         }
+
     }
     return 0;
 }
@@ -697,8 +762,8 @@ void* ControlLoopBic(void*)
        
         const float tBias = 0.0;
         float tCtrl = (gForceBic - tBias) * gGain;
-        //gCtrlFromFPGA[0] = (tCtrl >= 0.0) ? tCtrl : 0.0;
-        gCtrlFromFPGA[0] = 2.0;
+        gCtrlFromFPGA[0] = (tCtrl >= 0.0) ? tCtrl : 0.0;
+        //gCtrlFromFPGA[0] = 2.0;
         
         //Sleep(1);
         if(_kbhit()) break;
@@ -748,8 +813,8 @@ void* ControlLoopTri(void*)
 
         const float tBias = 0.0;//9000000.0;  
         float tCtrl = (gForceTri - tBias) * gGain;
-        //gCtrlFromFPGA[1] = (tCtrl >= 0.0) ? tCtrl : 0.0;
-        gCtrlFromFPGA[1] = 2.0;
+        gCtrlFromFPGA[1] = (tCtrl >= 0.0) ? tCtrl : 0.0;
+        //gCtrlFromFPGA[1] = 2.0;
 
         
         //Sleep(1);
@@ -889,19 +954,24 @@ void InitProgram()
     //tapsVel1IIR[5] =  0.7660;
 
     
-    tapsVel0IIR[0] =  0.3260;  // for Lowpass filter velocity
-    tapsVel0IIR[1] =  0.3481;
-    tapsVel0IIR[2] =  0.3260;
-    tapsVel0IIR[3] =  1.0000;
-    tapsVel0IIR[4] =  0.0000;
-    tapsVel0IIR[5] =  0.0000;
+    tapsVel0IIR[0] =  0.24212;  // for Lowpass filter velocity
+    tapsVel0IIR[1] =  0.25788;
+    tapsVel0IIR[2] =  0.25788;
+    tapsVel0IIR[3] =  0.24212;
+    tapsVel0IIR[4] =  1.00000;
+    tapsVel0IIR[5] =  0.00000;
+    tapsVel0IIR[6] =  0.00000;
+    tapsVel0IIR[7] =  0.00000;
 
-    tapsVel1IIR[0] =  0.3260; 
-    tapsVel1IIR[1] =  0.3481;
-    tapsVel1IIR[2] =  0.3260;
-    tapsVel1IIR[3] =  1.0000;
-    tapsVel1IIR[4] =  0.0000;
-    tapsVel1IIR[5] =  0.0000;
+    tapsVel1IIR[0] =  0.24212;  // for Lowpass filter velocity
+    tapsVel1IIR[1] =  0.25788;
+    tapsVel1IIR[2] =  0.25788;
+    tapsVel1IIR[3] =  0.24212;
+    tapsVel1IIR[4] =  1.00000;
+    tapsVel1IIR[5] =  0.00000;
+    tapsVel1IIR[6] =  0.00000;
+    tapsVel1IIR[7] =  0.00000;
+
 
     ippsIIRInitAlloc_32f(&pIIRStateVel0, tapsVel0IIR, lenFilterVel_IIR, dlysVel0IIR);
     ippsIIRInitAlloc_32f(&pIIRStateVel1, tapsVel1IIR, lenFilterVel_IIR, dlysVel1IIR);
@@ -1087,6 +1157,21 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     TwAddVarRW(gBar, "GammaSta", TW_TYPE_FLOAT, &gGammaSta, 
         " min=0.00 max=400.00 step=10 ");
 
+
+    TwAddVarRW(gBar, "GammaDynLower", TW_TYPE_FLOAT, &gLowerGammaDyn, 
+        " min=0.00 max=400.00 step=10 ");
+    TwAddVarRW(gBar, "GammaDynStep", TW_TYPE_FLOAT, &gDynStep, 
+        " min=0.00 max=400.00 step=10 ");
+    TwAddVarRW(gBar, "GammaDynNumLevels", TW_TYPE_INT32, &gLevelsGammaDyn, 
+        " min=1.00 max=400.00 step=1 ");
+    TwAddVarRW(gBar, "GammaStaLower", TW_TYPE_FLOAT, &gLowerGammaSta, 
+        " min=0.00 max=400.00 step=10 ");
+    TwAddVarRW(gBar, "GammaStaStep", TW_TYPE_FLOAT, &gStaStep, 
+        " min=0.00 max=400.00 step=10 ");
+    TwAddVarRW(gBar, "GammaStaNumLevels", TW_TYPE_INT32, &gLevelsGammaSta, 
+        " min=1.00 max=400.00 step=1 ");
+    TwAddVarRW(gBar, "NumRepetitions", TW_TYPE_INT32, &gNumRepetition, 
+        " min=1.00 max=400.00 step=1 ");
     
     TwAddButton(gBar, "GammaBoth", SendGamma, NULL, " label='Set Gammas' ");
 

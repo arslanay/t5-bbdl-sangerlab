@@ -1,5 +1,5 @@
 
-#define    SWEEP_GAMMA_DYN
+#define    FAST_PERTURBATION
 
 #include "UdpClient.h"
 #include <iostream>
@@ -16,8 +16,8 @@ using namespace std;
 /*
 Name:			reflex_single_muscle    
 Authors:			
-	C. Minos Niu   minos.niu AT sangerlab.net 
-	John Rocamora    johnrocamora AT gmail.com
+C. Minos Niu   minos.niu AT sangerlab.net 
+John Rocamora    johnrocamora AT gmail.com
 */
 
 #include	<math.h>
@@ -43,25 +43,25 @@ Authors:
 
 class TimeData
 {
-	//+++ Add status string to send to console
-	// or other debugging output
+    //+++ Add status string to send to console
+    // or other debugging output
 
-	LARGE_INTEGER initialTick, currentTick, frequency;
+    LARGE_INTEGER initialTick, currentTick, frequency;
 
 public:
-	double actualTime;
+    double actualTime;
 
-	// Initialize tick and frequency
-	TimeData(void);	
+    // Initialize tick and frequency
+    TimeData(void);	
 
-	// Generate status exit string
-	~TimeData(void);
+    // Generate status exit string
+    ~TimeData(void);
 
-	// Resets the timer
-	int resetTimer();
+    // Resets the timer
+    int resetTimer();
 
-	//Get current time in seconds
-	double getCurrentTime(void);
+    //Get current time in seconds
+    double getCurrentTime(void);
 };
 
 
@@ -120,7 +120,7 @@ pthread_mutex_t         gMutex;
 TaskHandle              gEnableHandle, gForceReadTaskHandle, gAOTaskHandle, gEncoderHandle[NUM_MOTOR];
 float                   gLenOrig[NUM_MOTOR], gLenScale[NUM_MOTOR], gMuscleLce[NUM_MOTOR], gMuscleVel[NUM_MOTOR];
 bool                    gResetSim=false, gIsKinematic = false,
-                        gIsPerturbing = false, gIsRecording=false, gResetGlobal=false, gIsP2pMoving=false;
+    gIsPerturbing = false, gIsRecording=false, gResetGlobal=false, gIsP2pMoving=false;
 float                   gP2pIndex = 0.0f, gDeltaLen = 0.0f;
 LARGE_INTEGER           gInitTick, gCurrentTick, gClkFrequency;
 FILE                    *gDataFile, *gConfigFile;
@@ -130,7 +130,7 @@ float64                 gMotorCmd[NUM_MOTOR]={0.0, 0.0};
 float32                 gGammaDyn = 0.0;
 float32                 gGammaSta = 0.0;
 
-const float             gGain = 0.8 / 1000.0; //0.4/2000.0 as the safe value
+const float             gGain = 0.1 / 1000.0; //0.4/2000.0 as the safe value
 //const float             gGain = 0.1 / 1000.0; //0.4/2000.0 as the safe value
 // 
 
@@ -152,11 +152,11 @@ char                    gLceLabel2[60];
 char                    gTimeStamp[200];
 char                    gTimeStampSend[200];
 char                    gStateLabel[6][30] = {  "MOTOR_STATE_INIT",
-                                                "MOTOR_STATE_WINDING_UP",
-                                                "MOTOR_STATE_OPEN_LOOP",
-                                                "MOTOR_STATE_CLOSED_LOOP",
-                                                "MOTOR_STATE_RUN_PARADIGM",
-                                                "MOTOR_STATE_SHUTTING_DOWN"};
+    "MOTOR_STATE_WINDING_UP",
+    "MOTOR_STATE_OPEN_LOOP",
+    "MOTOR_STATE_CLOSED_LOOP",
+    "MOTOR_STATE_RUN_PARADIGM",
+    "MOTOR_STATE_SHUTTING_DOWN"};
 //IPP
 Ipp32f *taps0;
 Ipp32f *taps1;
@@ -201,6 +201,9 @@ float32 gStaStep = 0;
 int gLevelsGammaDyn = 11;
 int gLevelsGammaSta = 1;
 int gNumRepetition = 1;
+
+int gExperimentNum = 0;
+int numTrials = 0;
 
 //Memory of trial state
 int gammaDynState = 0;
@@ -388,67 +391,67 @@ void SwitchToKinematicPerturbation()
 void CreateNewDataLog()
 {
     if(countNameSendEvent == 0) {
-            time_t rawtime;
-            struct tm *timeinfo;
-            time(&rawtime);
-            timeinfo = localtime(&rawtime);
-            sprintf_s(
-                gTimeStampSend,
-                "%4d%02d%02d%02d%02d%02d",
-                timeinfo->tm_year+1900, 
-                timeinfo->tm_mon+1, 
-                timeinfo->tm_mday, 
-                timeinfo->tm_hour, 
-                timeinfo->tm_min, 
-                timeinfo->tm_sec
-                );
-            gDataLogger.setFileName(gTimeStampSend);
-            gUdpClient.sendMessageToServer(gTimeStampSend);
-            countNameSendEvent++;
-        }
+        time_t rawtime;
+        struct tm *timeinfo;
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+        sprintf_s(
+            gTimeStampSend,
+            "%4d%02d%02d%02d%02d%02d",
+            timeinfo->tm_year+1900, 
+            timeinfo->tm_mon+1, 
+            timeinfo->tm_mday, 
+            timeinfo->tm_hour, 
+            timeinfo->tm_min, 
+            timeinfo->tm_sec
+            );
+        gDataLogger.setFileName(gTimeStampSend);
+        gUdpClient.sendMessageToServer(gTimeStampSend);
+        countNameSendEvent++;
+    }
 }
 
 void CreateNewDataLogParadigm(float32 gammaDyn, float32 gammaSta, int rep)
 {
     if(countNameSendEvent == 0) {
-            time_t rawtime;
-            struct tm *timeinfo;
-            time(&rawtime);
-            timeinfo = localtime(&rawtime);
-            sprintf_s(
-                gTimeStampSend,
-                "expt_rampnhold.gd_%0.0f.gs_%0.0f.rep_%00d",
-                gammaDyn,
-                gammaSta,
-                rep
-                );
-            gDataLogger.setFileName(gTimeStampSend);
-            gUdpClient.sendMessageToServer(gTimeStampSend);
-            countNameSendEvent++;
-        }
+        time_t rawtime;
+        struct tm *timeinfo;
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+        sprintf_s(
+            gTimeStampSend,
+            "expt_rampnhold.gd_%0.0f.gs_%0.0f.rep_%00d",
+            gammaDyn,
+            gammaSta,
+            rep
+            );
+        gDataLogger.setFileName(gTimeStampSend);
+        gUdpClient.sendMessageToServer(gTimeStampSend);
+        countNameSendEvent++;
+    }
 }
 
 void StartRecording()
 {
     gTimeData.resetTimer();
-	gIsRecording = true;
-	gDataLogger.startRecording();
-	gUdpClient.sendMessageToServer("RRR");
+    gIsRecording = true;
+    gDataLogger.startRecording();
+    gUdpClient.sendMessageToServer("RRR");
 }
 
 void Perturb()
 {
     if(!gIsPerturbing) {
-            gIsPerturbing = true;
-            gUdpClient.sendMessageToServer("PPP");
-        }
+        gIsPerturbing = true;
+        gUdpClient.sendMessageToServer("PPP");
+    }
 }
 void TerminateTrial()
 {
     gIsRecording = false;
     gIsPerturbing = false;
     gUdpClient.sendMessageToServer("TTT");
-	gDataLogger.closeRecordingFile();
+    gDataLogger.closeRecordingFile();
     countNameSendEvent = 0;
 }
 void Rezero()
@@ -499,8 +502,8 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
         break;
     case 'R':       //Winding up
     case 'r':
-	    StartRecording();
-	
+        StartRecording();
+
         break;
     case '9':       //Reset GLOBAL
         if(!gResetGlobal)
@@ -563,93 +566,184 @@ int WriteFPGA(okCFrontPanel *xem, int32 bitVal, int32 trigEvent)
     return 0;
 }
 
-
-
 void* TrialLoop(void*)
 {
-    
+    FILE *configFile;
+   
+    int rep;
+    double gammaDyn[5000];
+    double gammaSta[5000];
+    char *header;
+
+    configFile = fopen("rampnhold.txt","r");
+    fscanf(configFile,"%s\n",&header);  
+    fscanf(configFile,"%d\n",&numTrials);
+    fscanf(configFile,"%d\n",&rep);
+
+    for(int i = 0; i < numTrials; i++){
+        fscanf(configFile,"%lf,%lf\n",&gammaDyn[i],&gammaSta[i]);
+    }
+
+    fclose(configFile);
+
     SwitchToKinematicPerturbation();
-    
+
     while(1)
     {   
         Sleep(10);
-        /*gLowerGammaDyn = 0;
-        gLowerGammaSta = 40;
-        gDynStep = 20;
-        gStaStep = 0;
-        gLevelsGammaDyn = 11;
-        gLevelsGammaSta = 1;
-        gNumRepetition = 1;*/
+
         float32 valDyn = gLowerGammaDyn;
         float32 valSta = gLowerGammaSta;
-        
+
         if(gCurrMotorState == MOTOR_STATE_RUN_PARADIGM) 
         {
-            for(int i = 0; i < gLevelsGammaDyn && gCurrMotorState == MOTOR_STATE_RUN_PARADIGM; i++)
+            for(int i = gExperimentNum-1; i < numTrials && gCurrMotorState == MOTOR_STATE_RUN_PARADIGM; i++)
             {
-                gammaDynState = i;
-                for(int j = 0; j < gLevelsGammaSta && gCurrMotorState == MOTOR_STATE_RUN_PARADIGM; j++)
+                valDyn = (float32)gammaDyn[i];
+                valSta = (float32)gammaSta[i];
+                for(int j = 0; j < rep && gCurrMotorState == MOTOR_STATE_RUN_PARADIGM; j++)
                 {
-                    gammaStaState = j;
-                    for(int k = 0; k < gNumRepetition && gCurrMotorState == MOTOR_STATE_RUN_PARADIGM; k++)
-                    {
-                        repState = k;
-                        printf("%d  %d\n%f  %f\n",i,j,valDyn,valSta);
-                        gGammaDyn = valDyn;
-                        gGammaSta = valSta;
-                        SendGammaTemp(valDyn, valSta);
-                        Rezero();
-                        Sleep(10);
-                        Rezero();
-                        Sleep(10);
-                        Rezero();
-                        Sleep(300);
-                        CreateNewDataLogParadigm(gGammaDyn,gGammaSta,k);
-                        Sleep(100);
-                        StartRecording();
-                        Rezero();
-                        Sleep(50);
-                        Rezero();
-                        Sleep(50);
-                        Rezero();
-                        Sleep(50);
-                        Rezero();
-                        Sleep(50);
-                        Rezero();
-                        Sleep(50);
-                        Rezero();
-                        Sleep(50);
-                        Rezero();
-                        Sleep(50);
-                        Rezero();
-                        Sleep(50);
-                        Rezero();
-                        Sleep(200);
-                        Perturb();
-                        Sleep(4000);
-                        TerminateTrial();
-                        Sleep(100);
-
-                        valSta += gStaStep;
-                    }
+                    gGammaDyn = valDyn;
+                    gGammaSta = valSta;
+                    SendGammaTemp(valDyn, valSta);
+                    Rezero();
+                    Sleep(10);
+                    Rezero();
+                    Sleep(10);
+                    Rezero();
+                    Sleep(300);
+                    CreateNewDataLogParadigm(gGammaDyn,gGammaSta,j);
+                    Sleep(100);
+                    StartRecording();
+                    Rezero();
+                    Sleep(50);
+                    Rezero();
+                    Sleep(50);
+                    Rezero();
+                    Sleep(50);
+                    Rezero();
+                    Sleep(50);
+                    Rezero();
+                    Sleep(50);
+                    Rezero();
+                    Sleep(50);
+                    Rezero();
+                    Sleep(50);
+                    Rezero();
+                    Sleep(50);
+                    Rezero();
+                    Sleep(200);
+                    Perturb();
+#ifdef FAST_PERTURBATION
+                    Sleep(4000);
+#else
+                    Sleep(8000);
+#endif
+                    TerminateTrial();
+                    Sleep(100);
                 }
-                valSta = gLowerGammaSta;
-                valDyn += gDynStep;
             }
             if(gCurrMotorState == MOTOR_STATE_RUN_PARADIGM)
             {
                 ProceedFSM(&gCurrMotorState);
             }
-            else
-            {
-                valSta -= gStaStep;
-                valDyn -= gDynStep;
-            }
         }
 
     }
     return 0;
+
 }
+
+
+//void* TrialLoop(void*)
+//{
+//    
+//    SwitchToKinematicPerturbation();
+//    
+//    while(1)
+//    {   
+//        Sleep(10);
+//        /*gLowerGammaDyn = 0;
+//        gLowerGammaSta = 40;
+//        gDynStep = 20;
+//        gStaStep = 0;
+//        gLevelsGammaDyn = 11;
+//        gLevelsGammaSta = 1;
+//        gNumRepetition = 1;*/
+//        float32 valDyn = gLowerGammaDyn;
+//        float32 valSta = gLowerGammaSta;
+//        
+//        if(gCurrMotorState == MOTOR_STATE_RUN_PARADIGM) 
+//        {
+//            for(int i = 0; i < gLevelsGammaDyn && gCurrMotorState == MOTOR_STATE_RUN_PARADIGM; i++)
+//            {
+//                gammaDynState = i;
+//                for(int j = 0; j < gLevelsGammaSta && gCurrMotorState == MOTOR_STATE_RUN_PARADIGM; j++)
+//                {
+//                    gammaStaState = j;
+//                    for(int k = 0; k < gNumRepetition && gCurrMotorState == MOTOR_STATE_RUN_PARADIGM; k++)
+//                    {
+//                        repState = k;
+//                        //printf("%d  %d\n%f  %f\n",i,j,valDyn,valSta);
+//                        gGammaDyn = valDyn;
+//                        gGammaSta = valSta;
+//                        SendGammaTemp(valDyn, valSta);
+//                        Rezero();
+//                        Sleep(10);
+//                        Rezero();
+//                        Sleep(10);
+//                        Rezero();
+//                        Sleep(300);
+//                        CreateNewDataLogParadigm(gGammaDyn,gGammaSta,k);
+//                        Sleep(100);
+//                        StartRecording();
+//                        Rezero();
+//                        Sleep(50);
+//                        Rezero();
+//                        Sleep(50);
+//                        Rezero();
+//                        Sleep(50);
+//                        Rezero();
+//                        Sleep(50);
+//                        Rezero();
+//                        Sleep(50);
+//                        Rezero();
+//                        Sleep(50);
+//                        Rezero();
+//                        Sleep(50);
+//                        Rezero();
+//                        Sleep(50);
+//                        Rezero();
+//                        Sleep(200);
+//                        Perturb();
+//#ifdef FAST_PERTURBATION
+//                        Sleep(4000);
+//#else
+//                        Sleep(8000);
+//#endif
+//                        TerminateTrial();
+//                        Sleep(100);
+//
+//                        valSta += gStaStep;
+//                    }
+//                }
+//                valSta = gLowerGammaSta;
+//                valDyn += gDynStep;
+//            }
+//            if(gCurrMotorState == MOTOR_STATE_RUN_PARADIGM)
+//            {
+//                ProceedFSM(&gCurrMotorState);
+//            }
+//            else
+//            {
+//                valSta -= gStaStep;
+//                valDyn -= gDynStep;
+//            }
+//        }
+//
+//    }
+//    return 0;
+//}
 
 void* SpindleLoopBic(void*)
 {
@@ -661,8 +755,8 @@ void* SpindleLoopBic(void*)
         }
 
         if ((MOTOR_STATE_RUN_PARADIGM != gCurrMotorState) && (MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
-   
-        
+
+
         //*** Read from FPGA
         gXemSpindleBic->ReadFpga(0x22, "float32", &gSpindleIaBic);
         //gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIIBic);        
@@ -689,8 +783,8 @@ void* SpindleLoopTri(void*)
         }
 
         if ((MOTOR_STATE_RUN_PARADIGM != gCurrMotorState) && (MOTOR_STATE_CLOSED_LOOP != gCurrMotorState) && (MOTOR_STATE_OPEN_LOOP != gCurrMotorState)) continue;
-   
-        
+
+
         //*** Read from FPGA
         gXemSpindleTri->ReadFpga(0x22, "float32", &gSpindleIaTri);
         //gXemSpindleBic->ReadFpga(0x24, "float32", &gSpindleIIBic);        
@@ -751,7 +845,7 @@ void* ControlLoopBic(void*)
             bitM1DystoniaBic = 000;
 
         ReInterpret((float32)(gMusDamp * gMuscleVel[0]), &bitValVel);
-        
+
         //*** Read from FPGA
         gXemMuscleBic->ReadFpga(0x32, "float32", &gForceBic);
 
@@ -759,12 +853,12 @@ void* ControlLoopBic(void*)
         //*** Write back to Muscle_fpga
         ReInterpret((float32)(gMuscleLce[0]), &bitValLce);
         gXemMuscleBic->WriteFpgaLceVel(bitValLce, bitValVel, bitM1VoluntaryBic, bitM1DystoniaBic, DATA_EVT_LCEVEL);
-       
+
         const float tBias = 0.0;
         float tCtrl = (gForceBic - tBias) * gGain;
         gCtrlFromFPGA[0] = (tCtrl >= 0.0) ? tCtrl : 0.0;
         //gCtrlFromFPGA[0] = 2.0;
-        
+
         //Sleep(1);
         if(_kbhit()) break;
     } 
@@ -807,7 +901,7 @@ void* ControlLoopTri(void*)
 
         ReInterpret((float32)(gMuscleLce[1]), &bitValLce);
         ReInterpret((float32)(gMusDamp * gMuscleVel[1]), &bitValVel);
-        
+
         gXemMuscleTri->ReadFpga(0x32, "float32", &gForceTri);
         gXemMuscleTri->WriteFpgaLceVel(bitValLce, bitValVel, bitM1VoluntaryTri, bitM1DystoniaTri, DATA_EVT_LCEVEL);
 
@@ -816,7 +910,7 @@ void* ControlLoopTri(void*)
         gCtrlFromFPGA[1] = (tCtrl >= 0.0) ? tCtrl : 0.0;
         //gCtrlFromFPGA[1] = 2.0;
 
-        
+
         //Sleep(1);
         if(_kbhit()) break;
     } 
@@ -843,7 +937,7 @@ int InitFpga(okCFrontPanel *xem0)
 
     // Configure the PLL using default config
     xem0->LoadDefaultPLLConfiguration();
-	
+
     // Get some general information about the XEM.
     printf("Device firmware version: %d.%d\n", xem0->GetDeviceMajorVersion(), xem0->GetDeviceMinorVersion());
     printf("Device serial number: %s\n", xem0->GetSerialNumber().c_str());
@@ -953,7 +1047,7 @@ void InitProgram()
     //tapsVel1IIR[4] = -1.7347;
     //tapsVel1IIR[5] =  0.7660;
 
-    
+
     tapsVel0IIR[0] =  0.24212;  // for Lowpass filter velocity
     tapsVel0IIR[1] =  0.25788;
     tapsVel0IIR[2] =  0.25788;
@@ -1069,27 +1163,27 @@ void ExitProgram();
 void TW_CALL SendGamma(void * foo)
 { 
     int32 bitValGammaDyn, bitValGammaSta;
-    
+
     ReInterpret((float32)(gGammaDyn), &bitValGammaDyn);
     ReInterpret((float32)(gGammaSta), &bitValGammaSta);
     gXemSpindleBic->SendPara(bitValGammaDyn, DATA_EVT_GAMMA_DYN);
     gXemSpindleBic->SendPara(bitValGammaSta, DATA_EVT_GAMMA_STA);
     gXemSpindleTri->SendPara(bitValGammaDyn, DATA_EVT_GAMMA_DYN);
     gXemSpindleTri->SendPara(bitValGammaSta, DATA_EVT_GAMMA_STA);
-  
+
 }
 
 void SendGammaTemp(float32 valDyn, float32 valSta)
 { 
     int32 bitValGammaDyn, bitValGammaSta;
-    
+
     ReInterpret((float32)(valDyn), &bitValGammaDyn);
     ReInterpret((float32)(valSta), &bitValGammaSta);
     gXemSpindleBic->SendPara(bitValGammaDyn, DATA_EVT_GAMMA_DYN);
     gXemSpindleBic->SendPara(bitValGammaSta, DATA_EVT_GAMMA_STA);
     gXemSpindleTri->SendPara(bitValGammaDyn, DATA_EVT_GAMMA_DYN);
     gXemSpindleTri->SendPara(bitValGammaSta, DATA_EVT_GAMMA_STA);
-  
+
 }
 
 
@@ -1157,8 +1251,14 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     TwAddVarRW(gBar, "GammaSta", TW_TYPE_FLOAT, &gGammaSta, 
         " min=0.00 max=400.00 step=10 ");
 
+    Sleep(100);
+    char buffer[100];
+    sprintf(buffer," min=1.00 max=%d step=1 ",numTrials);
 
-    TwAddVarRW(gBar, "GammaDynLower", TW_TYPE_FLOAT, &gLowerGammaDyn, 
+    TwAddVarRW(gBar, "ExperimentNum", TW_TYPE_INT32, &gExperimentNum, buffer);
+
+
+    /*TwAddVarRW(gBar, "GammaDynLower", TW_TYPE_FLOAT, &gLowerGammaDyn, 
         " min=0.00 max=400.00 step=10 ");
     TwAddVarRW(gBar, "GammaDynStep", TW_TYPE_FLOAT, &gDynStep, 
         " min=0.00 max=400.00 step=10 ");
@@ -1171,8 +1271,8 @@ int main ( int argc, char** argv )   // Create Main Function For Bringing It All
     TwAddVarRW(gBar, "GammaStaNumLevels", TW_TYPE_INT32, &gLevelsGammaSta, 
         " min=1.00 max=400.00 step=1 ");
     TwAddVarRW(gBar, "NumRepetitions", TW_TYPE_INT32, &gNumRepetition, 
-        " min=1.00 max=400.00 step=1 ");
-    
+        " min=1.00 max=400.00 step=1 ");*/
+
     TwAddButton(gBar, "GammaBoth", SendGamma, NULL, " label='Set Gammas' ");
 
     glutMainLoop( );          // Initialize The Main Loop  
@@ -1358,8 +1458,8 @@ int DataLogger::setFileName(char *inFileName)
 
 TimeData::TimeData(void)
 {
-	QueryPerformanceFrequency(&frequency);
-	QueryPerformanceCounter(&initialTick);
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&initialTick);
 }
 
 
@@ -1370,16 +1470,16 @@ TimeData::~TimeData(void)
 // Reset the timer
 int TimeData::resetTimer(void)
 {
-	QueryPerformanceCounter(&initialTick);
-	return 0;
+    QueryPerformanceCounter(&initialTick);
+    return 0;
 }
 
 
 // Get current time in seconds
 double TimeData::getCurrentTime(void)
 {
-	QueryPerformanceCounter(&currentTick);
-	actualTime = (double)(currentTick.QuadPart - initialTick.QuadPart);
-	actualTime /= (double)frequency.QuadPart;
-	return actualTime;
+    QueryPerformanceCounter(&currentTick);
+    actualTime = (double)(currentTick.QuadPart - initialTick.QuadPart);
+    actualTime /= (double)frequency.QuadPart;
+    return actualTime;
 }

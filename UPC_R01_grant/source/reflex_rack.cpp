@@ -202,7 +202,7 @@ int gLevelsGammaDyn = 11;
 int gLevelsGammaSta = 1;
 int gNumRepetition = 1;
 
-int gExperimentNum = 0;
+int gExperimentNum = 1;
 int numTrials = 0;
 
 //Memory of trial state
@@ -570,18 +570,17 @@ void* TrialLoop(void*)
 {
     FILE *configFile;
    
-    int rep;
     double gammaDyn[5000];
     double gammaSta[5000];
+    int rep[5000];
     char *header;
 
     configFile = fopen("rampnhold.txt","r");
     fscanf(configFile,"%s\n",&header);  
     fscanf(configFile,"%d\n",&numTrials);
-    fscanf(configFile,"%d\n",&rep);
 
     for(int i = 0; i < numTrials; i++){
-        fscanf(configFile,"%lf,%lf\n",&gammaDyn[i],&gammaSta[i]);
+        fscanf(configFile,"%lf,%lf,%d\n",&gammaDyn[i],&gammaSta[i],&rep[i]);
     }
 
     fclose(configFile);
@@ -601,8 +600,7 @@ void* TrialLoop(void*)
             {
                 valDyn = (float32)gammaDyn[i];
                 valSta = (float32)gammaSta[i];
-                for(int j = 0; j < rep && gCurrMotorState == MOTOR_STATE_RUN_PARADIGM; j++)
-                {
+                
                     gGammaDyn = valDyn;
                     gGammaSta = valSta;
                     SendGammaTemp(valDyn, valSta);
@@ -612,7 +610,7 @@ void* TrialLoop(void*)
                     Sleep(10);
                     Rezero();
                     Sleep(300);
-                    CreateNewDataLogParadigm(gGammaDyn,gGammaSta,j);
+                    CreateNewDataLogParadigm(gGammaDyn,gGammaSta,rep[i]);
                     Sleep(100);
                     StartRecording();
                     Rezero();
@@ -641,7 +639,7 @@ void* TrialLoop(void*)
 #endif
                     TerminateTrial();
                     Sleep(100);
-                }
+                
             }
             if(gCurrMotorState == MOTOR_STATE_RUN_PARADIGM)
             {
